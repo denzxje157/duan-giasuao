@@ -1,0 +1,17 @@
+# Thư mục môi trường ảo và rác
+venv/
+__pycache__/
+*.pyc
+*.pyd
+*.dll
+*.lib
+
+# Cấu hình dự án
+.env
+.vercel
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log

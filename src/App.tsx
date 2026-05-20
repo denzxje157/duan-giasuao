@@ -1,0 +1,161 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import Login from './components/Login.tsx';
+import Dashboard from './components/Dashboard.tsx';
+import LandingPage from './components/LandingPage.tsx';
+import { User, Grade } from './types';
+import { supabase } from './lib/supabase';
+
+export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showLogin, setShowLogin] = useState(false);
+  const [previewGrade, setPreviewGrade] = useState<Grade | undefined>(undefined);
+
+  useEffect(() => {
+    // Check for saved user data
+    const savedUser = localStorage.getItem('virtual_tutor_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (user?.isGuest && user.guestStartTime) {
+      const MAX_GUEST_TIME = 3 * 60 * 1000; // 3 minutes
+      const checkSession = () => {
+        if (Date.now() - user.guestStartTime! >= MAX_GUEST_TIME) {
+          handleLogout();
+          setShowLogin(true);
+          alert('Thời gian học thử đã hết. Vui lòng đăng ký tài khoản để tiếp tục!');
+        }
+      };
+      // Check immediately
+      checkSession();
+      const interval = setInterval(checkSession, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  const handleLogin = (userData: { name: string; email: string; grade: Grade; role: 'student' | 'admin' }) => {
+    const newUser: User = { ...userData };
+    setUser(newUser);
+    localStorage.setItem('virtual_tutor_user', JSON.stringify(newUser));
+  };
+
+  const handleGuestLogin = () => {
+    const guestUser: User = {
+      name: 'Khách',
+      email: '',
+      grade: 12,
+      role: 'student',
+      isGuest: true,
+      guestStartTime: Date.now()
+    };
+    setUser(guestUser);
+    localStorage.setItem('virtual_tutor_user', JSON.stringify(guestUser));
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.warn("Supabase signout failed", e);
+    }
+    setUser(null);
+    setShowLogin(false);
+    localStorage.removeItem('virtual_tutor_user');
+  };
+
+  const handleGradeChange = (grade: Grade) => {
+    if (user) {
+      const updatedUser = { ...user, grade };
+      setUser(updatedUser);
+      localStorage.setItem('virtual_tutor_user', JSON.stringify(updatedUser));
+    }
+  };
+
+  const getThemeLevel = (grade?: Grade) => {
+    if (!grade) return 'high';
+    if (grade >= 1 && grade <= 5) return 'primary';
+    if (grade >= 6 && grade <= 9) return 'middle';
+    return 'high';
+  };
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-level', getThemeLevel(user ? user.grade : previewGrade));
+  }, [user?.grade, previewGrade]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#F5F5F0] flex items-center justify-center">
+        <motion.div 
+          animate={{ scale: [1, 1.1, 1], rotate: [0, 180, 360] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="w-12 h-12 border-4 border-[#5A5A40] border-t-transparent rounded-full shadow-xl"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="min-h-screen bg-[#F5F5F0] selection:bg-[#5A5A40] selection:text-white overflow-x-hidden"
+    >
+      <AnimatePresence mode="wait">
+        {!user ? (
+          showLogin ? (
+            <motion.div
+              key="login"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.4 }}
+            >
+              {/* Added a back button or way to return to landing? Login component usually takes full screen and could have a close button or we just wrap it with a back button. Let's just pass a prop if we want, or add a back button here */}
+              <div className="relative">
+                <button 
+                  onClick={() => setShowLogin(false)}
+                  className="absolute top-4 left-4 z-50 text-slate-500 hover:text-slate-800 font-medium text-sm flex items-center gap-1 bg-white/50 backdrop-blur px-3 py-1.5 rounded-full"
+                >
+                  &larr; Về trang chủ
+                </button>
+                <Login onLogin={handleLogin} onGradeSelect={setPreviewGrade} />
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="landing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <LandingPage onLoginClick={() => setShowLogin(true)} onGuestLogin={handleGuestLogin} />
+            </motion.div>
+          )
+        ) : (
+          <motion.div
+            key="dashboard"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <Dashboard 
+              user={user}
+              onLogout={handleLogout}
+              onGradeChange={handleGradeChange}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
