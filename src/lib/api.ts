@@ -4,7 +4,8 @@
  */
 
 // Base URL configuration
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+// In development use localhost; in production (Vercel) use relative `/api` path
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '/api');
 
 export interface ChatMessage {
   role: 'user' | 'model';

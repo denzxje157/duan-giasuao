@@ -18,9 +18,23 @@ from core_logic import (
 
 app = FastAPI(title="GiaSuAo API - Hệ thống Gia sư Thông minh")
 
+# Configure CORS: prefer explicit allowed origins from environment for production
+frontend_url = os.getenv("FRONTEND_URL")
+vercel_deploy = os.getenv("VERCEL_URL")
+
+allowed_origins = []
+if frontend_url:
+    allowed_origins.append(frontend_url)
+elif vercel_deploy:
+    # VERCEL_URL is like "my-project.vercel.app"; build full https URL
+    allowed_origins.append(f"https://{vercel_deploy}")
+else:
+    # Fallback to allow all during local development
+    allowed_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
