@@ -1,14 +1,30 @@
 import os
 import uuid
-import google.generativeai as genai
+import json
 from supabase import create_client
 from dotenv import load_dotenv
 
-# Import MinerU (Magic-PDF)
-from magic_pdf.pipe.tokendocs_api_doc_py_pdf_no_image import parse_pdf 
+# Prefer MarkItDown for direct PDF->Markdown conversion if available
+try:
+    from markitdown import MarkItDown
+    _MD_TOOL = MarkItDown()
+    _MD_AVAILABLE = True
+except Exception:
+    _MD_TOOL = None
+    _MD_AVAILABLE = False
 
-# PHẢI NẰM Ở ĐÂY để nạp link của Kiên trước khi tạo Client
-load_dotenv() 
+    # Try to import google-genai (or genai). If not present, set to None and
+    # let runtime code handle missing SDK gracefully.
+    try:
+        import google.genai as genai
+    except Exception:
+        try:
+            import genai
+        except Exception:
+            genai = None
+
+# Load env early
+load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -43,23 +59,81 @@ def get_all_keys():
             
     return keys
 
-def process_pdf_to_latex(file_bytes, mime_type):
-    """Sử dụng MinerU để chuyển đổi PDF thành Markdown/LaTeX chất lượng cao"""
-    # Tạo file tạm để MinerU đọc
+
+
+
+def process_pdf_to_markdown(file_bytes, mime_type="application/pdf"):
+    """Convert PDF bytes into Markdown.
+
+    Priority:
+      1. Use `markitdown` if available for higher-quality conversion.
+      2. Fallback to lightweight `pypdf` text extraction and simple Markdown formatting.
+    """
     temp_pdf_path = f"temp_{uuid.uuid4()}.pdf"
+    output_dir = f"temp_output_{uuid.uuid4()}"
     try:
         with open(temp_pdf_path, "wb") as f:
             f.write(file_bytes)
-        
-        # MinerU bóc tách file
-        markdown_content = parse_pdf(temp_pdf_path)
-        return markdown_content
+
+        # First, prefer markitdown if installed: simple API to convert file -> markdown
+        if _MD_AVAILABLE:
+            try:
+                res = _MD_TOOL.convert(temp_pdf_path)
+                text = getattr(res, "text_content", None) or getattr(res, "text", None) or ""
+                if text and text.strip():
+                    return text
+            except Exception as e:
+                print("MarkItDown conversion failed:", e)
+
+        # If MarkItDown wasn't available or failed, use a lightweight pypdf fallback
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(temp_pdf_path)
+            pages = []
+            for i, p in enumerate(reader.pages):
+                text = p.extract_text() or ""
+                if text.strip():
+                    pages.append(f"## Page {i+1}\n\n" + text.strip())
+            if pages:
+                return "\n\n".join(pages)
+        except Exception as e:
+            print("Fallback pypdf extraction failed:", e)
+
+        return "Error: Could not process PDF."
+
     except Exception as e:
-        print(f"❌ Lỗi xử lý MinerU: {str(e)}")
-        return "Lỗi: Không thể bóc tách file PDF bằng MinerU."
+        print(f"❌ PDF processing error: {str(e)}")
+        return f"Error: Could not process PDF: {str(e)}"
     finally:
-        if os.path.exists(temp_pdf_path):
-            os.remove(temp_pdf_path)
+        try:
+            if os.path.exists(temp_pdf_path):
+                os.remove(temp_pdf_path)
+            if os.path.exists(output_dir):
+                import shutil
+                shutil.rmtree(output_dir, ignore_errors=True)
+        except Exception:
+            pass
+
+
+def doc_file_pdf(file_path: str) -> str:
+    """Convenience helper: convert a local PDF file to Markdown using MarkItDown.
+
+    If MarkItDown is available this calls it directly; otherwise it reads the
+    file bytes and delegates to `process_pdf_to_markdown` (which contains
+    a pypdf fallback).
+    """
+    if _MD_AVAILABLE:
+        try:
+            res = _MD_TOOL.convert(file_path)
+            text = getattr(res, "text_content", None) or getattr(res, "text", None) or ""
+            if text and text.strip():
+                return text
+        except Exception as e:
+            print("MarkItDown conversion failed in doc_file_pdf:", e)
+
+    # Fallback: read bytes and use existing pipeline
+    with open(file_path, "rb") as f:
+        return process_pdf_to_markdown(f.read())
 
 def save_document_to_db(text_content, source_name, doc_id):
     keys = get_all_keys()
@@ -67,7 +141,7 @@ def save_document_to_db(text_content, source_name, doc_id):
     for api_key in keys:
         genai.configure(api_key=api_key)
         try:
-            # MinerU trả về nội dung Markdown sạch, AI sẽ nhúng tốt hơn
+            # Conversion produces Markdown/text, AI will embed this content
             safe_content = text_content[:9000]
             result = genai.embed_content(
                 model="models/gemini-embedding-2",

@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 from uuid import uuid4
+import json
 
 # Đảm bảo load_dotenv được gọi sớm nhất có thể
 from dotenv import load_dotenv
@@ -11,7 +12,8 @@ load_dotenv()
 
 from core_logic import (
     get_ai_response_stream_with_history, 
-    supabase
+    supabase,
+    process_pdf_to_markdown,
 )
 
 app = FastAPI(title="GiaSuAo API - Hệ thống Gia sư Thông minh")
@@ -148,16 +150,37 @@ async def upload_document(
         "status": "processing" # <-- Để trạng thái chờ cho Colab hút về xử lý
     }
     res = supabase.table("documents").insert(doc_data).execute()
-
-    return {"status": "success", "data": doc_data}
+    # Try to process the PDF immediately to Markdown and store result
+    try:
+        markdown_content = process_pdf_to_markdown(file_bytes, file.content_type)
+        # Update DB record with markdown and status ready
+        # Save extracted markdown into existing `content` field to avoid schema mismatch
+        supabase.table("documents").update({
+            "content": markdown_content,
+            "status": "ready"
+        }).eq("pdf_url", file_url).execute()
+        return {
+            "status": "success",
+            "data": {**doc_data, "content": markdown_content}
+        }
+    except Exception as e:
+        # If processing fails, keep status as processing for background worker
+        print(f"⚠️ Lỗi khi xử lý PDF ngay lập tức: {e}")
+        return {"status": "success", "data": doc_data, "warning": str(e)}
 
 # --- 3. CHAT VỚI AI ---
 @app.post("/chat")
 def chat(req: ChatRequest):
-    return StreamingResponse(
-        get_ai_response_stream_with_history(req.question, req.session_id), 
-        media_type="text/event-stream"
-    )
+    def event_stream():
+        # Indicate format once at the start
+        yield 'data: {"meta":"format","format":"markdown"}\n\n'
+        for chunk in get_ai_response_stream_with_history(req.question, req.session_id):
+            # Wrap each chunk as JSON with format indicator
+            safe_chunk = chunk.replace('\n', '\\n') if isinstance(chunk, str) else str(chunk)
+            payload = {"chunk": safe_chunk, "format": "markdown"}
+            yield f"data: {json.dumps(payload)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 # --- 4. ADMIN: QUẢN LÝ CẤU HÌNH HỆ THỐNG ---
 @app.get("/admin/configs")
