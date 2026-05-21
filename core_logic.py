@@ -13,15 +13,113 @@ except Exception:
     _MD_TOOL = None
     _MD_AVAILABLE = False
 
-    # Try to import google-genai (or genai). If not present, set to None and
-    # let runtime code handle missing SDK gracefully.
+# Try to import google-genai (or genai). If not present, set to None and
+# let runtime code handle missing SDK gracefully.
+try:
+    import google.genai as genai
+except Exception:
     try:
-        import google.genai as genai
+        import genai
     except Exception:
+        genai = None
+
+# Try OpenAI as a fallback provider for embeddings/generation when google genai
+# SDK isn't available or doesn't match the expected API.
+try:
+    import openai
+except Exception:
+    openai = None
+
+
+def _embed_with_provider(text, api_key):
+    """Return embedding vector for `text` using available provider.
+
+    Tries genai (old/new styles) first, then OpenAI as fallback.
+    """
+    # Try genai older style first
+    if genai is not None:
+        if hasattr(genai, 'configure'):
+            try:
+                genai.configure(api_key=api_key)
+            except Exception:
+                pass
+        # direct embed_content
         try:
-            import genai
-        except Exception:
-            genai = None
+            if hasattr(genai, 'embed_content'):
+                res = genai.embed_content(model="models/gemini-embedding-2", content=text)
+                if isinstance(res, dict) and 'embedding' in res:
+                    return res['embedding']
+        except Exception as e:
+            print("genai embed_content failed:", e)
+
+        # try client-style embeddings
+        try:
+            if hasattr(genai, 'EmbeddingsClient'):
+                client = genai.EmbeddingsClient()
+                resp = client.create(model="gemini-embedding-2", input=text)
+                return resp.data[0].embedding
+        except Exception as e:
+            print("genai EmbeddingsClient failed:", e)
+
+    # Fallback to OpenAI embeddings if available
+    if openai is not None:
+        try:
+            openai.api_key = api_key
+            emb = openai.Embedding.create(model="text-embedding-3-small", input=text)
+            return emb['data'][0]['embedding']
+        except Exception as e:
+            print("OpenAI embedding failed:", e)
+
+    raise Exception("No embedding provider available or all providers failed")
+
+
+def _generate_stream(prompt, api_key):
+    """Generator that yields text chunks for `prompt` using available provider.
+
+    Tries genai streaming API if present, otherwise falls back to OpenAI streaming.
+    Yields strings representing incremental pieces of the model reply.
+    """
+    # Try genai older style if available
+    if genai is not None:
+        if hasattr(genai, 'configure'):
+            try:
+                genai.configure(api_key=api_key)
+            except Exception:
+                pass
+
+        if hasattr(genai, 'GenerativeModel'):
+            for model_name in MODELS:
+                try:
+                    model = genai.GenerativeModel(model_name)
+                    response_iter = model.generate_content(prompt, stream=True)
+                    for chunk in response_iter:
+                        text = getattr(chunk, 'text', None) or getattr(chunk, 'content', None)
+                        if text:
+                            yield text
+                    return
+                except Exception as e:
+                    print(f"genai model {model_name} failed:", e)
+                    continue
+
+    # Fallback to OpenAI streaming
+    if openai is not None:
+        try:
+            openai.api_key = api_key
+            # Use ChatCompletion streaming
+            messages = [{"role": "user", "content": prompt}]
+            resp = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=messages, stream=True)
+            for event in resp:
+                try:
+                    chunk = event['choices'][0]['delta'].get('content')
+                    if chunk:
+                        yield chunk
+                except Exception:
+                    continue
+            return
+        except Exception as e:
+            print("OpenAI generation failed:", e)
+
+    yield "Hệ thống chưa cấu hình provider AI để trả lời."
 
 # Load env early
 load_dotenv()
@@ -139,35 +237,31 @@ def save_document_to_db(text_content, source_name, doc_id):
     keys = get_all_keys()
     
     for api_key in keys:
-        genai.configure(api_key=api_key)
         try:
             # Conversion produces Markdown/text, AI will embed this content
             safe_content = text_content[:9000]
-            result = genai.embed_content(
-                model="models/gemini-embedding-2",
-                content=safe_content
-            )
-            
-            vector = result['embedding']
+            vector = _embed_with_provider(safe_content, api_key)
+
             if isinstance(vector[0], list):
                 vector = vector[0][:768]
             else:
                 vector = vector[:768]
-            
+
             supabase.table("documents").update({
                 "content": safe_content,
                 "embedding": vector,
                 "status": "ready"
             }).eq("id", doc_id).execute()
-            
+
             return "Thành công"
         except Exception as e:
             err_msg = str(e).lower()
             if "429" in err_msg or "quota" in err_msg:
+                # try next API key
                 continue
             else:
                 return f"Lỗi: {str(e)}"
-                
+
     return "Lỗi: Không thể tạo Vector vì tất cả API Key đều hết hạn mức."
 
 def get_ai_response_stream_with_history(question, session_id=None):
@@ -214,15 +308,9 @@ def get_ai_response_stream_with_history(question, session_id=None):
     # 2. VÒNG LẶP XOAY TUA API KEY
     # ====================================================
     for api_key in keys:
-        genai.configure(api_key=api_key)
         try:
-            # Tìm kiến thức Vector
-            question_embedding_res = genai.embed_content(
-                model="models/gemini-embedding-2",
-                content=question,
-                task_type="retrieval_query"
-            )
-            question_vector = question_embedding_res['embedding']
+            # Get question embedding using provider wrapper
+            question_vector = _embed_with_provider(question, api_key)
             if isinstance(question_vector[0], list):
                 question_vector = question_vector[0][:768]
             else:
@@ -266,28 +354,13 @@ def get_ai_response_stream_with_history(question, session_id=None):
             # ====================================================
             # 4. VÒNG LẶP XOAY MODEL (TỪ LITE ĐẾN FLASH)
             # ====================================================
-            for model_name in MODELS:
-                try:
-                    model = genai.GenerativeModel(model_name)
-                    response = model.generate_content(prompt, stream=True)
-                    break # Ăn điểm thì dừng, không thử model sau nữa
-                except Exception as e:
-                    err_str = str(e).lower()
-                    if "429" in err_str or "quota" in err_str:
-                        print(f"⚠️ Con AI {model_name} bị quá tải, thử gọi con tiếp theo...")
-                        continue
-                    else:
-                        raise e
-
-            if not response:
-                raise Exception("429 Quota Exhausted on all models")
-            
-            # Nhả chữ cho Frontend
+            # Use provider-agnostic generator for model responses
+            response_iter = _generate_stream(prompt, api_key)
             full_answer = ""
-            for chunk in response:
-                if chunk.text:
-                    full_answer += chunk.text
-                    yield chunk.text
+            for chunk in response_iter:
+                if chunk:
+                    full_answer += chunk
+                    yield chunk
 
             # Lưu vào Database trí nhớ của Kiên
             chat_history.append({"role": "user", "content": question})
