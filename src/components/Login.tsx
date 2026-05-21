@@ -17,6 +17,9 @@ export default function Login({ onLogin, onGradeSelect }: LoginProps) {
   const [grade, setGrade] = useState<Grade>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotMsg, setForgotMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLogin && onGradeSelect) {
@@ -38,17 +41,21 @@ export default function Login({ onLogin, onGradeSelect }: LoginProps) {
       try {
         if (isLogin) {
           // Attempt Login via Supabase
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          
+          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
           if (error) {
-            console.warn("Supabase Auth Error (Fallback to mock for frontend demo):", error.message);
-            // Fallback mock login for demo purpose if Supabase isn't properly set up
-            if (error.message.includes('Invalid login credentials')) throw error;
+            setError(error.message || 'Đăng nhập thất bại');
+            setIsLoading(false);
+            return; // stop here, do not navigate
           }
-          
+
+          if (!data || !data.user) {
+            setError('Đăng nhập thất bại');
+            setIsLoading(false);
+            return; // stop here, do not navigate
+          }
+
+          // Successful login -> proceed to onLogin/navigation
           onLogin({ name: role === 'admin' ? 'Administrator' : 'Học sinh', email, grade, role });
         } else {
           if (!name.trim() && !isExpectedAdmin) {
@@ -69,20 +76,46 @@ export default function Login({ onLogin, onGradeSelect }: LoginProps) {
           });
 
           if (error) {
-            console.warn("Supabase Auth Error (Fallback to mock for frontend demo):", error.message);
+            setError(error.message || 'Đăng ký thất bại');
+            setIsLoading(false);
+            return; // stop here, do not navigate
           }
 
+          // Successful signup -> proceed
           onLogin({ name: isExpectedAdmin ? 'Administrator' : name, email, grade, role });
         }
       } catch (err: any) {
-        setError(err.message || "Đã có lỗi xảy ra. Hãy thử lại.");
-        // Mock fallback for prototype regardless of error
-        setTimeout(() => {
-          onLogin({ name: role === 'admin' ? 'Administrator' : (name || 'Học sinh'), email, grade, role });
-        }, 1500);
+        // On unexpected exception, show error and abort navigation
+        setError(err?.message || 'Đã có lỗi xảy ra. Hãy thử lại.');
+        setIsLoading(false);
+        return;
       } finally {
         setIsLoading(false);
       }
+    }
+  };
+
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotMsg(null);
+    if (!forgotEmail.trim()) {
+      setForgotMsg('Vui lòng nhập email hợp lệ');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      // call API via fetch to /forgot-password
+      const res = await fetch('/api/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      if (!res.ok) throw new Error('Không thể gửi yêu cầu');
+      setForgotMsg('Nếu tồn tại tài khoản, email đặt lại mật khẩu đã được gửi.');
+    } catch (err: any) {
+      setForgotMsg(err.message || 'Lỗi khi gửi yêu cầu');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -211,6 +244,12 @@ export default function Login({ onLogin, onGradeSelect }: LoginProps) {
               </div>
             </div>
 
+            {isLogin && (
+              <div className="text-right">
+                <button type="button" onClick={() => setShowForgot(true)} className="text-sm text-brand-600 hover:underline">Quên mật khẩu?</button>
+              </div>
+            )}
+
             <AnimatePresence mode="popLayout">
               {!isLogin && (
                 <motion.div
@@ -252,6 +291,20 @@ export default function Login({ onLogin, onGradeSelect }: LoginProps) {
               )}
             </button>
           </form>
+
+          {showForgot && (
+            <div className="mt-6 p-4 border border-slate-100 rounded-xl bg-slate-50">
+              <h3 className="font-semibold mb-2">Quên mật khẩu</h3>
+              <form onSubmit={handleForgotSubmit} className="space-y-2">
+                <input type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} placeholder="Nhập email của bạn" className="w-full p-3 rounded-xl border" />
+                <div className="flex gap-2">
+                  <button type="submit" disabled={isLoading} className="bg-brand-600 text-white px-4 py-2 rounded-xl">Gửi</button>
+                  <button type="button" onClick={() => { setShowForgot(false); setForgotMsg(null); }} className="px-4 py-2 rounded-xl border">Đóng</button>
+                </div>
+                {forgotMsg && <p className="text-sm text-slate-600 mt-2">{forgotMsg}</p>}
+              </form>
+            </div>
+          )}
 
           <div className="mt-8 text-center">
             <p className="text-sm text-slate-500 font-medium">
