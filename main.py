@@ -2,6 +2,8 @@ from fastapi import FastAPI, UploadFile, File, BackgroundTasks, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from typing import Optional
+import requests
 import os
 from uuid import uuid4
 import json
@@ -14,6 +16,8 @@ from core_logic import (
     get_ai_response_stream_with_history, 
     supabase,
     process_pdf_to_markdown,
+    SUPABASE_URL,
+    SUPABASE_KEY,
 )
 
 app = FastAPI(title="GiaSuAo API - Hệ thống Gia sư Thông minh")
@@ -45,7 +49,7 @@ app.add_middleware(
 # ==========================================
 class ChatRequest(BaseModel):
     question: str
-    session_id: str = None  
+    session_id: Optional[str] = None  
 
 class RegisterRequest(BaseModel):
     email: str
@@ -60,6 +64,10 @@ class LoginRequest(BaseModel):
 class ConfigUpdateRequest(BaseModel):
     key_name: str     
     key_value: str    
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
 
 # ==========================================
 # CÁC CỔNG API GIAO TIẾP
@@ -204,6 +212,34 @@ def get_system_configs():
         return {"status": "success", "data": res.data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi lấy cấu hình: {str(e)}")
+
+
+@app.post("/forgot-password")
+def forgot_password(req: ForgotPasswordRequest):
+    try:
+        email = req.email.strip()
+
+        # Use direct REST call to Supabase Auth /recover endpoint because python client
+        # may not expose the helper method consistently across versions.
+        if not SUPABASE_URL or not SUPABASE_KEY:
+            raise Exception("Supabase configuration missing")
+
+        recover_url = SUPABASE_URL.rstrip('/') + '/auth/v1/recover'
+        headers = {
+            'apikey': SUPABASE_KEY,
+            'Authorization': f'Bearer {SUPABASE_KEY}',
+            'Content-Type': 'application/json'
+        }
+        r = requests.post(recover_url, headers=headers, json={"email": email}, timeout=10)
+        # Do not reveal whether the email exists; always return success message.
+        if r.status_code not in (200, 204):
+            print(f"[forgot-password] supabase responded: {r.status_code} {r.text}")
+        return {"status": "success", "message": "Nếu tài khoản tồn tại, email đặt lại mật khẩu đã được gửi."}
+
+    except Exception as e:
+        # Do not leak whether email exists; still return 200 but log error
+        print(f"[forgot-password] error: {e}")
+        raise HTTPException(status_code=500, detail="Không thể xử lý yêu cầu đặt lại mật khẩu vào lúc này.")
 
 @app.post("/admin/configs")
 def update_system_config(req: ConfigUpdateRequest):

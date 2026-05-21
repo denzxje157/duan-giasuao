@@ -189,6 +189,24 @@ export async function getUserStats(userId: string) {
 }
 
 // ==========================================
+// Password Recovery
+// ==========================================
+export async function forgotPassword(email: string) {
+  const response = await fetch(`${API_BASE_URL}/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Không thể gửi email đặt lại mật khẩu');
+  }
+
+  return response.json();
+}
+
+// ==========================================
 // Stream Helper Function
 // ==========================================
 
@@ -251,4 +269,5 @@ export const apiClient = {
   updateConfig: updateSystemConfig,
   getAllUsers,
   getUserStats,
+  forgotPassword,
 };

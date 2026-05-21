@@ -270,29 +270,51 @@ def get_ai_response_stream_with_history(question, session_id=None):
     if not keys:
         yield "Hệ thống chưa được cấu hình API Key!"
         return
-        
     # ====================================================
-    # 1. BỌC THÉP LỌC RÁC & KIỂM TRA CHUẨN UUID
+    # 1. NORMALIZE SESSION ID: nếu không có hoặc không hợp lệ -> tạo mới trước khi truy vấn DB
     # ====================================================
-    is_valid_uuid = False
-    if session_id:
-        session_id = session_id.replace("[SESSION_ID:", "").replace("SESSION_ID:", "").replace("]", "").strip()
-        try:
-            uuid.UUID(session_id)
-            is_valid_uuid = True
-        except ValueError:
-            is_valid_uuid = False
-
     chat_history = []
-    # Nếu không truyền ID, hoặc truyền chữ rác -> Tự mở cuộc trò chuyện mới
-    if not is_valid_uuid:
-        res = supabase.table("chat_sessions").insert({"messages": []}).execute()
-        session_id = str(res.data[0]['id'])
-    else:
-        # Nếu đúng ID xịn -> Lấy lại ký ức cũ
-        res = supabase.table("chat_sessions").select("messages").eq("id", session_id).execute()
-        if res.data and res.data[0]['messages']:
-            chat_history = res.data[0]['messages']
+    try:
+        is_valid_uuid = False
+        if session_id:
+            # strip wrapper formats and whitespace
+            session_id = session_id.replace("[SESSION_ID:", "").replace("SESSION_ID:", "").replace("]", "").strip()
+            try:
+                uuid.UUID(session_id)
+                is_valid_uuid = True
+            except Exception:
+                is_valid_uuid = False
+
+        if not is_valid_uuid:
+            # create a new chat session row and use its id
+            try:
+                res = supabase.table("chat_sessions").insert({"messages": []}).execute()
+                if res.data and len(res.data) > 0 and 'id' in res.data[0]:
+                    session_id = str(res.data[0]['id'])
+                else:
+                    # fallback to generated uuid
+                    session_id = str(uuid.uuid4())
+                    supabase.table("chat_sessions").insert({"id": session_id, "messages": []}).execute()
+            except Exception as e:
+                # If insert failed, ensure we have a valid UUID and attempt to create with explicit id
+                session_id = str(uuid.uuid4())
+                try:
+                    supabase.table("chat_sessions").insert({"id": session_id, "messages": []}).execute()
+                except Exception:
+                    # give up but continue with session_id as UUID (DB ops later may fail)
+                    pass
+        # After normalization, try to load history if exists
+        try:
+            res = supabase.table("chat_sessions").select("messages").eq("id", session_id).execute()
+            if res.data and len(res.data) > 0 and res.data[0].get('messages'):
+                chat_history = res.data[0]['messages']
+        except Exception:
+            # ignore and continue with empty history
+            chat_history = []
+    except Exception:
+        # Ensure session_id is a string UUID even if normalization failed
+        if not session_id:
+            session_id = str(uuid.uuid4())
 
     history_text = ""
     for msg in chat_history:
