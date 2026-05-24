@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LogOut, Bell, Search, Clock, Flame, Timer, CheckCircle } from 'lucide-react';
 import { User as UserType } from '../../types';
+import { getUserStats } from '../../lib/api';
 
 interface TopBarProps {
   user: UserType;
@@ -11,6 +12,17 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [pomodoroLeft, setPomodoroLeft] = useState<number | null>(null);
   const [pomodoroActive, setPomodoroActive] = useState(false);
+  const [currentStreak, setCurrentStreak] = useState(0);
+
+  useEffect(() => {
+    if (user && !user.isGuest && user.id) {
+      getUserStats(user.id).then((res) => {
+        if (res && res.data) {
+          setCurrentStreak(res.data.current_streak || 0);
+        }
+      }).catch(console.error);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user.isGuest && user.guestStartTime) {
@@ -90,10 +102,12 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
         </div>
 
         {/* Gamification Streak */}
-        <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 text-orange-600 rounded-full px-3 py-1.5 shadow-sm" title="Streak liên tiếp">
-          <Flame className="w-4 h-4 fill-orange-500 text-orange-500" />
-          <span className="text-sm font-bold">12</span>
-        </div>
+        {!user.isGuest && (
+          <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 text-orange-600 rounded-full px-3 py-1.5 shadow-sm" title="Streak liên tiếp">
+            <Flame className="w-4 h-4 fill-orange-500 text-orange-500" />
+            <span className="text-sm font-bold">{currentStreak}</span>
+          </div>
+        )}
 
         {/* Pomodoro Focus Mode */}
         <button 
