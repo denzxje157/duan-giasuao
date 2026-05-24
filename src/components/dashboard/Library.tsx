@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, BookOpen, ChevronRight, Download, Upload, CheckCircle2, File, Library, Trash2, Edit2, Loader2, BookMarked, GraduationCap } from 'lucide-react';
-import { Textbook, Grade } from '../../types';
+import { Textbook, Grade, User } from '../../types';
 import { TEXTBOOKS_DATA } from '../../data/textbooks';
+import { supabase } from '../../lib/supabase';
 
 interface LibraryProps {
   currentGrade: Grade;
   setActiveTab?: (tab: string) => void;
+  user: User;
 }
 
-export default function LibraryComponent({ currentGrade, setActiveTab }: LibraryProps) {
+export default function LibraryComponent({ currentGrade, setActiveTab, user }: LibraryProps) {
   const [selectedSeries, setSelectedSeries] = useState<Textbook['series'] | 'Tất cả'>('Tất cả');
   const [selectedSubject, setSelectedSubject] = useState<string>('Tất cả');
   const [searchQuery, setSearchQuery] = useState('');
@@ -19,20 +21,59 @@ export default function LibraryComponent({ currentGrade, setActiveTab }: Library
   const [activeSubTab, setActiveSubTab] = useState<'system' | 'personal'>('system');
 
   // Personal Docs State
-  const [personalDocs, setPersonalDocs] = useState([
-    { id: '1', title: 'Đề cương ôn tập Toán giữa kì 1.pdf', status: 'ready' as const, date: '12/05/2026', subject: 'Toán học' },
-    { id: '2', title: 'Ghi chép Sinh học phân tử.pdf', status: 'analyzing' as const, date: '13/05/2026', subject: 'Sinh học' },
-  ]);
+  const [personalDocs, setPersonalDocs] = useState<any[]>([]);
+  const [systemDocs, setSystemDocs] = useState<Textbook[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDocs = async () => {
+      try {
+        const { data, error } = await supabase.from('documents').select('*');
+        if (error) throw error;
+        
+        const personal = data.filter(d => d.user_id === user.id);
+        const system = data.filter(d => !d.user_id);
+        
+        setPersonalDocs(personal.map(d => ({
+          id: d.id,
+          title: d.name || 'Tài liệu không tên',
+          status: 'ready',
+          date: new Date(d.created_at || Date.now()).toLocaleDateString('en-GB'),
+          subject: d.subject || 'Khác',
+          pdf_url: d.pdf_url
+        })));
+
+        // Merge TEXTBOOKS_DATA with system docs from DB
+        const mappedSystemDocs = system.map(d => ({
+          id: d.id,
+          title: d.name || 'Sách giáo khoa',
+          subject: d.subject || 'Khác',
+          grade: Number(d.grade) || currentGrade,
+          series: 'Khác' as any,
+          thumbnail: d.thumbnail_url || '',
+          pages: 100,
+          size: '10 MB'
+        }));
+        setSystemDocs([...TEXTBOOKS_DATA, ...mappedSystemDocs]);
+      } catch (err) {
+        console.error('Error fetching docs:', err);
+        setSystemDocs(TEXTBOOKS_DATA);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchDocs();
+  }, [user.id, currentGrade]);
 
   // Upload State
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
-  const seriesOptions: (Textbook['series'] | 'Tất cả')[] = ['Tất cả', 'Kết nối tri thức', 'Chân trời sáng tạo', 'Cánh Diều'];
-  const subjects = ['Tất cả', 'Toán học', 'Ngữ văn', 'Tiếng Anh', 'Vật lý', 'Hóa học', 'Sinh học', 'Lịch sử', 'Địa lý', 'Tin học'];
+  const seriesOptions: (Textbook['series'] | 'Tất cả')[] = ['Tất cả', 'Kết nối tri thức', 'Chân trời sáng tạo', 'Cánh Diều', 'Khác'];
+  const subjects = ['Tất cả', 'Toán học', 'Ngữ văn', 'Tiếng Anh', 'Vật lý', 'Hóa học', 'Sinh học', 'Lịch sử', 'Địa lý', 'Tin học', 'Khác'];
 
-  const filteredBooks = TEXTBOOKS_DATA.filter(book => {
+  const filteredBooks = systemDocs.filter(book => {
     if (book.grade !== currentGrade) return false;
     if (selectedSeries !== 'Tất cả' && book.series !== selectedSeries) return false;
     if (selectedSubject !== 'Tất cả' && book.subject !== selectedSubject) return false;
@@ -209,7 +250,10 @@ export default function LibraryComponent({ currentGrade, setActiveTab }: Library
                         <BookOpen className="w-5 h-5" />
                         Đọc sách trực tuyến
                       </button>
-                      <button className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-8 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all">
+                      <button 
+                        onClick={() => selectedBook.pdf_url ? window.open(selectedBook.pdf_url, '_blank') : alert('Chưa có bản PDF')}
+                        className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-8 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all"
+                      >
                         <Download className="w-5 h-5" />
                         Tải PDF
                       </button>
@@ -331,7 +375,8 @@ export default function LibraryComponent({ currentGrade, setActiveTab }: Library
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   whileHover={{ y: -4 }}
-                  className="bg-white border text-left border-slate-200 shadow-sm hover:shadow-md hover:border-brand-300 rounded-2xl p-4 transition-all flex flex-col group"
+                  onClick={() => doc.pdf_url && window.open(doc.pdf_url, '_blank')}
+                  className="bg-white border text-left border-slate-200 shadow-sm hover:shadow-md hover:border-brand-300 rounded-2xl p-4 transition-all flex flex-col group cursor-pointer"
                 >
                   <div className="aspect-[3/4] bg-slate-50 flex items-center justify-center rounded-xl mb-4 relative overflow-hidden group-hover:bg-slate-100 transition-colors">
                     <div className="absolute top-4 right-4 w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white z-10 opacity-0 group-hover:opacity-100 group-hover:scale-110 transition-all">

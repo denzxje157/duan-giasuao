@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Bell, Search, Clock } from 'lucide-react';
+import { LogOut, Bell, Search, Clock, Flame, Timer, CheckCircle } from 'lucide-react';
 import { User as UserType } from '../../types';
 
 interface TopBarProps {
@@ -9,6 +9,8 @@ interface TopBarProps {
 
 export default function TopBar({ user, onLogout }: TopBarProps) {
   const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [pomodoroLeft, setPomodoroLeft] = useState<number | null>(null);
+  const [pomodoroActive, setPomodoroActive] = useState(false);
 
   useEffect(() => {
     if (user.isGuest && user.guestStartTime) {
@@ -25,6 +27,31 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
       return () => clearInterval(interval);
     }
   }, [user]);
+
+  // Pomodoro Timer
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (pomodoroActive && pomodoroLeft !== null && pomodoroLeft > 0) {
+      interval = setInterval(() => {
+        setPomodoroLeft(prev => prev !== null ? prev - 1000 : null);
+      }, 1000);
+    } else if (pomodoroLeft === 0) {
+      setPomodoroActive(false);
+      setPomodoroLeft(null);
+      // Play a sound or show a confetti if needed
+    }
+    return () => clearInterval(interval);
+  }, [pomodoroActive, pomodoroLeft]);
+
+  const togglePomodoro = () => {
+    if (pomodoroActive) {
+      setPomodoroActive(false);
+      setPomodoroLeft(null);
+    } else {
+      setPomodoroLeft(25 * 60 * 1000); // 25 mins
+      setPomodoroActive(true);
+    }
+  };
 
   const formatTime = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -61,6 +88,26 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
             className="text-sm font-medium outline-none bg-transparent w-48 text-slate-700"
           />
         </div>
+
+        {/* Gamification Streak */}
+        <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 text-orange-600 rounded-full px-3 py-1.5 shadow-sm" title="Streak liên tiếp">
+          <Flame className="w-4 h-4 fill-orange-500 text-orange-500" />
+          <span className="text-sm font-bold">12</span>
+        </div>
+
+        {/* Pomodoro Focus Mode */}
+        <button 
+          onClick={togglePomodoro}
+          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 font-bold text-sm shadow-sm transition-all border ${pomodoroActive ? 'bg-red-500 text-white border-red-600' : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'}`}
+          title="Focus Mode (Pomodoro)"
+        >
+          <span>🍅</span>
+          {pomodoroActive && pomodoroLeft !== null ? (
+            <span className="w-10 text-center font-mono">{formatTime(pomodoroLeft)}</span>
+          ) : (
+            <span className="hidden sm:inline">Tập trung</span>
+          )}
+        </button>
 
         <button className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-brand-500 hover:border-brand-200 transition-all relative">
           <Bell className="w-5 h-5" />

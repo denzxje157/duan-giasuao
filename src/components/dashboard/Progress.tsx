@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Trophy, Flame, Calendar, Award, TrendingUp, Clock, BookOpen, Star, Sparkles, Target, Settings, ChevronRight } from 'lucide-react';
 import { User } from '../../types';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { API_BASE_URL } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 
 interface ProgressProps {
   user: User;
 }
 
-const activityData = [
+const activityDataMock = [
   { day: 'T2', thu2: 120, time: 120 },
   { day: 'T3', thu3: 45, time: 45 },
   { day: 'T4', thu4: 160, time: 160 },
@@ -16,6 +18,14 @@ const activityData = [
   { day: 'T6', thu6: 210, time: 210 },
   { day: 'T7', thu7: 300, time: 300 },
   { day: 'CN', cn: 150, time: 150 },
+];
+
+const radarDataMock = [
+  { subject: 'Đại số', score: 90, fullMark: 100 },
+  { subject: 'Hình học', score: 30, fullMark: 100 },
+  { subject: 'Lượng giác', score: 75, fullMark: 100 },
+  { subject: 'Giải tích', score: 85, fullMark: 100 },
+  { subject: 'Xác suất', score: 65, fullMark: 100 },
 ];
 
 const subjectData = [
@@ -35,6 +45,40 @@ const badges = [
 ];
 
 export default function Progress({ user }: ProgressProps) {
+  const [stats, setStats] = useState({ streak: 0, total_study_minutes: 0, max_streak: 0, total_sp: 0 });
+  const [activityData, setActivityData] = useState(activityDataMock);
+  const [radarData, setRadarData] = useState(radarDataMock);
+
+  useEffect(() => {
+    if (user.isGuest) return;
+    const fetchProgress = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+
+        // Fetch overall stats
+        const statsUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/user/gamification-stats` : '/api/user/gamification-stats';
+        const statsRes = await fetch(statsUrl, { headers: { 'Authorization': `Bearer ${session.access_token}` } });
+        const statsData = await statsRes.json();
+        if (statsData.status === 'success' && statsData.data) {
+          setStats(statsData.data);
+        }
+
+        // Fetch charts
+        const chartsUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/user/progress-charts` : '/api/user/progress-charts';
+        const chartsRes = await fetch(chartsUrl, { headers: { 'Authorization': `Bearer ${session.access_token}` } });
+        const chartsData = await chartsRes.json();
+        if (chartsData.status === 'success' && chartsData.data) {
+          setActivityData(chartsData.data.activityData);
+          setRadarData(chartsData.data.radarData);
+        }
+      } catch (err) {
+        console.error("Failed to fetch progress:", err);
+      }
+    };
+    fetchProgress();
+  }, [user]);
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-12">
       <div className="flex items-center justify-between mb-8">
@@ -67,10 +111,10 @@ export default function Progress({ user }: ProgressProps) {
             
             <div>
               <div className="flex items-baseline gap-2">
-                <span className="text-6xl font-extrabold tracking-tighter">14</span>
+                <span className="text-6xl font-extrabold tracking-tighter">{stats.streak || 0}</span>
                 <span className="text-xl font-bold text-orange-100">ngày liên tiếp</span>
               </div>
-              <p className="text-sm font-medium text-orange-100 mt-2">Cố lên! Bạn đang vượt qua 85% học sinh khác khối lớp {user.grade}.</p>
+              <p className="text-sm font-medium text-orange-100 mt-2">Cố lên! Kỷ lục cao nhất của bạn là {stats.max_streak || 0} ngày.</p>
             </div>
           </div>
         </motion.div>
@@ -202,26 +246,28 @@ export default function Progress({ user }: ProgressProps) {
 
         {/* Right column: Distribution & AI Recommendations */}
         <div className="space-y-8">
-           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
-              <h3 className="font-bold text-slate-800 mb-6">Môn học yêu thích</h3>
-              <div className="space-y-5">
-                 {subjectData.map((sub, i) => (
-                   <div key={i}>
-                     <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-semibold text-slate-700">{sub.name}</span>
-                        <span className="text-xs font-bold text-slate-500">{sub.hours}h</span>
-                     </div>
-                     <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                        <motion.div 
-                           initial={{ width: 0 }}
-                           animate={{ width: `${(sub.hours / 27) * 100}%` }}
-                           transition={{ duration: 1, delay: 0.5 }}
-                           className="h-full rounded-full"
-                           style={{ backgroundColor: sub.color }}
-                        />
-                     </div>
-                   </div>
-                 ))}
+           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col items-center">
+              <h3 className="font-bold text-slate-800 mb-2 w-full text-left flex items-center gap-2">
+                <Target className="w-5 h-5 text-indigo-500" /> Phân tích Điểm mù (Knowledge Gap)
+              </h3>
+              <p className="text-xs text-slate-500 font-medium w-full text-left mb-4">Biểu đồ Mạng nhện phân tích các mảng kiến thức</p>
+              
+              <div className="w-full h-[250px] flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                    <PolarGrid stroke="#e2e8f0" />
+                    <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 12, fontWeight: 600 }} />
+                    <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                    <Radar name="Kỹ năng" dataKey="score" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.4} />
+                    <RechartsTooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="mt-4 bg-indigo-50 text-indigo-700 p-3 rounded-xl text-sm font-semibold w-full border border-indigo-100">
+                <span className="block mb-1">🔥 Mạnh: <strong>Đại số (90%)</strong></span>
+                <span>⚠️ Điểm mù: <strong>Hình học (30%)</strong></span>
               </div>
            </div>
 
@@ -236,12 +282,12 @@ export default function Progress({ user }: ProgressProps) {
                  </div>
                  
                  <p className="text-sm font-medium text-slate-300 leading-relaxed shadow-sm">
-                   Dựa vào lịch sử học, bạn đang làm rất tốt môn Toán. Tuy nhiên, thời gian làm trắc nghiệm Lý thuyết Hóa học đang hơi chậm.
+                   Dựa vào Biểu đồ Mạng nhện, bạn đang làm rất tốt phần <strong>Đại số</strong>. Tuy nhiên, <strong>Hình học</strong> đang là lỗ hổng kiến thức lớn nhất (chỉ đạt 30%). Hãy vá ngay lỗ hổng này!
                  </p>
                  
                  <div className="bg-white/10 rounded-2xl p-4 border border-white/5 backdrop-blur-md">
                    <div className="text-xs font-semibold text-brand-300 uppercase tracking-wider mb-2">Bài tiếp theo</div>
-                   <h4 className="font-bold text-white">Ôn tập trắc nghiệm Hóa lớp {user.grade} (Cấu tạo nguyên tử)</h4>
+                   <h4 className="font-bold text-white">Lộ trình vá lỗi: Trắc nghiệm Hình học cơ bản</h4>
                    <button className="mt-4 w-full bg-brand-500 hover:bg-brand-600 text-white text-sm font-bold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
                      Bắt đầu ôn tập <ChevronRight className="w-4 h-4" />
                    </button>

@@ -74,5 +74,49 @@ export const TEXTBOOKS_DATA: Textbook[] = [
       { title: 'Bài 1: Thông điệp từ thiên nhiên' },
       { title: 'Bài 2: Hành trình của tri thức' }
     ]
+  },
+  {
+    id: 'kntt-toan-12',
+    title: 'Toán 12 - Tập 1',
+    subject: 'Toán học',
+    grade: 12,
+    series: 'Kết nối tri thức',
+    thumbnail: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&q=80&w=400',
+    pages: 180,
+    size: '22.5 MB',
+    isNew: true,
+    chapters: [
+      { title: 'Chương 1: Ứng dụng đạo hàm để khảo sát và vẽ đồ thị của hàm số' },
+      { title: 'Chương 2: Hàm số lũy thừa, hàm số mũ và hàm số logarit' },
+      { title: 'Chương 3: Nguyên hàm, tích phân và ứng dụng' }
+    ]
+  },
+  {
+    id: 'ctst-van-12',
+    title: 'Ngữ văn 12 - Tập 1',
+    subject: 'Ngữ văn',
+    grade: 12,
+    series: 'Chân trời sáng tạo',
+    thumbnail: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&q=80&w=400',
+    pages: 165,
+    size: '19.8 MB',
+    chapters: [
+      { title: 'Bài 1: Những bài học từ lịch sử' },
+      { title: 'Bài 2: Tiếng nói của trái tim' }
+    ]
+  },
+  {
+    id: 'cd-anh-12',
+    title: 'Tiếng Anh 12',
+    subject: 'Tiếng Anh',
+    grade: 12,
+    series: 'Cánh Diều',
+    thumbnail: 'https://images.unsplash.com/photo-1546410531-ee4cb12b22d5?auto=format&fit=crop&q=80&w=400',
+    pages: 150,
+    size: '25.0 MB',
+    chapters: [
+      { title: 'Unit 1: Life Stories We Admire' },
+      { title: 'Unit 2: A Multicultural World' }
+    ]
   }
 ];

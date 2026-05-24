@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MessageSquare, Send, Sparkles, User, Bot, Maximize2, Minimize2, Settings, ArrowLeft, Mic, Volume2, Wand2, Timer, Play, Pause, RotateCcw, BookOpen, Plus, Paperclip, HardDrive, Image as ImageIcon, Library } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { User as UserType } from '../../types';
+import { uploadDocument, API_BASE_URL } from '../../lib/api';
 
 // Markdown & Math
 import ReactMarkdown from 'react-markdown';
@@ -53,7 +54,9 @@ export default function Workspace({ user, setActiveTab }: WorkspaceProps) {
   // STT State
   const [isRecording, setIsRecording] = useState(false);
   const [isAttachOpen, setIsAttachOpen] = useState(false);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
   const attachMenuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const defaultLayoutPluginInstance = defaultLayoutPlugin();
 
@@ -131,9 +134,45 @@ export default function Workspace({ user, setActiveTab }: WorkspaceProps) {
   }, []);
 
   const handleAttachOption = (option: string) => {
+    if (option === 'upload') {
+      setIsAttachOpen(false);
+      fileInputRef.current?.click();
+      return;
+    }
+
     console.log(`Selected attach option: ${option}`);
     setIsAttachOpen(false);
     // Add logic handling for each option here
+  };
+
+  const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploadingFile(true);
+      const grade = String(user.grade || 1);
+      const result = await uploadDocument(file, grade);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `Đã tải tệp **${file.name}** lên backend thành công. Trạng thái: ${result?.data?.status || result?.status || 'processing'}.`
+        }
+      ]);
+    } catch (error: any) {
+      console.error('Upload file failed', error);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `Không thể tải tệp lên backend: ${error?.message || 'lỗi không xác định'}`
+        }
+      ]);
+    } finally {
+      setIsUploadingFile(false);
+      event.target.value = '';
+    }
   };
 
   const handleSend = async (e?: React.FormEvent, customMsg?: string) => {
@@ -150,7 +189,8 @@ export default function Workspace({ user, setActiveTab }: WorkspaceProps) {
       const apiKey = localStorage.getItem('admin_gemini_api_key') || process.env.GEMINI_API_KEY;
       const systemContext = "You are a helpful AI tutor for students. You should use markdown and KaTeX formatted math equations when explaining math. Wrap inline math with single $ and block math with double $$. Output only the response in Vietnamese.";
       
-      const response = await fetch('/api/chat', {
+      const chatUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/chat` : '/api/chat';
+      const response = await fetch(chatUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -405,8 +445,9 @@ export default function Workspace({ user, setActiveTab }: WorkspaceProps) {
         {/* Chat Input */}
         <div className="p-4 bg-white border-t border-slate-100">
           <form onSubmit={handleSend} className="relative flex items-center gap-2">
-            <div className="relative flex-1 group" ref={attachMenuRef}>
-              <div className="absolute left-1.5 top-1/2 -translate-y-1/2 z-10">
+            <div className="relative flex-1 group z-20 overflow-visible" ref={attachMenuRef}>
+              <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={handleFileSelected} />
+              <div className="absolute left-1.5 top-1/2 -translate-y-1/2 z-30 pointer-events-auto">
                 <button
                   type="button"
                   onClick={() => setIsAttachOpen(!isAttachOpen)}
@@ -425,21 +466,21 @@ export default function Workspace({ user, setActiveTab }: WorkspaceProps) {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute bottom-full left-0 mb-3 w-56 bg-white border border-slate-100 rounded-2xl shadow-xl shadow-slate-200/50 overflow-hidden"
+                      className="absolute bottom-full left-0 mb-3 w-56 bg-white border border-slate-100 rounded-2xl shadow-xl shadow-slate-200/50 overflow-hidden z-50 pointer-events-auto"
                     >
                       <div className="p-2 space-y-0.5">
                         <button
                           type="button"
                           onClick={() => handleAttachOption('upload')}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-brand-600 rounded-xl transition-colors"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-brand-600 rounded-xl transition-colors pointer-events-auto"
                         >
                           <Paperclip className="w-4 h-4" />
-                          Tải tệp lên
+                          {isUploadingFile ? 'Đang tải...' : 'Tải tệp lên'}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleAttachOption('drive')}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-brand-600 rounded-xl transition-colors"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-brand-600 rounded-xl transition-colors pointer-events-auto"
                         >
                           <HardDrive className="w-4 h-4" />
                           Thêm từ Drive
@@ -447,7 +488,7 @@ export default function Workspace({ user, setActiveTab }: WorkspaceProps) {
                         <button
                           type="button"
                           onClick={() => handleAttachOption('image')}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-brand-600 rounded-xl transition-colors"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-brand-600 rounded-xl transition-colors pointer-events-auto"
                         >
                           <ImageIcon className="w-4 h-4" />
                           Ảnh
@@ -455,7 +496,7 @@ export default function Workspace({ user, setActiveTab }: WorkspaceProps) {
                         <button
                           type="button"
                           onClick={() => handleAttachOption('notebooklm')}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-brand-600 rounded-xl transition-colors"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-brand-600 rounded-xl transition-colors pointer-events-auto"
                         >
                           <Library className="w-4 h-4" />
                           NotebookLM

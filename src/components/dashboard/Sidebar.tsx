@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layout, ChevronDown, BookOpen, Library, Trophy, MessageSquare, Headphones, FileText, Target, Settings, User as UserIcon } from 'lucide-react';
+import { Layout, ChevronDown, BookOpen, Library, Trophy, MessageSquare, Edit3, Target, Settings, User as UserIcon } from 'lucide-react';
 import { Grade, User } from '../../types';
 
 interface SidebarProps {
@@ -70,14 +70,14 @@ export default function Sidebar({ currentGrade, onGradeChange, activeTab, setAct
           onClick={() => setActiveTab('ai')} 
         />
         <NavItem 
-          icon={Headphones} 
-          label={currentGrade <= 5 ? "Kẻ chuyện" : currentGrade >= 10 ? "Học qua âm thanh" : "Sách nói"} 
-          active={activeTab === 'audio'} 
-          onClick={() => setActiveTab('audio')} 
+          icon={Edit3} 
+          label={currentGrade <= 5 ? "Luyện tập vui" : "Luyện tập & Quiz"} 
+          active={activeTab === 'quiz'} 
+          onClick={() => setActiveTab('quiz')} 
         />
         <NavItem 
           icon={Trophy} 
-          label={currentGrade <= 5 ? "Huy hiệu" : currentGrade >= 10 ? "Phân tích học tập" : "Thành tích & Tiến độ"} 
+          label={currentGrade <= 5 ? "Huy hiệu & Điểm mù" : "Khám phá điểm mù"} 
           active={activeTab === 'progress'} 
           onClick={() => setActiveTab('progress')} 
         />

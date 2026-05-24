@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, ArrowRight, Zap, Target, BookOpen, Clock, Award, Star, Trophy, Flame, Calendar, PlayCircle } from 'lucide-react';
 import { User, Grade } from '../../types';
+import { API_BASE_URL } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 
 interface OverviewProps {
   user: User;
@@ -24,13 +26,37 @@ const StatCard = ({ icon: Icon, label, value, subtext }: any) => (
 );
 
 export default function Overview({ user, setActiveTab }: OverviewProps) {
+  const [stats, setStats] = useState({ streak: 0, total_study_minutes: 0, max_streak: 0, total_sp: 0 });
+
+  useEffect(() => {
+    if (user.isGuest) return;
+    const fetchStats = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+
+        const url = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/user/gamification-stats` : '/api/user/gamification-stats';
+        const res = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        });
+        const data = await res.json();
+        if (data.status === 'success' && data.data) {
+          setStats(data.data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch gamification stats:", err);
+      }
+    };
+    fetchStats();
+  }, [user]);
+
   return (
     <div className="space-y-6 pb-12">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={Flame} label={user.grade <= 5 ? "Chuỗi chăm chỉ" : "Chuỗi học tập"} value="12" subtext="ngày liên tục" />
-        <StatCard icon={Clock} label={user.grade <= 5 ? "Thời gian ở đây" : "Thời gian học"} value="45" subtext="giờ tuần này" />
+        <StatCard icon={Flame} label={user.grade <= 5 ? "Chuỗi chăm chỉ" : "Chuỗi học tập"} value={String(stats.streak || 0)} subtext="ngày liên tục" />
+        <StatCard icon={Clock} label={user.grade <= 5 ? "Thời gian ở đây" : "Thời gian học"} value={String(Math.floor((stats.total_study_minutes || 0)/60))} subtext={`giờ ${((stats.total_study_minutes || 0)%60)} phút`} />
         <StatCard icon={Target} label={user.grade <= 5 ? "Nhiệm vụ" : "Mục tiêu"} value="8/10" subtext="hoàn thành" />
-        <StatCard icon={Trophy} label={user.grade <= 5 ? "Điểm sao" : "Điểm thưởng"} value="2,450" subtext="SP" />
+        <StatCard icon={Trophy} label={user.grade <= 5 ? "Điểm sao" : "Điểm thưởng"} value={(stats.total_sp || 0).toLocaleString()} subtext="SP" />
       </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
@@ -78,17 +104,17 @@ export default function Overview({ user, setActiveTab }: OverviewProps) {
               </button>
 
               <button
-                onClick={() => setActiveTab('audio')}
+                onClick={() => setActiveTab('quiz')}
                 className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:border-brand-300 hover:shadow-md transition-all text-left group"
               >
                 <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <PlayCircle className="w-5 h-5" />
+                  <Star className="w-5 h-5" />
                 </div>
                 <h4 className="font-bold text-slate-800 mb-1">
-                  {user.grade <= 5 ? "Nghe kể chuyện" : "Nghe bài giảng"}
+                  {user.grade <= 5 ? "Luyện tập vui" : "Luyện tập & Quiz"}
                 </h4>
                 <p className="text-sm text-slate-500">
-                  {user.grade <= 5 ? "Vừa học vừa nghe" : "Học qua âm thanh tiện lợi"}
+                  {user.grade <= 5 ? "Làm bài kiểm tra có thưởng" : "Làm trắc nghiệm do AI tạo"}
                 </p>
               </button>
             </div>

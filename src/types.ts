@@ -23,6 +23,7 @@ export interface Textbook {
 }
 
 export interface User {
+  id?: string;
   name: string;
   email: string;
   grade: Grade;

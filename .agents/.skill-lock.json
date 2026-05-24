@@ -1,0 +1,41 @@
+{
+  "version": 3,
+  "skills": {
+    "google-antigravity-sdk": {
+      "source": "Google-Antigravity/antigravity-sdk-python",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/Google-Antigravity/antigravity-sdk-python.git",
+      "skillPath": "skills/google-antigravity-sdk/SKILL.md",
+      "skillFolderHash": "974a6faa0233b7377945db368a34bdd87dc81dfc",
+      "installedAt": "2026-05-20T12:59:42.968Z",
+      "updatedAt": "2026-05-20T12:59:42.968Z"
+    },
+    "find-skills": {
+      "source": "vercel-labs/skills",
+      "sourceType": "github",
+      "sourceUrl": "https://github.com/vercel-labs/skills.git",
+      "skillPath": "skills/find-skills/SKILL.md",
+      "skillFolderHash": "3013fdeb8a11b10b1eb795ec3ae8bfca38f7c26d",
+      "installedAt": "2026-05-20T12:59:45.167Z",
+      "updatedAt": "2026-05-20T12:59:45.167Z"
+    }
+  },
+  "dismissed": {
+    "findSkillsPrompt": true
+  },
+  "lastSelectedAgents": [
+    "amp",
+    "antigravity",
+    "cline",
+    "codex",
+    "cursor",
+    "deepagents",
+    "dexto",
+    "firebender",
+    "gemini-cli",
+    "github-copilot",
+    "kimi-cli",
+    "opencode",
+    "warp"
+  ]
+}

@@ -16,6 +16,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
   const [previewGrade, setPreviewGrade] = useState<Grade | undefined>(undefined);
+  const [showGuestExpiredModal, setShowGuestExpiredModal] = useState(false);
 
   useEffect(() => {
     // Check for saved user data
@@ -31,9 +32,7 @@ export default function App() {
       const MAX_GUEST_TIME = 3 * 60 * 1000; // 3 minutes
       const checkSession = () => {
         if (Date.now() - user.guestStartTime! >= MAX_GUEST_TIME) {
-          handleLogout();
-          setShowLogin(true);
-          alert('Thời gian học thử đã hết. Vui lòng đăng ký tài khoản để tiếp tục!');
+          setShowGuestExpiredModal(true);
         }
       };
       // Check immediately
@@ -43,7 +42,7 @@ export default function App() {
     }
   }, [user]);
 
-  const handleLogin = (userData: { name: string; email: string; grade: Grade; role: 'student' | 'admin' }) => {
+  const handleLogin = (userData: { id?: string; name: string; email: string; grade: Grade; role: 'student' | 'admin' }) => {
     const newUser: User = { ...userData };
     setUser(newUser);
     localStorage.setItem('virtual_tutor_user', JSON.stringify(newUser));
@@ -71,6 +70,12 @@ export default function App() {
     setUser(null);
     setShowLogin(false);
     localStorage.removeItem('virtual_tutor_user');
+  };
+
+  const handleGuestExpiredConfirm = () => {
+    setShowGuestExpiredModal(false);
+    handleLogout();
+    setShowLogin(true);
   };
 
   const handleGradeChange = (grade: Grade) => {
@@ -108,6 +113,36 @@ export default function App() {
     <div 
       className="min-h-screen bg-[#F5F5F0] selection:bg-[#5A5A40] selection:text-white overflow-x-hidden"
     >
+      <AnimatePresence>
+        {showGuestExpiredModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center"
+            >
+              <div className="w-16 h-16 bg-brand-100 rounded-full flex items-center justify-center mx-auto mb-4 text-brand-600 text-3xl">
+                ⏱️
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 mb-2">Hết giờ học thử</h3>
+              <p className="text-slate-600 mb-6 font-medium">Thời gian 3 phút trải nghiệm đã kết thúc. Vui lòng đăng ký tài khoản để tiếp tục trò chuyện cùng Gia sư nhé!</p>
+              <button 
+                onClick={handleGuestExpiredConfirm}
+                className="w-full py-3 bg-brand-600 text-white rounded-xl font-bold hover:bg-brand-700 transition-colors shadow-lg shadow-brand-600/30"
+              >
+                Đăng ký ngay
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence mode="wait">
         {!user ? (
           showLogin ? (

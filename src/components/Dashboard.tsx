@@ -5,12 +5,12 @@ import TopBar from './dashboard/TopBar.tsx';
 import Overview from './dashboard/Overview.tsx';
 import AIChat from './dashboard/AIChat.tsx';
 import Library from './dashboard/Library.tsx';
-import AudioLessons from './dashboard/AudioLessons.tsx';
-import Workspace from './dashboard/Workspace.tsx';
 import AdminPanel from './dashboard/AdminPanel.tsx';
 import Progress from './dashboard/Progress.tsx';
 import Profile from './dashboard/Profile.tsx';
+import Quiz from './dashboard/Quiz.tsx';
 import { User, Grade } from '../types';
+import { useStudyTracker } from '../hooks/useStudyTracker.ts';
 
 interface DashboardProps {
   user: User;
@@ -20,6 +20,8 @@ interface DashboardProps {
 
 export default function Dashboard({ user, onLogout, onGradeChange }: DashboardProps) {
   const [activeTab, setActiveTab] = useState(user.role === 'admin' ? 'admin' : 'library');
+  
+  useStudyTracker(user, activeTab === 'ai' ? 'Trò chuyện AI' : activeTab === 'quiz' ? 'Luyện tập' : 'Chung');
 
   const renderContent = () => {
     switch (activeTab) {
@@ -28,11 +30,11 @@ export default function Dashboard({ user, onLogout, onGradeChange }: DashboardPr
       case 'ai':
         return <AIChat user={user} />;
       case 'library':
-        return <Library currentGrade={user.grade} setActiveTab={setActiveTab} />;
-      case 'audio':
-        return <AudioLessons currentGrade={user.grade} />;
+        return <Library currentGrade={user.grade} setActiveTab={setActiveTab} user={user} />;
       case 'workspace':
         return <Workspace user={user} setActiveTab={setActiveTab} />;
+      case 'quiz':
+        return <Quiz user={user} />;
       case 'admin':
         return <AdminPanel />;
       case 'progress':

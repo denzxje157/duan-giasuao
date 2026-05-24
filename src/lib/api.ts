@@ -5,7 +5,8 @@
 
 // Base URL configuration
 // In development use localhost; in production (Vercel) use relative `/api` path
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '/api');
+import { supabase } from './supabase';
+export const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '/api');
 
 export interface ChatMessage {
   role: 'user' | 'model';
@@ -29,12 +30,48 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface ChatHistoryRow {
+  id?: string;
+  user_id: string;
+  role: 'user' | 'assistant' | 'model';
+  content: string;
+  session_id?: string;
+  timestamp?: string;
+}
+
+export interface ChatSessionItem {
+  session_id: string;
+  title: string;
+  subject: string;
+  grade: string;
+  updated_at?: string;
+  last_message?: string;
+}
+
+export interface ChatSessionGroup {
+  grade: string;
+  subjects: Array<{
+    subject: string;
+    sessions: ChatSessionItem[];
+  }>;
+}
+
+export interface ResetSessionResponse {
+  new_session_id: string;
+  previous_session_cleared: boolean;
+}
+
+export interface InitSessionResponse {
+  new_session_id: string;
+  previous_session_cleared: boolean;
+}
+
 // ==========================================
 // Authentication API
 // ==========================================
 
 export async function registerUser(data: RegisterRequest) {
-  const response = await fetch(`${API_BASE_URL}/register`, {
+  const response = await fetch(`${API_BASE_URL}/api/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -51,7 +88,7 @@ export async function registerUser(data: RegisterRequest) {
 }
 
 export async function loginUser(data: LoginRequest) {
-  const response = await fetch(`${API_BASE_URL}/login`, {
+  const response = await fetch(`${API_BASE_URL}/api/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -75,7 +112,7 @@ export async function chatWithAI(
   question: string,
   sessionId?: string
 ): Promise<ReadableStream<string>> {
-  const response = await fetch(`${API_BASE_URL}/chat`, {
+  const response = await fetch(`${API_BASE_URL}/api/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -109,7 +146,7 @@ export async function uploadDocument(
   formData.append('file', file);
   formData.append('grade', grade);
 
-  const response = await fetch(`${API_BASE_URL}/upload`, {
+  const response = await fetch(`${API_BASE_URL}/api/upload`, {
     method: 'POST',
     body: formData,
   });
@@ -127,7 +164,7 @@ export async function uploadDocument(
 // ==========================================
 
 export async function getSystemConfigs() {
-  const response = await fetch(`${API_BASE_URL}/admin/configs`, {
+  const response = await fetch(`${API_BASE_URL}/api/admin/configs`, {
     method: 'GET',
   });
 
@@ -142,7 +179,7 @@ export async function updateSystemConfig(
   keyName: string,
   keyValue: string
 ) {
-  const response = await fetch(`${API_BASE_URL}/admin/configs`, {
+  const response = await fetch(`${API_BASE_URL}/api/admin/configs`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -161,7 +198,7 @@ export async function updateSystemConfig(
 }
 
 export async function getAllUsers() {
-  const response = await fetch(`${API_BASE_URL}/admin/users`, {
+  const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
     method: 'GET',
   });
 
@@ -177,7 +214,7 @@ export async function getAllUsers() {
 // ==========================================
 
 export async function getUserStats(userId: string) {
-  const response = await fetch(`${API_BASE_URL}/user/stats/${userId}`, {
+  const response = await fetch(`${API_BASE_URL}/api/user/stats/${userId}`, {
     method: 'GET',
   });
 
@@ -189,10 +226,186 @@ export async function getUserStats(userId: string) {
 }
 
 // ==========================================
+// Chat History (Supabase)
+// ==========================================
+export async function fetchChatHistory(sessionId?: string): Promise<ChatHistoryRow[]> {
+  // Attach current user's access token (JWT) to the Authorization header
+  let accessToken = '';
+  try {
+    if ((supabase.auth as any).getSession) {
+      const maybe = await (supabase.auth as any).getSession();
+      accessToken = maybe?.data?.session?.access_token || '';
+    } else if ((supabase.auth as any).session) {
+      const s = (supabase.auth as any).session();
+      accessToken = s?.access_token || '';
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  const headers: Record<string,string> = { 'Content-Type': 'application/json' };
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
+  // Ensure in dev we call localhost:8000 to avoid CORS issues when running frontend dev server
+  const base = import.meta.env.DEV ? 'http://localhost:8000' : API_BASE_URL;
+  const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : '';
+  const url = `${base}/chat-history/me${query}`;
+  console.log('[api] fetchChatHistory url=', url);
+  const resp = await fetch(url.replace('/chat-history', '/api/chat-history'), {
+    method: 'GET',
+    headers,
+  });
+
+  if (!resp.ok) {
+    let err = 'Không thể lấy lịch sử chat';
+    try {
+      const body = await resp.json();
+      err = body.detail || body.message || err;
+    } catch (e) {}
+    if (resp.status === 401 || resp.status === 403) {
+      return [];
+    }
+    throw new Error(err);
+  }
+
+  const body = await resp.json();
+  return (body.data || []) as ChatHistoryRow[];
+}
+
+export async function fetchChatSessions(): Promise<ChatSessionGroup[]> {
+  let accessToken = '';
+  try {
+    if ((supabase.auth as any).getSession) {
+      const maybe = await (supabase.auth as any).getSession();
+      accessToken = maybe?.data?.session?.access_token || '';
+    } else if ((supabase.auth as any).session) {
+      const s = (supabase.auth as any).session();
+      accessToken = s?.access_token || '';
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
+  const base = import.meta.env.DEV ? 'http://localhost:8000' : API_BASE_URL;
+  const resp = await fetch(`${base}/api/chat-sessions/me`, { method: 'GET', headers });
+  if (!resp.ok) {
+    if (resp.status === 401 || resp.status === 403) {
+      return [];
+    }
+    throw new Error('Không thể lấy danh sách hội thoại');
+  }
+
+  const body = await resp.json();
+  return (body.data || []) as ChatSessionGroup[];
+}
+
+export async function deleteChatSession(sessionId: string): Promise<void> {
+  let accessToken = '';
+  try {
+    if ((supabase.auth as any).getSession) {
+      const maybe = await (supabase.auth as any).getSession();
+      accessToken = maybe?.data?.session?.access_token || '';
+    } else if ((supabase.auth as any).session) {
+      const s = (supabase.auth as any).session();
+      accessToken = s?.access_token || '';
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
+  const base = import.meta.env.DEV ? 'http://localhost:8000' : API_BASE_URL;
+  const resp = await fetch(`${base}/api/chat-sessions/me/${encodeURIComponent(sessionId)}`, {
+    method: 'DELETE',
+    headers,
+  });
+
+  if (!resp.ok) {
+    throw new Error('Không thể xóa hội thoại');
+  }
+}
+
+export async function resetCurrentSession(currentSessionId?: string, clearPrevious: boolean = true): Promise<ResetSessionResponse> {
+  let accessToken = '';
+  try {
+    if ((supabase.auth as any).getSession) {
+      const maybe = await (supabase.auth as any).getSession();
+      accessToken = maybe?.data?.session?.access_token || '';
+    } else if ((supabase.auth as any).session) {
+      const s = (supabase.auth as any).session();
+      accessToken = s?.access_token || '';
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
+  const base = import.meta.env.DEV ? 'http://localhost:8000' : API_BASE_URL;
+  const resp = await fetch(`${base}/api/chat-sessions/reset-current`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      current_session_id: currentSessionId,
+      clear_previous: clearPrevious,
+    }),
+  });
+
+  if (!resp.ok) {
+    throw new Error('Không thể reset phiên hội thoại hiện tại');
+  }
+
+  const body = await resp.json();
+  return (body.data || {}) as ResetSessionResponse;
+}
+
+export async function initSession(currentSessionId?: string, grade?: string, subject?: string): Promise<InitSessionResponse> {
+  let accessToken = '';
+  try {
+    if ((supabase.auth as any).getSession) {
+      const maybe = await (supabase.auth as any).getSession();
+      accessToken = maybe?.data?.session?.access_token || '';
+    } else if ((supabase.auth as any).session) {
+      const s = (supabase.auth as any).session();
+      accessToken = s?.access_token || '';
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
+  const base = import.meta.env.DEV ? 'http://localhost:8000' : API_BASE_URL;
+  const resp = await fetch(`${base}/api/init-session`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      current_session_id: currentSessionId,
+      grade,
+      subject,
+    }),
+  });
+
+  if (!resp.ok) {
+    throw new Error('Không thể khởi tạo session mới');
+  }
+
+  const body = await resp.json();
+  return (body.data || {}) as InitSessionResponse;
+}
+
+// ==========================================
 // Password Recovery
 // ==========================================
 export async function forgotPassword(email: string) {
-  const response = await fetch(`${API_BASE_URL}/forgot-password`, {
+  const response = await fetch(`${API_BASE_URL}/api/forgot-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -215,7 +428,7 @@ export async function streamChatResponse(
   sessionId?: string,
   onChunk: (chunk: string) => void
 ): Promise<string> {
-  const response = await fetch(`${API_BASE_URL}/chat`, {
+  const response = await fetch(`${API_BASE_URL}/api/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -270,4 +483,5 @@ export const apiClient = {
   getAllUsers,
   getUserStats,
   forgotPassword,
+  fetchChatHistory,
 };

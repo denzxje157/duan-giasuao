@@ -5,7 +5,7 @@ import { Grade } from '../types';
 import { supabase } from '../lib/supabase';
 
 interface LoginProps {
-  onLogin: (userData: { name: string; email: string; grade: Grade; role: 'student' | 'admin' }) => void;
+  onLogin: (userData: { id?: string; name: string; email: string; grade: Grade; role: 'student' | 'admin' }) => void;
   onGradeSelect?: (grade: Grade) => void;
 }
 
@@ -56,7 +56,7 @@ export default function Login({ onLogin, onGradeSelect }: LoginProps) {
           }
 
           // Successful login -> proceed to onLogin/navigation
-          onLogin({ name: role === 'admin' ? 'Administrator' : 'Học sinh', email, grade, role });
+          onLogin({ id: data.user.id, name: role === 'admin' ? 'Administrator' : 'Học sinh', email, grade, role });
         } else {
           if (!name.trim() && !isExpectedAdmin) {
             throw new Error("Vui lòng nhập họ và tên");
@@ -82,7 +82,7 @@ export default function Login({ onLogin, onGradeSelect }: LoginProps) {
           }
 
           // Successful signup -> proceed
-          onLogin({ name: isExpectedAdmin ? 'Administrator' : name, email, grade, role });
+          onLogin({ id: data.user?.id, name: isExpectedAdmin ? 'Administrator' : name, email, grade, role });
         }
       } catch (err: any) {
         // On unexpected exception, show error and abort navigation
@@ -104,8 +104,10 @@ export default function Login({ onLogin, onGradeSelect }: LoginProps) {
     }
     try {
       setIsLoading(true);
-      // call API via fetch to /forgot-password
-      const res = await fetch('/api/forgot-password', {
+      // call API via fetch to backend forgot-password endpoint
+      const base = import.meta.env.DEV ? (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000') : '';
+      const url = import.meta.env.DEV ? `${base}/api/forgot-password` : '/api/forgot-password';
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail }),
