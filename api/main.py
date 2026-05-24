@@ -134,9 +134,12 @@ def proxy_tts(text: str):
             zalo_data = zalo_res.json()
             if zalo_data.get("error_code") == 0 and "url" in zalo_data.get("data", {}):
                 audio_url = zalo_data["data"]["url"]
-                audio_res = requests.get(audio_url, timeout=5)
-                if audio_res.status_code == 200:
-                    return Response(content=audio_res.content, media_type="audio/mpeg")
+                # Poll Zalo for up to 5 seconds (file takes time to generate)
+                for _ in range(10):
+                    audio_res = requests.get(audio_url, timeout=3)
+                    if audio_res.status_code == 200 and len(audio_res.content) > 1000:
+                        return Response(content=audio_res.content, media_type="audio/mpeg")
+                    time.sleep(0.5)
     except Exception as e:
         print("Zalo TTS Error:", e)
 
