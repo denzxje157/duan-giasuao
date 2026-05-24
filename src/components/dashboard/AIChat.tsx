@@ -646,9 +646,37 @@ export default function AIChat({ user }: AIChatProps) {
           const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
           if (!audioElement) return;
 
-          const url = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(cleanText)}`;
-          audioElement.src = url;
-          audioElement.play().catch(() => {});
+          // Split text into sentences to avoid backend timeouts and reduce latency
+          const sentences = cleanText.match(/[^.!?\n]+[.!?\n]+/g) || [cleanText];
+          let currentSentence = 0;
+
+          const playNext = () => {
+            if (currentSentence >= sentences.length) {
+              audioElement.onended = null;
+              return;
+            }
+            const chunk = sentences[currentSentence].trim();
+            if (!chunk) {
+              currentSentence++;
+              playNext();
+              return;
+            }
+
+            const url = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
+            audioElement.src = url;
+            audioElement.onended = () => {
+              currentSentence++;
+              playNext();
+            };
+            audioElement.play().catch((err) => {
+              console.error("Audio play failed:", err);
+              // Try next chunk if this one fails
+              currentSentence++;
+              playNext();
+            });
+          };
+
+          playNext();
         };
 
         autoPlayVietnamese();
@@ -907,9 +935,36 @@ export default function AIChat({ user }: AIChatProps) {
                                   const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
                                   if (!audioElement) return;
 
-                                  const url = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(cleanText)}`;
-                                  audioElement.src = url;
-                                  audioElement.play().catch(() => {});
+                                  // Split text into sentences for reliable playback
+                                  const sentences = cleanText.match(/[^.!?\n]+[.!?\n]+/g) || [cleanText];
+                                  let currentSentence = 0;
+
+                                  const playNext = () => {
+                                    if (currentSentence >= sentences.length) {
+                                      audioElement.onended = null;
+                                      return;
+                                    }
+                                    const chunk = sentences[currentSentence].trim();
+                                    if (!chunk) {
+                                      currentSentence++;
+                                      playNext();
+                                      return;
+                                    }
+
+                                    const url = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
+                                    audioElement.src = url;
+                                    audioElement.onended = () => {
+                                      currentSentence++;
+                                      playNext();
+                                    };
+                                    audioElement.play().catch((err) => {
+                                      console.error("Audio play failed:", err);
+                                      currentSentence++;
+                                      playNext();
+                                    });
+                                  };
+
+                                  playNext();
                                 }}
                                 className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-brand-400 transition-colors hover:bg-white/10 hover:text-brand-300"
                                 title="Đọc câu trả lời"
