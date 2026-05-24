@@ -890,7 +890,7 @@ export default function AIChat({ user }: AIChatProps) {
 
                       return (
                         <div className="flex w-full flex-col gap-4">
-                          <div className="whitespace-pre-wrap text-sm leading-relaxed text-white">
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed">
                             <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                               {answerPart || ''}
                             </ReactMarkdown>
@@ -921,14 +921,14 @@ export default function AIChat({ user }: AIChatProps) {
                           {/* Render Quiz if exists */}
                           {quiz && (
                             <div className="mt-2 bg-white/10 rounded-xl p-4 border border-white/20">
-                              <p className="font-bold text-white mb-3 text-sm">🤔 Trắc nghiệm nhanh: {quiz.question}</p>
+                              <p className="font-bold mb-3 text-sm">🤔 Trắc nghiệm nhanh: {quiz.question}</p>
                               <div className="grid gap-2">
                                 {quiz.options.map((opt, idx) => {
                                   const isSelected = quizAnswers[msg.id] === idx;
                                   const isSubmitted = quizResults[msg.id] !== undefined;
                                   const isCorrectOption = idx === quiz.answer;
                                   
-                                  let btnClass = "border-white/20 hover:bg-white/10 text-white";
+                                  let btnClass = isDarkMode ? "border-white/20 hover:bg-white/10 text-white" : "border-zinc-200 hover:bg-zinc-100 text-zinc-900";
                                   if (isSubmitted) {
                                     if (isCorrectOption) btnClass = "bg-green-500 border-green-500 text-white";
                                     else if (isSelected) btnClass = "bg-red-500 border-red-500 text-white";
@@ -973,7 +973,7 @@ export default function AIChat({ user }: AIChatProps) {
                                     key={i}
                                     type="button"
                                     onClick={() => handleSuggestionClick(sug.label)}
-                                    className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-white/10"
+                                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${isDarkMode ? 'border-white/10 bg-white/5 text-white hover:bg-white/10' : 'border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-100'}`}
                                   >
                                     <span>{icon}</span>
                                     <span>{sug.label}</span>

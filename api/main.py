@@ -142,11 +142,31 @@ def proxy_tts(text: str):
 
     # --- Priority 3: Google TTS (Fallback) ---
     try:
-        url = f"https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=vi-VN&client=gtx&q={urllib.parse.quote(text)}"
-        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}, timeout=5)
-        return Response(content=r.content, media_type="audio/mpeg")
+        audio_content = b""
+        # Băm nhỏ văn bản nếu quá dài (Google TTS giới hạn ~200 ký tự)
+        words = text.split()
+        chunks = []
+        current_chunk = ""
+        for word in words:
+            if len(current_chunk) + len(word) + 1 > 200:
+                chunks.append(current_chunk.strip())
+                current_chunk = word + " "
+            else:
+                current_chunk += word + " "
+        if current_chunk:
+            chunks.append(current_chunk.strip())
+
+        for chunk in chunks:
+            url = f"https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=vi-VN&client=gtx&q={urllib.parse.quote(chunk)}"
+            r = requests.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}, timeout=5)
+            if r.status_code == 200:
+                audio_content += r.content
+                
+        if audio_content:
+            return Response(content=audio_content, media_type="audio/mpeg")
     except Exception as e:
-        raise HTTPException(status_code=500, detail="All TTS providers failed")
+        pass
+    raise HTTPException(status_code=500, detail="All TTS providers failed")
 class ChatRequest(BaseModel):
     question: str
     session_id: Optional[str] = None
