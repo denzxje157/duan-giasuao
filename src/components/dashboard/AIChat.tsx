@@ -155,6 +155,8 @@ function extractAnswerFromMarkers(content: string): string {
   }
   // Remove [QUIZ] block from the visible answer
   answer = answer.replace(/\[QUIZ\][\s\S]*?(?:\[END_QUIZ\]|$)/ig, '').trim();
+  // Remove [SUGGESTIONS] block from the visible answer
+  answer = answer.replace(/\[SUGGESTIONS\][\s\S]*?(?:\[END_SUGGESTIONS\]|$)/ig, '').trim();
   return answer;
 }
 
