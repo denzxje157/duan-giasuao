@@ -903,7 +903,7 @@ export default function AIChat({ user }: AIChatProps) {
                                   const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
                                   if (!audioElement) return;
 
-                                  const url = `${API_BASE_URL}/tts?text=${encodeURIComponent(cleanText)}`;
+                                  const url = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(cleanText)}`;
                                   audioElement.src = url;
                                   audioElement.play().catch(() => {});
                                 }}
