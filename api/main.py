@@ -81,7 +81,7 @@ import time
 import urllib.parse
 from langdetect import detect
 
-FPT_TTS_KEY = "Fc55FqdsWrClwNAK0lvaMctxh7wOHiaW"
+FPT_TTS_KEY = "Fe55FqdswrC1wNAK01vaMctxh7wDHiaW"
 ZALO_TTS_KEY = "QiYuYBwz8EKfVlwJH3D3vndLxNZaPZzR"
 
 @app.get("/api/tts")
