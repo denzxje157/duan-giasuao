@@ -6,7 +6,7 @@
 // Base URL configuration
 // In development use localhost; in production (Vercel) use relative `/api` path
 import { supabase } from './supabase';
-export const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '/api');
+export const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
 export interface ChatMessage {
   role: 'user' | 'model';

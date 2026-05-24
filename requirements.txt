@@ -6,4 +6,6 @@ google-generativeai
 pydantic
 python-multipart
 markitdown
- pypdf
+pypdf
+langdetect
+requests
