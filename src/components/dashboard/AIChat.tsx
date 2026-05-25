@@ -147,6 +147,72 @@ function inferSubjectFromText(content: string): string {
   return 'Môn học';
 }
 
+const MessageContent = ({ content }: { content: string }) => {
+  return (
+    <div className="prose prose-invert max-w-none break-words">
+      <ReactMarkdown
+        remarkPlugins={[remarkMath]}
+        rehypePlugins={[rehypeKatex]}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+};
+
+const convertMathToVietnameseSpeech = (text: string) => {
+  let spoken = text;
+  // Toán học cơ bản & cấp 3
+  spoken = spoken.replace(/\\frac{([^}]+)}{([^}]+)}/g, '$1 phần $2');
+  spoken = spoken.replace(/\\widehat{([^}]+)}/g, 'góc $1');
+  spoken = spoken.replace(/\^\\circ/g, ' độ ');
+  spoken = spoken.replace(/\^2/g, ' bình phương ');
+  spoken = spoken.replace(/\^3/g, ' lập phương ');
+  spoken = spoken.replace(/\^{([^}]+)}/g, ' mũ $1 ');
+  spoken = spoken.replace(/\^([0-9a-zA-Z])/g, ' mũ $1 ');
+  spoken = spoken.replace(/\\sqrt{([^}]+)}/g, ' căn bậc hai của $1 ');
+  spoken = spoken.replace(/\\vec{([^}]+)}/g, ' véc tơ $1 ');
+  spoken = spoken.replace(/\\overrightarrow{([^}]+)}/g, ' véc tơ $1 ');
+  spoken = spoken.replace(/\\int/g, ' tích phân ');
+  spoken = spoken.replace(/\\sum/g, ' tổng sigma ');
+  spoken = spoken.replace(/\\lim/g, ' lim ');
+  spoken = spoken.replace(/\\infty/g, ' vô cùng ');
+  
+  // Ký hiệu Hy Lạp phổ biến
+  spoken = spoken.replace(/\\Delta/g, ' đen ta ');
+  spoken = spoken.replace(/\\pi/g, ' pi ');
+  spoken = spoken.replace(/\\alpha/g, ' an pha ');
+  spoken = spoken.replace(/\\beta/g, ' bê ta ');
+  spoken = spoken.replace(/\\gamma/g, ' gam ma ');
+  spoken = spoken.replace(/\\Omega/g, ' ô mê ga ');
+  
+  // Phép toán
+  spoken = spoken.replace(/\\times/g, ' nhân ');
+  spoken = spoken.replace(/\\cdot/g, ' nhân ');
+  spoken = spoken.replace(/\\div/g, ' chia ');
+  spoken = spoken.replace(/\\le/g, ' nhỏ hơn hoặc bằng ');
+  spoken = spoken.replace(/\\ge/g, ' lớn hơn hoặc bằng ');
+  spoken = spoken.replace(/\\neq/g, ' khác ');
+  spoken = spoken.replace(/\\approx/g, ' xấp xỉ ');
+  spoken = spoken.replace(/\\pm/g, ' cộng trừ ');
+  
+  // Vật lí & Hoá học
+  spoken = spoken.replace(/m\/s\^2/g, ' mét trên giây bình phương ');
+  spoken = spoken.replace(/m\/s/g, ' mét trên giây ');
+  spoken = spoken.replace(/kg\/m\^3/g, ' ki lô gam trên mét khối ');
+  spoken = spoken.replace(/_2O/g, ' hai o '); // H2O -> H hai O
+  spoken = spoken.replace(/_2/g, ' hai '); // CO2 -> C O hai
+  spoken = spoken.replace(/_3/g, ' ba '); // CaCO3
+  spoken = spoken.replace(/_4/g, ' bốn '); // H2SO4
+  spoken = spoken.replace(/_{([^}]+)}/g, ' $1 '); // Các chỉ số dưới khác
+  
+  // Dọn dẹp ký tự thừa của LaTeX
+  spoken = spoken.replace(/\$/g, '');
+  spoken = spoken.replace(/\\/g, '');
+  spoken = spoken.replace(/[{}]/g, ' ');
+  return spoken;
+};
+
 function extractAnswerFromMarkers(content: string): string {
   let answer = content;
   const match = content.match(/\[ANSWER\]([\s\S]*?)(?:\[END_ANSWER\]|$)/i);
