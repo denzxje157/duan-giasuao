@@ -1213,7 +1213,6 @@ export default function AIChat({ user }: AIChatProps) {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
                 disabled={isLoading}
                 placeholder={attachedImage ? "Hình vẽ đã đính kèm. Thêm câu hỏi..." : selectedSubject ? `Đặt câu hỏi môn ${selectedSubject}...` : 'Hãy chọn môn học để bắt đầu phiên mới...'}
