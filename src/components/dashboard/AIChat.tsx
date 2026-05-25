@@ -216,6 +216,26 @@ export default function AIChat({ user }: AIChatProps) {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            if (ev.target?.result) {
+              setAttachedImage(ev.target.result as string);
+            }
+          };
+          reader.readAsDataURL(file);
+          e.preventDefault();
+          break;
+        }
+      }
+    }
+  };
   const [subjectLoadingKey, setSubjectLoadingKey] = useState<string | null>(null);
   const [autoVoiceEnabled, setAutoVoiceEnabled] = useState(true);
   
@@ -649,6 +669,18 @@ export default function AIChat({ user }: AIChatProps) {
           // Split text into sentences to avoid backend timeouts and reduce latency
           const sentences = cleanText.match(/[^.!?\n]+[.!?\n]+/g) || [cleanText];
           let currentSentence = 0;
+          const preloadedAudios: { [key: number]: HTMLAudioElement } = {};
+
+          const preloadChunk = (index: number) => {
+            if (index >= sentences.length) return;
+            const chunk = sentences[index].trim();
+            if (!chunk || preloadedAudios[index]) return;
+            const audio = new Audio();
+            audio.preload = 'auto';
+            audio.src = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
+            audio.load();
+            preloadedAudios[index] = audio;
+          };
 
           const playNext = () => {
             if (currentSentence >= sentences.length) {
@@ -661,6 +693,9 @@ export default function AIChat({ user }: AIChatProps) {
               playNext();
               return;
             }
+
+            // Preload the next chunk to eliminate network delay
+            preloadChunk(currentSentence + 1);
 
             const url = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
             audioElement.src = url;
@@ -676,6 +711,7 @@ export default function AIChat({ user }: AIChatProps) {
             });
           };
 
+          preloadChunk(0);
           playNext();
         };
 
@@ -938,6 +974,18 @@ export default function AIChat({ user }: AIChatProps) {
                                   // Split text into sentences for reliable playback
                                   const sentences = cleanText.match(/[^.!?\n]+[.!?\n]+/g) || [cleanText];
                                   let currentSentence = 0;
+                                  const preloadedAudios: { [key: number]: HTMLAudioElement } = {};
+
+                                  const preloadChunk = (index: number) => {
+                                    if (index >= sentences.length) return;
+                                    const chunk = sentences[index].trim();
+                                    if (!chunk || preloadedAudios[index]) return;
+                                    const audio = new Audio();
+                                    audio.preload = 'auto';
+                                    audio.src = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
+                                    audio.load();
+                                    preloadedAudios[index] = audio;
+                                  };
 
                                   const playNext = () => {
                                     if (currentSentence >= sentences.length) {
@@ -950,6 +998,9 @@ export default function AIChat({ user }: AIChatProps) {
                                       playNext();
                                       return;
                                     }
+
+                                    // Preload the next chunk to eliminate network delay
+                                    preloadChunk(currentSentence + 1);
 
                                     const url = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
                                     audioElement.src = url;
@@ -964,6 +1015,7 @@ export default function AIChat({ user }: AIChatProps) {
                                     });
                                   };
 
+                                  preloadChunk(0);
                                   playNext();
                                 }}
                                 className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-brand-400 transition-colors hover:bg-white/10 hover:text-brand-300"
@@ -1157,13 +1209,16 @@ export default function AIChat({ user }: AIChatProps) {
         {currentView === 'chat' && (
           <div className="sticky bottom-0 z-10 border-t border-white/10 bg-[color-mix(in_srgb,var(--bg-primary)_94%,transparent)] px-4 py-4 backdrop-blur-md">
             <form onSubmit={handleSend} className="mx-auto flex w-full max-w-[800px] items-center gap-2 rounded-[24px] border border-white/10 bg-white/5 p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
-              <input
-                type="text"
+              <TextareaAutosize
+                minRows={1}
+                maxRows={5}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 disabled={isLoading}
                 placeholder={attachedImage ? "Hình vẽ đã đính kèm. Thêm câu hỏi..." : selectedSubject ? `Đặt câu hỏi môn ${selectedSubject}...` : 'Hãy chọn môn học để bắt đầu phiên mới...'}
-                className="min-w-0 flex-1 rounded-[20px] border-0 bg-transparent px-4 py-3.5 text-sm font-medium text-[var(--text-primary)] outline-none placeholder:text-[var(--muted-primary)]"
+                className="min-w-0 flex-1 rounded-[20px] border-0 bg-transparent px-4 py-3.5 text-sm font-medium text-[var(--text-primary)] outline-none placeholder:text-[var(--muted-primary)] resize-none"
               />
               <button
                 type="button"
