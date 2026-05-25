@@ -114,22 +114,6 @@ export default function ChatSidebar({
             <Menu className="h-5 w-5" />
           </button>
           <div className="flex-1 lg:hidden"></div>
-          <button
-            type="button"
-            onClick={onNewChat}
-            className="rounded-full p-2 text-white/70 hover:bg-white/10 transition-colors hidden lg:block"
-            title="Cuộc trò chuyện mới"
-          >
-            <SquarePen className="h-5 w-5" />
-          </button>
-          <button
-            type="button"
-            onClick={onNewChat}
-            className="rounded-full p-2 text-white/70 hover:bg-white/10 transition-colors lg:hidden"
-            title="Cuộc trò chuyện mới"
-          >
-            <SquarePen className="h-5 w-5" />
-          </button>
         </div>
 
         <div className="px-3 pb-2 pt-1">
