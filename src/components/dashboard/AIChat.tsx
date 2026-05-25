@@ -970,9 +970,7 @@ export default function AIChat({ user }: AIChatProps) {
                       return (
                         <div className="flex w-full flex-col gap-4">
                           <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                              {answerPart || ''}
-                            </ReactMarkdown>
+                            <MessageContent content={answerPart || ''} />
                           </div>
 
                           {/* Nút Đọc To (Speaker) */}
