@@ -662,7 +662,7 @@ export default function AIChat({ user }: AIChatProps) {
         
         const autoPlayVietnamese = () => {
           if (!autoVoiceEnabled) return;
-          const cleanText = textToSpeak.replace(/[*#_]/g, '');
+          const cleanText = convertMathToVietnameseSpeech(textToSpeak.replace(/[*#_]/g, ''));
           const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
           if (!audioElement) return;
 
@@ -980,7 +980,7 @@ export default function AIChat({ user }: AIChatProps) {
                             <div className="mt-1 flex items-center justify-start">
                               <button
                                 onClick={() => {
-                                  const cleanText = answerPart.replace(/[*#_]/g, '');
+                                  const cleanText = convertMathToVietnameseSpeech(answerPart.replace(/[*#_]/g, ''));
                                   const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
                                   if (!audioElement) return;
 
