@@ -1209,9 +1209,8 @@ export default function AIChat({ user }: AIChatProps) {
         {currentView === 'chat' && (
           <div className="sticky bottom-0 z-10 border-t border-white/10 bg-[color-mix(in_srgb,var(--bg-primary)_94%,transparent)] px-4 py-4 backdrop-blur-md">
             <form onSubmit={handleSend} className="mx-auto flex w-full max-w-[800px] items-center gap-2 rounded-[24px] border border-white/10 bg-white/5 p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
-              <TextareaAutosize
-                minRows={1}
-                maxRows={5}
+              <input
+                type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
