@@ -259,8 +259,7 @@ function extractSuggestionsFromMarkers(content: string): SuggestionItem[] {
 }
 
 function commandFromSuggestion(label: string, grade: string | number, subject?: string | null): string {
-  const cleanSubject = subject || 'Toán';
-  return `/grade ${grade} /subject ${cleanSubject} /chat ${label}`;
+  return label;
 }
 
 export default function AIChat({ user }: AIChatProps) {
@@ -273,7 +272,13 @@ export default function AIChat({ user }: AIChatProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [historyRows, setHistoryRows] = useState<ChatHistoryRow[]>([]);
-  const [sessionGroups, setSessionGroups] = useState<ChatSessionGroup[]>([]);
+  const [sessionGroups, setSessionGroups] = useState<ChatSessionGroup[]>(() => {
+    try {
+      const cached = localStorage.getItem('giasuao_chat_sessions_cache');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>('gemini-3.5-flash');
   const [currentView, setCurrentView] = useState<'selection' | 'chat'>('selection');
@@ -389,7 +394,12 @@ export default function AIChat({ user }: AIChatProps) {
       try {
         setIsHistoryLoading(true);
         const data = await fetchChatSessions();
-        if (!cancelled) setSessionGroups(data || []);
+        if (!cancelled) {
+          setSessionGroups(data || []);
+          if (data && data.length > 0) {
+            localStorage.setItem('giasuao_chat_sessions_cache', JSON.stringify(data));
+          }
+        }
       } catch (error) {
         console.error('Failed to load chat sessions', error);
       } finally {
