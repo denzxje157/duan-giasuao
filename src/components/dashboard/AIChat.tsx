@@ -666,8 +666,20 @@ export default function AIChat({ user }: AIChatProps) {
           const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
           if (!audioElement) return;
 
-          // Split text into sentences to avoid backend timeouts and reduce latency
-          const sentences = cleanText.match(/[^.!?\n]+[.!?\n]+/g) || [cleanText];
+          // Group sentences into chunks of ~200 characters to prevent TTS stuttering on newlines
+          const rawSentences = cleanText.match(/[^.!?\n]+[.!?\n]+/g) || [cleanText];
+          const sentences: string[] = [];
+          let currentGroup = "";
+          for (const s of rawSentences) {
+            if (currentGroup.length + s.length > 200 && currentGroup.length > 0) {
+              sentences.push(currentGroup.trim());
+              currentGroup = s;
+            } else {
+              currentGroup += " " + s;
+            }
+          }
+          if (currentGroup.trim()) sentences.push(currentGroup.trim());
+          
           let currentSentence = 0;
           const preloadedAudios: { [key: number]: HTMLAudioElement } = {};
 
@@ -704,8 +716,8 @@ export default function AIChat({ user }: AIChatProps) {
               playNext();
             };
             audioElement.play().catch((err) => {
+              if (err.name === 'AbortError') return; // Stop sequence quietly if interrupted
               console.error("Audio play failed:", err);
-              if (err.name === 'AbortError') return; // Stop sequence if interrupted by another load/play
               // Try next chunk if this one fails for other reasons (e.g., network)
               currentSentence++;
               playNext();
@@ -972,8 +984,20 @@ export default function AIChat({ user }: AIChatProps) {
                                   const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
                                   if (!audioElement) return;
 
-                                  // Split text into sentences for reliable playback
-                                  const sentences = cleanText.match(/[^.!?\n]+[.!?\n]+/g) || [cleanText];
+                                  // Group sentences into chunks of ~200 characters to prevent TTS stuttering on newlines
+                                  const rawSentences = cleanText.match(/[^.!?\n]+[.!?\n]+/g) || [cleanText];
+                                  const sentences: string[] = [];
+                                  let currentGroup = "";
+                                  for (const s of rawSentences) {
+                                    if (currentGroup.length + s.length > 200 && currentGroup.length > 0) {
+                                      sentences.push(currentGroup.trim());
+                                      currentGroup = s;
+                                    } else {
+                                      currentGroup += " " + s;
+                                    }
+                                  }
+                                  if (currentGroup.trim()) sentences.push(currentGroup.trim());
+                                  
                                   let currentSentence = 0;
                                   const preloadedAudios: { [key: number]: HTMLAudioElement } = {};
 
@@ -1010,8 +1034,8 @@ export default function AIChat({ user }: AIChatProps) {
                                       playNext();
                                     };
                                     audioElement.play().catch((err) => {
+                                      if (err.name === 'AbortError') return; // Stop sequence quietly if interrupted
                                       console.error("Audio play failed:", err);
-                                      if (err.name === 'AbortError') return; // Stop sequence if interrupted
                                       currentSentence++;
                                       playNext();
                                     });

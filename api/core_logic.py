@@ -998,7 +998,29 @@ PHẦN TRẢ LỜI CỦA BẠN PHẢI TUÂN THEO CẤU TRÚC SAU:
                         full_answer += chunk
                         yield chunk
 
-                chat_history.append({"role": "user", "content": question})
+                uploaded_url = None
+                if image_data:
+                    if image_data.startswith('http'):
+                        uploaded_url = image_data
+                    else:
+                        try:
+                            import base64
+                            import uuid
+                            b64_str = image_data
+                            if b64_str.startswith('data:image'):
+                                b64_str = b64_str.split(',', 1)[1]
+                            img_bytes = base64.b64decode(b64_str)
+                            file_path = f"chat_images/{uuid.uuid4()}.png"
+                            supabase.storage.from_("giasuao").upload(file_path, img_bytes, file_options={"content-type": "image/png"})
+                            uploaded_url = supabase.storage.from_("giasuao").get_public_url(file_path)
+                        except Exception as e:
+                            print(f"⚠️ Không thể upload ảnh lên Storage: {e}")
+
+                user_msg = {"role": "user", "content": question}
+                if uploaded_url:
+                    user_msg["imageUrl"] = uploaded_url
+                chat_history.append(user_msg)
+                
                 chat_history.append({"role": "model", "content": full_answer})
                 try:
                     update_payload = {"messages": chat_history}
