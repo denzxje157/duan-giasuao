@@ -705,7 +705,8 @@ export default function AIChat({ user }: AIChatProps) {
             };
             audioElement.play().catch((err) => {
               console.error("Audio play failed:", err);
-              // Try next chunk if this one fails
+              if (err.name === 'AbortError') return; // Stop sequence if interrupted by another load/play
+              // Try next chunk if this one fails for other reasons (e.g., network)
               currentSentence++;
               playNext();
             });
@@ -1010,6 +1011,7 @@ export default function AIChat({ user }: AIChatProps) {
                                     };
                                     audioElement.play().catch((err) => {
                                       console.error("Audio play failed:", err);
+                                      if (err.name === 'AbortError') return; // Stop sequence if interrupted
                                       currentSentence++;
                                       playNext();
                                     });
