@@ -105,7 +105,7 @@ def proxy_tts(text: str):
     try:
         fpt_res = requests.post(
             'https://api.fpt.ai/hmi/tts/v5',
-            headers={'api-key': FPT_TTS_KEY, 'voice': 'banmai'},
+            headers={'api-key': FPT_TTS_KEY, 'voice': 'banmai', 'speed': '1'},
             data=text.encode('utf-8'),
             timeout=5
         )
