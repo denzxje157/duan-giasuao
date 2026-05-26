@@ -9,6 +9,7 @@ import AdminPanel from './dashboard/AdminPanel.tsx';
 import Progress from './dashboard/Progress.tsx';
 import Profile from './dashboard/Profile.tsx';
 import Quiz from './dashboard/Quiz.tsx';
+import Workspace from './dashboard/Workspace.tsx';
 import { User, Grade } from '../types';
 import { useStudyTracker } from '../hooks/useStudyTracker.ts';
 

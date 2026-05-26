@@ -39,6 +39,13 @@ export default function LibraryComponent({ currentGrade, setActiveTab, user }: L
 
   useEffect(() => {
     const fetchDocs = async () => {
+      if (user.isGuest) {
+        setPersonalDocs([]);
+        const system = [...TEXTBOOKS_DATA];
+        setSystemDocs(system);
+        setIsLoading(false);
+        return;
+      }
       try {
         const [personalRes, systemRes, chatRes] = await Promise.all([
           supabase.from('documents').select('*').eq('user_id', user.id),
