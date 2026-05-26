@@ -1407,11 +1407,13 @@ export default function AIChat({ user }: AIChatProps) {
               <input ref={fileInputRef} onChange={handleFileSelected} type="file" accept=".pdf,.jpg,.jpeg,.png,.txt" className="hidden" />
             </form>
             {isDrawingMode && (
-              <div className="absolute bottom-[80px] right-4 left-4 md:left-auto md:w-[600px] z-50 animate-in slide-in-from-bottom-4">
-                <DrawingCanvas 
-                  onCancel={() => setIsDrawingMode(false)} 
-                  onCapture={handleDrawingSave}
-                />
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="w-full max-w-[600px] animate-in zoom-in-95 duration-200">
+                  <DrawingCanvas 
+                    onCancel={() => setIsDrawingMode(false)} 
+                    onCapture={handleDrawingSave}
+                  />
+                </div>
               </div>
             )}
             <div className="mt-3 flex items-center justify-center gap-1.5 opacity-60">
