@@ -41,14 +41,18 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
   const displayGrade = config?.grade || user.grade;
 
 
-  const [messages, setMessages] = useState<Message[]>([
-    { 
-      role: 'assistant', 
-      content: user.grade <= 5 
-        ? `Chào ${user.name}! Mình là bạn Gia Sư. Trong lúc đọc truyện hay học bài, có gì khó hiểu cậu cứ hỏi mình nhé!` 
-        : `Chào ${user.name}! Mình là Gia sư AI. Trong quá trình đọc sách, nếu có đoạn nào chưa hiểu hoặc cần giải đáp, bạn cứ hỏi mình nhé.\n\nVí dụ về công thức Toán: Hãy thử hỏi mình về phương trình bậc 2 hoặc công thức tính diện tích.` 
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+
+  useEffect(() => {
+    setMessages([
+      { 
+        role: 'assistant', 
+        content: user.grade <= 5 
+          ? `Chào ${user.name}! Mình là bạn Gia Sư. Trong lúc học cuốn **${displayTitle}**, có gì khó hiểu cậu cứ hỏi mình nhé!` 
+          : `Chào ${user.name}! Mình là Gia sư AI. Trong quá trình học cuốn **${displayTitle}**, nếu có đoạn nào chưa hiểu hoặc cần giải đáp, bạn cứ hỏi mình nhé.` 
+      }
+    ]);
+  }, [displayTitle, user.name, user.grade]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -198,7 +202,7 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
 
     try {
       const apiKey = localStorage.getItem('admin_gemini_api_key') || process.env.GEMINI_API_KEY;
-      const systemContext = "You are a helpful AI tutor for students. You should use markdown and KaTeX formatted math equations when explaining math. Wrap inline math with single $ and block math with double $$. Output only the response in Vietnamese.";
+      const systemContext = `You are a helpful AI tutor for students. You are currently helping a student study the textbook "${displayTitle}". Always adapt your answers to be relevant to this book. You should use markdown and KaTeX formatted math equations when explaining math. Wrap inline math with single $ and block math with double $$. Output only the response in Vietnamese.`;
       
       const chatUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/chat` : '/api/chat';
       const response = await fetch(chatUrl, {
@@ -418,28 +422,22 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
                       {msg.content}
                     </ReactMarkdown>
                     {/* Knowledge Context Mock */}
-                    {(i === 0 || msg.content.includes('phương trình') || msg.content.includes('Gia sư')) && (
+                    {(i === 0) && (
                       <div className="mt-4 space-y-3">
                         <button 
-                          onClick={() => {
-                            // Tự động nhảy đến trang và highlight (Mock logic)
-                            const pageNum = 15;
-                            console.log(`Nhảy tới trang ${pageNum} và highlight...`);
-                            alert(`[Demo] Đã nhảy tới trang ${pageNum} và vùng kiến thức liên quan.`);
-                          }}
-                          className="w-full text-left p-2.5 bg-brand-50/50 hover:bg-brand-50 border border-brand-100 rounded-lg flex items-start gap-2 transition-colors group"
+                          className="w-full text-left p-2.5 bg-brand-50/50 hover:bg-brand-50 border border-brand-100 rounded-lg flex items-start gap-2 transition-colors group cursor-default"
                         >
-                          <BookOpen className="w-4 h-4 text-brand-500 shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                          <BookOpen className="w-4 h-4 text-brand-500 shrink-0 mt-0.5" />
                           <span className="text-xs font-semibold text-brand-700 leading-tight">
-                            <span className="block mb-0.5">Trích dẫn: Trang 15, Toán học {user.grade}</span>
-                            <span className="font-medium text-brand-500 opacity-80">(Bấm để đi đến trang & highlight)</span>
+                            <span className="block mb-0.5">Sách đang mở: {displayTitle}</span>
+                            <span className="font-medium text-brand-500 opacity-80">AI đã sẵn sàng hỗ trợ bạn cuốn sách này</span>
                           </span>
                         </button>
                         
                         <div className="flex flex-col gap-1.5">
-                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">Gợi ý mở rộng:</span>
-                           <button onClick={() => handleSend(undefined, 'Tại sao công thức này lại đúng?')} className="text-left text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline bg-white border border-slate-100 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all truncate">Tại sao công thức này lại đúng?</button>
-                           <button onClick={() => handleSend(undefined, 'Cho mình ví dụ thực tế được không?')} className="text-left text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline bg-white border border-slate-100 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all truncate">Cho mình ví dụ thực tế được không?</button>
+                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">Gợi ý câu hỏi:</span>
+                           <button onClick={() => handleSend(undefined, `Giải thích tóm tắt nội dung cuốn ${displayTitle} được không?`)} className="text-left text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline bg-white border border-slate-100 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all truncate">Tóm tắt sách này cho mình</button>
+                           <button onClick={() => handleSend(undefined, `Cho mình một ví dụ thực tế liên quan đến môn học này`)} className="text-left text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline bg-white border border-slate-100 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all truncate">Cho một ví dụ thực tế</button>
                         </div>
                       </div>
                     )}
