@@ -53,7 +53,7 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
         const [personalRes, systemRes, chatRes] = await Promise.all([
           supabase.from('documents').select('*').eq('user_id', user.id),
           supabase.from('documents').select('*').is('user_id', null),
-          supabase.from('chat_sessions').select('messages').eq('user_id', user.id)
+          supabase.from('chat_history').select('content, id, timestamp').eq('user_id', user.id)
         ]);
         
         const personal = personalRes.data || [];
@@ -61,20 +61,20 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
         
         const chatImages: any[] = [];
         if (chatRes.data) {
-          chatRes.data.forEach(session => {
-            const msgs = session.messages || [];
-            msgs.forEach((msg: any) => {
-              if (msg.imageUrl) {
+          chatRes.data.forEach(msg => {
+            if (msg.content) {
+              const match = msg.content.match(/!\[.*?\]\((data:image\/[^;]+;base64,[^\)]+)\)/);
+              if (match) {
                 chatImages.push({
                   id: msg.id || Math.random().toString(),
                   title: `Ảnh từ đoạn chat`,
                   status: 'ready',
-                  date: new Date(Date.now()).toLocaleDateString('en-GB'),
+                  date: new Date(msg.timestamp || Date.now()).toLocaleDateString('en-GB'),
                   subject: 'Tài liệu Chat',
-                  pdf_url: msg.imageUrl
+                  pdf_url: match[1]
                 });
               }
-            });
+            }
           });
         }
         

@@ -536,8 +536,11 @@ def chat(req: ChatRequest):
             user_id_val = req.user_id if getattr(req, 'user_id', None) else None
             sid = detected_session_id or req.session_id
             if user_id_val:
+                user_content = req.question
+                if req.image_data:
+                    user_content = f"![Hình đính kèm]({req.image_data})\n\n" + req.question
                 rows = [
-                    {"user_id": user_id_val, "role": "user", "content": req.question, "session_id": sid},
+                    {"user_id": user_id_val, "role": "user", "content": user_content, "session_id": sid},
                     {"user_id": user_id_val, "role": "assistant", "content": full_answer, "session_id": sid},
                 ]
                 try:
