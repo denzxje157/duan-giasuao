@@ -13,7 +13,7 @@ interface LibraryProps {
 }
 
 export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWorkspace, user }: LibraryProps) {
-  const [selectedSeries, setSelectedSeries] = useState<Textbook['series'] | 'Tất cả'>('Tất cả');
+
   const [selectedSubject, setSelectedSubject] = useState<string>('Tất cả');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBook, setSelectedBook] = useState<Textbook | null>(null);
@@ -134,12 +134,11 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
-  const seriesOptions: (Textbook['series'] | 'Tất cả')[] = ['Tất cả', 'Kết nối tri thức', 'Chân trời sáng tạo', 'Cánh Diều', 'Khác'];
-  const subjects = ['Tất cả', 'Toán học', 'Ngữ văn', 'Tiếng Anh', 'Vật lý', 'Hóa học', 'Sinh học', 'Lịch sử', 'Địa lý', 'Tin học', 'Khác'];
+  const subjects = ['Tất cả', 'Toán', 'Tiếng Việt', 'Ngữ văn', 'Tiếng Anh', 'Vật lí', 'Hóa học', 'Sinh học', 'Lịch sử', 'Địa lí', 'Tin học', 'Khoa học tự nhiên', 'Lịch sử và Địa lí', 'Tự nhiên và Xã hội', 'Giáo dục công dân', 'Đạo đức', 'Công nghệ'];
 
   const filteredBooks = systemDocs.filter(book => {
     if (book.grade !== currentGrade) return false;
-    if (selectedSeries !== 'Tất cả' && book.series !== selectedSeries) return false;
+
     if (selectedSubject !== 'Tất cả' && book.subject !== selectedSubject) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -229,21 +228,6 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar lg:pt-1">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 shrink-0">Bộ sách:</span>
-              {seriesOptions.map(series => (
-                <button
-                  key={series}
-                  onClick={() => { setSelectedBook(null); setSelectedSeries(series); }}
-                  className={`px-4 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                    selectedSeries === series 
-                      ? 'bg-slate-800 text-white shadow-sm' 
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {series}
-                </button>
-              ))}
             </div>
           </div>
 
