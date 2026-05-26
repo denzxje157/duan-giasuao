@@ -1407,9 +1407,8 @@ export default function AIChat({ user }: AIChatProps) {
             {isDrawingMode && (
               <div className="absolute bottom-[80px] right-4 left-4 md:left-auto md:w-[600px] z-50 animate-in slide-in-from-bottom-4">
                 <DrawingCanvas 
-                  onClose={() => setIsDrawingMode(false)} 
-                  onSave={handleDrawingSave}
-                  isDarkMode={isDarkMode}
+                  onCancel={() => setIsDrawingMode(false)} 
+                  onCapture={handleDrawingSave}
                 />
               </div>
             )}

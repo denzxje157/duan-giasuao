@@ -21,29 +21,68 @@ export default function LibraryComponent({ currentGrade, setActiveTab, user }: L
   const [activeSubTab, setActiveSubTab] = useState<'system' | 'personal'>('system');
 
   // Personal Docs State
-  const [personalDocs, setPersonalDocs] = useState<any[]>([]);
-  const [systemDocs, setSystemDocs] = useState<Textbook[]>([]);
+  const [personalDocs, setPersonalDocs] = useState<any[]>(() => {
+    try {
+      const cached = localStorage.getItem('giasuao_library_personal');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return [];
+  });
+  const [systemDocs, setSystemDocs] = useState<Textbook[]>(() => {
+    try {
+      const cached = localStorage.getItem('giasuao_library_system');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return TEXTBOOKS_DATA;
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchDocs = async () => {
       try {
-        const { data, error } = await supabase.from('documents').select('*');
-        if (error) throw error;
+        const [personalRes, systemRes, chatRes] = await Promise.all([
+          supabase.from('documents').select('*').eq('user_id', user.id),
+          supabase.from('documents').select('*').is('user_id', null),
+          supabase.from('chat_sessions').select('messages, updated_at').eq('user_id', user.id)
+        ]);
         
-        const personal = data.filter(d => d.user_id === user.id);
-        const system = data.filter(d => !d.user_id);
+        const personal = personalRes.data || [];
+        const system = systemRes.data || [];
         
-        setPersonalDocs(personal.map(d => ({
-          id: d.id,
-          title: d.name || 'Tài liệu không tên',
-          status: 'ready',
-          date: new Date(d.created_at || Date.now()).toLocaleDateString('en-GB'),
-          subject: d.subject || 'Khác',
-          pdf_url: d.pdf_url
-        })));
+        const chatImages: any[] = [];
+        if (chatRes.data) {
+          chatRes.data.forEach(session => {
+            const msgs = session.messages || [];
+            msgs.forEach((msg: any) => {
+              if (msg.imageUrl) {
+                chatImages.push({
+                  id: msg.id || Math.random().toString(),
+                  title: `Ảnh từ đoạn chat`,
+                  status: 'ready',
+                  date: new Date(session.updated_at || Date.now()).toLocaleDateString('en-GB'),
+                  subject: 'Tài liệu Chat',
+                  pdf_url: msg.imageUrl
+                });
+              }
+            });
+          });
+        }
+        
+        const finalPersonal = [
+          ...personal.map(d => ({
+            id: d.id,
+            title: d.name || 'Tài liệu không tên',
+            status: 'ready',
+            date: new Date(d.created_at || Date.now()).toLocaleDateString('en-GB'),
+            subject: d.subject || 'Khác',
+            pdf_url: d.pdf_url
+          })),
+          ...chatImages
+        ];
 
-        // Merge TEXTBOOKS_DATA with system docs from DB
+        setPersonalDocs(finalPersonal);
+        localStorage.setItem('giasuao_library_personal', JSON.stringify(finalPersonal));
+
         const mappedSystemDocs = system.map(d => ({
           id: d.id,
           title: d.name || 'Sách giáo khoa',
@@ -54,10 +93,12 @@ export default function LibraryComponent({ currentGrade, setActiveTab, user }: L
           pages: 100,
           size: '10 MB'
         }));
-        setSystemDocs([...TEXTBOOKS_DATA, ...mappedSystemDocs]);
+        
+        const finalSystem = [...TEXTBOOKS_DATA, ...mappedSystemDocs];
+        setSystemDocs(finalSystem);
+        localStorage.setItem('giasuao_library_system', JSON.stringify(finalSystem));
       } catch (err) {
         console.error('Error fetching docs:', err);
-        setSystemDocs(TEXTBOOKS_DATA);
       } finally {
         setIsLoading(false);
       }
