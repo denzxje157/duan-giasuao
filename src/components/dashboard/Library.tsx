@@ -431,14 +431,43 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   whileHover={{ y: -4 }}
-                  onClick={() => doc.pdf_url && window.open(doc.pdf_url, '_blank')}
+                  onClick={() => {
+                    if (!doc.pdf_url) return;
+                    if (doc.pdf_url.startsWith('data:image')) {
+                      const win = window.open();
+                      if (win) {
+                        win.document.write(`
+                          <html>
+                            <head><title>Hình ảnh chi tiết</title></head>
+                            <body style="margin: 0; background: #000; display: flex; align-items: center; justify-content: center; height: 100vh;">
+                              <img src="${doc.pdf_url}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+                            </body>
+                          </html>
+                        `);
+                        win.document.close();
+                      }
+                    } else if (onOpenWorkspace) {
+                      onOpenWorkspace({
+                        url: doc.pdf_url,
+                        title: doc.title || 'Tài liệu',
+                        grade: currentGrade,
+                        subject: doc.subject || 'Tài liệu Cá Nhân'
+                      });
+                    } else {
+                      window.open(doc.pdf_url, '_blank');
+                    }
+                  }}
                   className="bg-white border text-left border-slate-200 shadow-sm hover:shadow-md hover:border-brand-300 rounded-2xl p-4 transition-all flex flex-col group cursor-pointer"
                 >
                   <div className="aspect-[3/4] bg-slate-50 flex items-center justify-center rounded-xl mb-4 relative overflow-hidden group-hover:bg-slate-100 transition-colors">
                     <div className="absolute top-4 right-4 w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white z-10 opacity-0 group-hover:opacity-100 group-hover:scale-110 transition-all">
                       <GraduationCap className="w-4 h-4 text-white" />
                     </div>
-                    <File className="w-12 h-12 text-slate-300 group-hover:text-brand-300 transition-colors" />
+                    {doc.pdf_url && (doc.pdf_url.startsWith('data:image/') || doc.pdf_url.match(/\.(jpeg|jpg|gif|png)$/i)) ? (
+                      <img src={doc.pdf_url} alt={doc.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <File className="w-12 h-12 text-slate-300 group-hover:text-brand-300 transition-colors" />
+                    )}
                     {doc.status === 'analyzing' ? (
                       <div className="absolute top-2 left-2 flex items-center gap-1.5 px-2.5 py-1 bg-amber-500 text-white text-[10px] font-bold uppercase rounded-lg shadow-sm">
                         <Loader2 className="w-3 h-3 animate-spin" />

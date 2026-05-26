@@ -163,7 +163,7 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
     try {
       setIsUploadingFile(true);
       const grade = String(user.grade || 1);
-      const result = await uploadDocument(file, grade);
+      const result = await uploadDocument(file, grade.toString(), user.id);
       setMessages(prev => [
         ...prev,
         {

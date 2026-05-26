@@ -140,11 +140,15 @@ export async function chatWithAI(
 
 export async function uploadDocument(
   file: File,
-  grade: string
+  grade: string,
+  userId?: string
 ): Promise<any> {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('grade', grade);
+  if (userId) {
+    formData.append('user_id', userId);
+  }
 
   const response = await fetch(`${API_BASE_URL}/api/upload`, {
     method: 'POST',
