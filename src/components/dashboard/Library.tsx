@@ -97,7 +97,7 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
             if (matchId) driveId = matchId[1];
           }
           // If we have a Drive ID, ask Google Drive for a direct thumbnail rendering of the PDF
-          const coverUrl = driveId ? `https://drive.google.com/thumbnail?id=${driveId}&sz=w600` : (d.thumbnail_url || '');
+          const coverUrl = driveId ? `https://drive.google.com/thumbnail?id=${driveId}&sz=w300` : (d.thumbnail_url || '');
 
           return {
             id: d.id,
@@ -129,11 +129,12 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadSuccess, setUploadSuccess] = useState(false);
 
-  const subjects = ['Tất cả', 'Toán', 'Tiếng Việt', 'Ngữ văn', 'Tiếng Anh', 'Vật lí', 'Hóa học', 'Sinh học', 'Lịch sử', 'Địa lí', 'Tin học', 'Khoa học tự nhiên', 'Lịch sử và Địa lí', 'Tự nhiên và Xã hội', 'Giáo dục công dân', 'Đạo đức', 'Công nghệ'];
+  const currentGradeBooks = systemDocs.filter(b => b.grade === currentGrade);
+  const availableSubjects = Array.from(new Set(currentGradeBooks.map(b => b.subject)));
+  availableSubjects.sort(); // sort alphabetically
+  const subjects = ['Tất cả', ...availableSubjects];
 
-  const filteredBooks = systemDocs.filter(book => {
-    if (book.grade !== currentGrade) return false;
-
+  const filteredBooks = currentGradeBooks.filter(book => {
     if (selectedSubject !== 'Tất cả' && book.subject !== selectedSubject) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -248,7 +249,7 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
                           <GraduationCap className="w-5 h-5 text-white" />
                         </div>
                       {selectedBook.thumbnail ? (
-                        <img src={selectedBook.thumbnail} alt={selectedBook.title} className="w-full h-full object-cover" />
+                        <img src={selectedBook.thumbnail.replace('w300', 'w600')} alt={selectedBook.title} loading="lazy" className="w-full h-full object-cover" />
                       ) : (
                         <BookOpen className="w-16 h-16 text-slate-300" />
                       )}
@@ -326,11 +327,12 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
                        <div className="absolute top-4 right-4 w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(37,99,235,0.3)] border-2 border-white z-10 opacity-0 group-hover:opacity-100 group-hover:scale-110 group-hover:-translate-y-1 transition-all duration-300">
                          <GraduationCap className="w-4 h-4 text-white" />
                        </div>
-                      {book.thumbnail ? (
-                        <img fetchPriority="high" decoding="async" src={book.thumbnail} alt={book.title} className="w-full h-full object-cover group-hover:scale-110 group-hover:rotate-1 transition-transform duration-700 ease-out" />
-                      ) : (
-                        <BookOpen className="w-10 h-10 text-slate-300 group-hover:scale-110 group-hover:text-brand-400 transition-all duration-300" />
-                      )}
+                       <img 
+                          src={book.thumbnail || `https://ui-avatars.com/api/?name=${encodeURIComponent(book.title)}&background=f8fafc&color=334155&size=400&font-size=0.3`}
+                          alt={book.title}
+                          loading="lazy"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
                       {book.isNew && (
                         <div className="absolute top-2 left-2 bg-brand-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">
                           Mới

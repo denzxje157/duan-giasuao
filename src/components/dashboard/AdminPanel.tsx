@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Key, UploadCloud, Save, CheckCircle2, ShieldAlert, FileText, X, Activity, AlertTriangle, Settings2, Users, Database, LayoutDashboard, Search, Lock, Unlock, KeyRound, Shield, Edit2, Trash2, Bot } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { supabase } from '../../lib/supabase';
 
 interface BookUpload {
   id: string;
@@ -42,12 +43,35 @@ export default function AdminPanel() {
   const [editValue, setEditValue] = useState('');
 
   // Users State
-  const [usersList, setUsersList] = useState([
-    { id: '1', name: 'Nguyễn Văn An', email: 'an.nguyen@giasuao.com', grade: 10, role: 'student', status: 'active' },
-    { id: '2', name: 'Trần Thị Bình', email: 'binh.tran@giasuao.com', grade: 11, role: 'student', status: 'locked' },
-    { id: '3', name: 'Hoàng Trung', email: 'hoangtrung160207@gmail.com', grade: 12, role: 'admin', status: 'active' }
-  ]);
+  const [usersList, setUsersList] = useState<any[]>([]);
   const [userSearch, setUserSearch] = useState('');
+  
+  // Real Stats
+  const [stats, setStats] = useState({ totalDocs: 0, totalUsers: 0 });
+
+  React.useEffect(() => {
+    const fetchAdminData = async () => {
+      try {
+        const { data: profiles } = await supabase.from('profiles').select('*');
+        if (profiles) {
+          setUsersList(profiles.map(p => ({
+            id: p.id,
+            name: p.full_name || p.email?.split('@')[0] || 'Người dùng',
+            email: p.email || 'N/A',
+            grade: p.grade || 1,
+            role: p.role || 'student',
+            status: 'active'
+          })));
+        }
+        const { count: docsCount } = await supabase.from('documents').select('*', { count: 'exact', head: true });
+        const { count: usersCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
+        setStats({ totalDocs: docsCount || 0, totalUsers: usersCount || 0 });
+      } catch (err) {
+        console.error("Admin fetch error", err);
+      }
+    };
+    fetchAdminData();
+  }, []);
   
   // Errors Data
   const mockErrors = [
@@ -161,13 +185,13 @@ export default function AdminPanel() {
               </div>
               <div className="flex gap-4">
                  <div className="text-right">
-                   <div className="text-2xl font-bold text-slate-800">20.4K</div>
-                   <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Tổng tương tác</div>
+                   <div className="text-2xl font-bold text-slate-800">{stats.totalDocs}</div>
+                   <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Tài liệu RAG</div>
                  </div>
                  <div className="w-px bg-slate-100" />
                  <div className="text-right">
-                   <div className="text-2xl font-bold text-red-500 flex items-center justify-end gap-1"><AlertTriangle className="w-4 h-4" /> 253</div>
-                   <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Lỗi phát sinh</div>
+                   <div className="text-2xl font-bold text-slate-800 flex items-center justify-end gap-1">{stats.totalUsers}</div>
+                   <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Học viên</div>
                  </div>
               </div>
             </div>
