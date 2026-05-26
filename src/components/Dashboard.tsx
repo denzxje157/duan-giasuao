@@ -27,7 +27,7 @@ export interface WorkspaceConfig {
 }
 
 export default function Dashboard({ user, onLogout, onGradeChange }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState(user.role === 'admin' ? 'admin' : 'library');
+  const [activeTab, setActiveTab] = useState('home');
   const [workspaceConfig, setWorkspaceConfig] = useState<WorkspaceConfig | null>(null);
   
   useStudyTracker(user, activeTab === 'ai' ? 'Trò chuyện AI' : activeTab === 'quiz' ? 'Luyện tập' : 'Chung');

@@ -21,19 +21,8 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
   // Tabs for System vs Personal
   const [activeSubTab, setActiveSubTab] = useState<'system' | 'personal'>('system');
 
-  // Personal Docs State
-  const [personalDocs, setPersonalDocs] = useState<any[]>(() => {
-    try {
-      const cached = localStorage.getItem('giasuao_library_personal');
-      if (cached) return JSON.parse(cached);
-    } catch {}
-    return [];
-  });
+  const [personalDocs, setPersonalDocs] = useState<any[]>([]);
   const [systemDocs, setSystemDocs] = useState<Textbook[]>(() => {
-    try {
-      const cached = localStorage.getItem('giasuao_library_system');
-      if (cached) return JSON.parse(cached);
-    } catch {}
     return TEXTBOOKS_DATA;
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -91,7 +80,6 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
         ];
 
         setPersonalDocs(finalPersonal);
-        localStorage.setItem('giasuao_library_personal', JSON.stringify(finalPersonal));
 
         const mappedSystemDocs = system.map(d => {
           // Normalize names for matching
@@ -117,9 +105,7 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
         
         // We only use the mappedSystemDocs now because they represent the unified books 
         // (Supabase metadata + Google Drive content)
-        const finalSystem = [...mappedSystemDocs];
         setSystemDocs(finalSystem);
-        localStorage.setItem('giasuao_library_system', JSON.stringify(finalSystem));
       } catch (err) {
         console.error('Error fetching docs:', err);
       } finally {
@@ -227,7 +213,6 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
                   {sub}
                 </button>
               ))}
-            </div>
             </div>
           </div>
 
