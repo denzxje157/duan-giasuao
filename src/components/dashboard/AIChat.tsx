@@ -368,6 +368,7 @@ export default function AIChat({ user }: AIChatProps) {
             id: row.id || `${row.role}-${Math.random()}`,
             role: row.role === 'user' ? 'user' : 'assistant',
             content: row.content,
+            imageUrl: row.imageUrl,
             status: 'completed',
           }));
           setMessages(mappedMessages);
@@ -571,6 +572,7 @@ export default function AIChat({ user }: AIChatProps) {
         id: row.id || `${row.role}-${Math.random()}`,
         role: row.role === 'user' ? 'user' : 'assistant',
         content: row.content,
+        imageUrl: row.imageUrl,
         status: 'completed',
       }));
       if (mappedMessages.length > 0) {
