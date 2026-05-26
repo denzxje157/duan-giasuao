@@ -97,14 +97,14 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
             if (matchId) driveId = matchId[1];
           }
           // If we have a Drive ID, ask Google Drive for a direct thumbnail rendering of the PDF
-          const coverUrl = driveId ? `https://drive.google.com/thumbnail?id=${driveId}&sz=w300` : (d.thumbnail_url || '');
+          const coverUrl = matchingLocalBook?.thumbnail || (driveId ? `https://drive.google.com/thumbnail?id=${driveId}&sz=w300` : (d.thumbnail_url || ''));
 
           return {
             id: d.id,
             title: d.name ? d.name.replace(/\.pdf$/i, '') : 'Sách giáo khoa',
-            subject: d.subject || 'Khác',
-            grade: Number(d.grade) || currentGrade,
-            series: 'Kết nối tri thức',
+            subject: d.subject || matchingLocalBook?.subject || 'Khác',
+            grade: Number(d.grade) || matchingLocalBook?.grade || currentGrade,
+            series: matchingLocalBook?.series || 'Kết nối tri thức',
             thumbnail: coverUrl,
             pages: matchingLocalBook?.pages || 100,
             size: matchingLocalBook?.size || 'N/A',
