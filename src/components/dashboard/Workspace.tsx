@@ -246,13 +246,14 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
             if (line.startsWith('data: ')) {
               try {
                 const data = JSON.parse(line.slice(6));
-                if (data.text) {
+                const textChunk = data.chunk || data.text || '';
+                if (textChunk) {
                   setMessages(prev => {
                     const newMessages = [...prev];
                     const lastIndex = newMessages.length - 1;
                     newMessages[lastIndex] = {
                       ...newMessages[lastIndex],
-                      content: newMessages[lastIndex].content + data.text
+                      content: newMessages[lastIndex].content + textChunk
                     };
                     return newMessages;
                   });
@@ -433,15 +434,16 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
                         >
                           <BookOpen className="w-4 h-4 text-brand-500 shrink-0 mt-0.5" />
                           <span className="text-xs font-semibold text-brand-700 leading-tight">
-                            <span className="block mb-0.5">Sách đang mở: {displayTitle}</span>
-                            <span className="font-medium text-brand-500 opacity-80">AI đã sẵn sàng hỗ trợ bạn cuốn sách này</span>
+                            <span className="block mb-0.5">Tài liệu: {displayTitle}</span>
+                            <span className="font-medium text-brand-500 opacity-80">AI đã sẵn sàng phân tích sách giáo khoa này</span>
                           </span>
                         </button>
                         
                         <div className="flex flex-col gap-1.5">
-                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">Gợi ý câu hỏi:</span>
-                           <button onClick={() => handleSend(undefined, `Giải thích tóm tắt nội dung cuốn ${displayTitle} được không?`)} className="text-left text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline bg-white border border-slate-100 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all truncate">Tóm tắt sách này cho mình</button>
-                           <button onClick={() => handleSend(undefined, `Cho mình một ví dụ thực tế liên quan đến môn học này`)} className="text-left text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline bg-white border border-slate-100 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all truncate">Cho một ví dụ thực tế</button>
+                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">Gợi ý tương tác:</span>
+                           <button onClick={() => handleSend(undefined, `Liệt kê các ý chính của sách ${displayTitle}`)} className="text-left text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline bg-white border border-slate-100 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all truncate">Liệt kê các ý chính trong tệp này</button>
+                           <button onClick={() => handleSend(undefined, `Tạo kế hoạch học tập môn ${displayTitle}`)} className="text-left text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline bg-white border border-slate-100 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all truncate">Tạo kế hoạch học tập cho tệp này</button>
+                           <button onClick={() => handleSend(undefined, `Tóm tắt nhanh cuốn ${displayTitle}`)} className="text-left text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline bg-white border border-slate-100 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all truncate">Tóm tắt nội dung sách</button>
                         </div>
                       </div>
                     )}
