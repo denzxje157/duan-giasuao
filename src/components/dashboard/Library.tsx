@@ -90,16 +90,25 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
              local => (local.title || local.name || local.subject || '').toLowerCase().replace(/\.pdf$/, '').trim() === dbName
           );
 
+          const pdfUrl = matchingLocalBook?.pdf_url || d.pdf_url || '';
+          let driveId = '';
+          if (pdfUrl) {
+            const matchId = pdfUrl.match(/id=([a-zA-Z0-9_-]+)/) || pdfUrl.match(/d\/([a-zA-Z0-9_-]+)/);
+            if (matchId) driveId = matchId[1];
+          }
+          // If we have a Drive ID, ask Google Drive for a direct thumbnail rendering of the PDF
+          const coverUrl = driveId ? `https://drive.google.com/thumbnail?id=${driveId}&sz=w600` : (d.thumbnail_url || '');
+
           return {
             id: d.id,
             title: d.name ? d.name.replace(/\.pdf$/i, '') : 'Sách giáo khoa',
             subject: d.subject || 'Khác',
             grade: Number(d.grade) || currentGrade,
             series: 'Kết nối tri thức',
-            thumbnail: d.thumbnail_url || '',
+            thumbnail: coverUrl,
             pages: matchingLocalBook?.pages || 100,
             size: matchingLocalBook?.size || 'N/A',
-            pdf_url: matchingLocalBook?.pdf_url || d.pdf_url
+            pdf_url: pdfUrl
           };
         });
         
