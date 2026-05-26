@@ -340,16 +340,16 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
                 {filteredBooks.map((book) => (
                   <motion.div
                     key={book.id}
-                    whileHover={{ y: -6 }}
+                    whileHover={{ y: -8 }}
                     onClick={() => setSelectedBook(book)}
-                    className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 hover:border-brand-300 hover:shadow-md transition-all cursor-pointer group flex flex-col"
+                    className="bg-white rounded-[24px] p-5 shadow-sm hover:shadow-xl border border-slate-100 hover:border-brand-200 transition-all duration-300 cursor-pointer group flex flex-col"
                   >
-                    <div className="aspect-[3/4] bg-slate-100 rounded-xl mb-4 relative overflow-hidden flex items-center justify-center">
-                       <div className="absolute top-4 right-4 w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white z-10 opacity-0 group-hover:opacity-100 group-hover:scale-110 transition-all">
+                    <div className="aspect-[3/4] bg-slate-50 rounded-xl mb-5 relative overflow-hidden flex items-center justify-center shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)]">
+                       <div className="absolute top-4 right-4 w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(37,99,235,0.3)] border-2 border-white z-10 opacity-0 group-hover:opacity-100 group-hover:scale-110 group-hover:-translate-y-1 transition-all duration-300">
                          <GraduationCap className="w-4 h-4 text-white" />
                        </div>
                       {book.thumbnail ? (
-                        <img src={book.thumbnail} alt={book.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <img fetchPriority="high" decoding="async" src={book.thumbnail} alt={book.title} className="w-full h-full object-cover group-hover:scale-110 group-hover:rotate-1 transition-transform duration-700 ease-out" />
                       ) : (
                         <BookOpen className="w-10 h-10 text-slate-300 group-hover:scale-110 group-hover:text-brand-400 transition-all duration-300" />
                       )}
@@ -361,9 +361,11 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
                     </div>
                     
-                    <h4 className="text-base font-bold text-slate-800 mb-1 line-clamp-2">{book.title}</h4>
-                    <div className="text-xs font-semibold text-slate-500 mb-4 mt-auto">
-                      {book.subject} • {book.size}
+                    <h4 className="text-[17px] font-extrabold text-slate-800 mb-1.5 line-clamp-2 group-hover:text-brand-600 transition-colors">{book.title}</h4>
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mb-4 mt-auto">
+                      <span className="bg-slate-100 px-2 py-1 rounded-md text-slate-500">{book.series}</span>
+                      <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                      <span>Lớp {book.grade}</span>
                     </div>
 
                     <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-auto">
