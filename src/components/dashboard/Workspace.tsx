@@ -348,12 +348,21 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
         {/* PDF Content */}
         <div className="flex-1 relative bg-slate-200">
           {pdfUrl && pdfUrl.trim() !== "" ? (
-            <Worker workerUrl={`https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js`}>
-              <Viewer 
-                fileUrl={pdfUrl} 
-                plugins={[defaultLayoutPluginInstance]} 
+            pdfUrl.includes("drive.google.com") ? (
+              <iframe 
+                src={pdfUrl} 
+                className="w-full h-full border-0" 
+                allow="autoplay"
+                title={displayTitle}
               />
-            </Worker>
+            ) : (
+              <Worker workerUrl={`https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js`}>
+                <Viewer 
+                  fileUrl={pdfUrl} 
+                  plugins={[defaultLayoutPluginInstance]} 
+                />
+              </Worker>
+            )
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4 p-8 text-center bg-slate-50">
               <BookOpen className="w-16 h-16 text-slate-300" />
