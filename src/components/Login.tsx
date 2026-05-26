@@ -35,7 +35,7 @@ export default function Login({ onLogin, onGradeSelect }: LoginProps) {
     setIsLoading(true);
 
     if (email.trim() && password.trim()) {
-      const isExpectedAdmin = email === 'admin@giasuao.com';
+      const isExpectedAdmin = email === 'admin@gmail.com' || email === 'admin@giasuao.com';
       const role = isExpectedAdmin ? 'admin' : 'student';
       
       try {
