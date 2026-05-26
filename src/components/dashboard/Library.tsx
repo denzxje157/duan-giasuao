@@ -43,7 +43,7 @@ export default function LibraryComponent({ currentGrade, setActiveTab, user }: L
         const [personalRes, systemRes, chatRes] = await Promise.all([
           supabase.from('documents').select('*').eq('user_id', user.id),
           supabase.from('documents').select('*').is('user_id', null),
-          supabase.from('chat_sessions').select('messages, updated_at').eq('user_id', user.id)
+          supabase.from('chat_sessions').select('messages').eq('user_id', user.id)
         ]);
         
         const personal = personalRes.data || [];
@@ -59,7 +59,7 @@ export default function LibraryComponent({ currentGrade, setActiveTab, user }: L
                   id: msg.id || Math.random().toString(),
                   title: `Ảnh từ đoạn chat`,
                   status: 'ready',
-                  date: new Date(session.updated_at || Date.now()).toLocaleDateString('en-GB'),
+                  date: new Date(Date.now()).toLocaleDateString('en-GB'),
                   subject: 'Tài liệu Chat',
                   pdf_url: msg.imageUrl
                 });
