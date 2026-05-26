@@ -36,7 +36,7 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
   // Theme is handled globally via CSS variables and brand classes
   const theme = { bg: 'bg-brand-600', text: 'text-brand-600', border: 'border-brand-200', light: 'bg-brand-50' };
 
-  const pdfUrl = config?.url || "https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf";
+  const pdfUrl = config?.url || "";
   const displayTitle = config?.title || "Chương 2: Hàm số bậc nhất và bậc hai";
   const displayGrade = config?.grade || user.grade;
 
@@ -347,12 +347,22 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
 
         {/* PDF Content */}
         <div className="flex-1 relative bg-slate-200">
-          <Worker workerUrl={`https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js`}>
-            <Viewer 
-              fileUrl={pdfUrl} 
-              plugins={[defaultLayoutPluginInstance]} 
-            />
-          </Worker>
+          {pdfUrl && pdfUrl.trim() !== "" ? (
+            <Worker workerUrl={`https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js`}>
+              <Viewer 
+                fileUrl={pdfUrl} 
+                plugins={[defaultLayoutPluginInstance]} 
+              />
+            </Worker>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4 p-8 text-center bg-slate-50">
+              <BookOpen className="w-16 h-16 text-slate-300" />
+              <div>
+                <h3 className="text-lg font-bold text-slate-600 mb-1">Không tìm thấy file PDF</h3>
+                <p className="text-sm">Tài liệu này chưa có liên kết PDF hợp lệ. Nếu đây là tài liệu cá nhân, vui lòng tải lên lại.</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
