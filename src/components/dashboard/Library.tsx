@@ -42,7 +42,7 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
     const fetchDocs = async () => {
       const isValidUUID = user.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
 
-      if (user.isGuest || !isValidUUID) {
+      if (!isValidUUID) {
         setPersonalDocs([]);
         const system = [...TEXTBOOKS_DATA];
         setSystemDocs(system);

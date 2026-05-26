@@ -22,7 +22,14 @@ export default function App() {
     // Check for saved user data
     const savedUser = localStorage.getItem('virtual_tutor_user');
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      try {
+        const parsed = JSON.parse(savedUser);
+        if (!parsed.id || parsed.id === 'guest') {
+          parsed.id = crypto.randomUUID();
+          localStorage.setItem('virtual_tutor_user', JSON.stringify(parsed));
+        }
+        setUser(parsed);
+      } catch (e) {}
     }
     setIsLoading(false);
   }, []);
@@ -50,6 +57,7 @@ export default function App() {
 
   const handleGuestLogin = () => {
     const guestUser: User = {
+      id: crypto.randomUUID(),
       name: 'Khách',
       email: '',
       grade: 12,
