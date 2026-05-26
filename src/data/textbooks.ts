@@ -7,7 +7,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 1,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/36bb8e21-c400-5a6b-98d0-86f7565d1785.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1Tg_1iojG0bOfqMSaa2z_w1eOB7JOdpTn/preview"
@@ -18,7 +18,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 1,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/50cd6c17-f42b-5919-8136-1c884ef3ffa4.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1d0-RtVSXcVwckJBV2QX6q-JyFsDO43qu/preview"
@@ -29,7 +29,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 1,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/5be8d3e1-777f-545d-91bc-d9d6beedb09a.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1WHF0PxqrgBVjgZwL16XbFDltq_h4LbTD/preview"
@@ -40,7 +40,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 1,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/c65ce5b1-ad22-5e99-b189-8eba5d8d4060.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1x5pozuIukWeahvzj3LRGvKDW1Jc9nFtG/preview"
@@ -51,7 +51,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 1,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/f21b1ee3-3fbd-5e97-8904-06cfd5915254.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1le27sIOCx30JfuWtTCF1cUeMp-akmRHp/preview"
@@ -62,7 +62,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 1,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/71bb8757-9290-51cf-882a-b6a247d482ad.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1UFJeIEZ69GNMDhmD89mLmbq7JgBcSKlJ/preview"
@@ -73,7 +73,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 10,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/cf06819e-65fa-5b93-9503-8eda76085b39.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1hK53705VQym7Z3oWAbANsdG_1ID0ARV7/preview"
@@ -84,7 +84,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 10,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/fbe6e5d7-31b2-55d3-a06b-838adafbf74a.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/11XSDdQn6HThYM9nSY8x9OD8sd2Gd2Y_9/preview"
@@ -95,7 +95,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 10,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/262ab376-30fc-533d-98d1-39052b4093ad.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1ignQhCzhVxun96fIcOsInWOW68DUlAdo/preview"
@@ -106,7 +106,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Lịch sử và Địa lí",
     "grade": 10,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/5526b445-6202-5bda-9a8c-600e2b234c44.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1NFe1j1NojgU6D-I8Wm8Z9_6LWSWx1Ogm/preview"
@@ -117,7 +117,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 10,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/b7701156-1e98-5f58-910f-aa08dc92223e.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1mCgjLvzkpv3cIoq712FP3oqW-EFqnPaM/preview"
@@ -128,7 +128,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 10,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/692eb6ea-f2ac-597d-95c2-152516608527.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1R3EMJNIo-PpCNVHS7Eb_PX4Ke5yk-eVS/preview"
@@ -139,7 +139,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Khoa học tự nhiên",
     "grade": 10,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/a89fab6d-fac0-553f-b260-2c067cd80032.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1zhIQZIreiiU8M4Q45zt-60TMdIDWygz1/preview"
@@ -150,7 +150,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Tin học",
     "grade": 10,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/0dac58c4-5bff-5438-8be5-e3a3b6f88a6c.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1bnfdQnHaUet3U6DeXrjFRAEGlz9SPRWa/preview"
@@ -161,7 +161,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Tiếng Anh",
     "grade": 10,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/ce5f0ee5-81df-5dfd-90a7-8ca5f0b14d4e.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1kAG42Sr5yEc9s8yNwFO3jb3kQIvn-dId/preview"
@@ -172,7 +172,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 10,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/b25e9778-1364-5e4b-9dcb-ef296c3e40df.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1o5-ECVuX8UI-0JJlGH9g0QLewRWp7ESr/preview"
@@ -183,7 +183,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 10,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/29422fc1-2346-5c96-a8a8-1d6fb6c9580f.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1JISosyLqrmEa_pd1WWKBEfZcwZpokotc/preview"
@@ -194,7 +194,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 10,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/6a64b3a1-6a15-5615-926c-4cdd65a4cf62.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1MEfnWYnJoamCVBZ4lasPkf0C2MeQhP_p/preview"
@@ -205,7 +205,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 10,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/a85288d1-036d-58a9-8194-aa3603692722.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1EEUmE1_ilV8dzVuXJ7c1nzJNQkLlwaw7/preview"
@@ -216,7 +216,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 11,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/0c2c9f81-70d8-53bf-875b-4e25ed47f085.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1VP1Cdx9fZToR7I33pCZ91exT-0Ea2vlH/preview"
@@ -227,7 +227,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 11,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/3278f30d-f546-564f-ae9a-6975d2b2a40d.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1NQ5GRrzzuOZJ4dtaifxHwOhnV6ujmKEh/preview"
@@ -238,7 +238,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 11,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22fa52f6-32ab-501d-b54e-42de40ab164e.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1ZOcS6Dd-DL7DZiT5SLI0wJRT1MafugQb/preview"
@@ -249,7 +249,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Lịch sử và Địa lí",
     "grade": 11,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/bc8965b5-4f86-5f89-9f4e-0d7d976f0f2c.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/12eD20JSnxe8921343hUHZbJRKzug86Z5/preview"
@@ -260,7 +260,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 11,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/7dceb6e4-a6b0-5f35-ae61-2aef76800481.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1FZKhszxgb_UnJkcUyKN1_T6O7y9rLzRw/preview"
@@ -271,7 +271,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 11,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/bc3077b4-07a6-51b4-935f-feb334ef3143.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1N5OFJj7G_ltLFFc-GSpRUFyjz873FVbJ/preview"
@@ -282,7 +282,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Khoa học tự nhiên",
     "grade": 11,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/a2e514f5-0a91-5718-9f81-402574619712.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1vG83Eui2p7tpbkiLwrmiJ9TlD8btO94g/preview"
@@ -293,7 +293,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Khoa học tự nhiên",
     "grade": 11,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/ed79e973-4c66-5318-9c9c-a1a6da91ca8c.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1Gh7pJIrNj0XQ_3xOJ-8pLWAyuejb-Bma/preview"
@@ -304,7 +304,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Tin học",
     "grade": 11,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/f024650a-dd29-5479-b1e4-bf1df826ef7b.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1rRRJ97YxPP0Hp4WuuzeKGLnqBELufC3E/preview"
@@ -315,7 +315,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Tiếng Anh",
     "grade": 11,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/7225874b-1041-5a03-9e7c-7c4351757005.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1Ai6_ZARgHpfSbRxAIZ_xkktqoHa6UgIB/preview"
@@ -326,7 +326,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 11,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/879df1cf-0ce5-5a39-8bad-b4277e74aca6.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1fsF_wkUgIi2kLeSdlmh3_WLxJQOP_o_8/preview"
@@ -337,7 +337,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 11,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/f469c309-9a97-57a7-8399-b4ac96136ca8.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1EFUq6gHsfVOsC8k8lk65dvZ1qmMs__ri/preview"
@@ -348,7 +348,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 11,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/17fDdirG4gVB9kgJXwmKgQm4qACCVmJne/preview"
@@ -359,7 +359,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 11,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/c7e68429-3cfa-5dee-9c45-d373da076970.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/13BjOu86P0PvKLjlc7YjiOIPa8hG4LOcB/preview"
@@ -370,7 +370,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22fa52f6-32ab-501d-b54e-42de40ab164e.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1Y3FJSYE3NmJSlTM8Q52jfDIGte0oIEB-/preview"
@@ -381,7 +381,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22fa52f6-32ab-501d-b54e-42de40ab164e.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1PN8blTfV_Q2BrzBknNZlrbnHiS7irPTT/preview"
@@ -392,7 +392,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22fa52f6-32ab-501d-b54e-42de40ab164e.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1IDOVzemFsTa5XfSoonAKGa70rfA8KICL/preview"
@@ -403,7 +403,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/17P1Sbni8XtSdTCkla3vkreSATDmCOvQ-/preview"
@@ -414,7 +414,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1VNiSjVsu9tESE-XJsDxy-3biN5mz3nIj/preview"
@@ -425,7 +425,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1o5rwJpABnb0m3mqTVmno3RjorXsBrcIg/preview"
@@ -436,7 +436,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22fa52f6-32ab-501d-b54e-42de40ab164e.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1nfCB5k0I5Wg04GE069avm-tqK5vv8ymE/preview"
@@ -447,7 +447,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/19Y2B_Y3dF1KQeysnFO4cO-iLWkT-LfUr/preview"
@@ -458,7 +458,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22fa52f6-32ab-501d-b54e-42de40ab164e.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1RHrp2DO5F_9tCtsGuk9Emh58LKFPhQrR/preview"
@@ -469,7 +469,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/17RB9e1xc-8QaQ1hp3vRXiGIp_DYWT2tb/preview"
@@ -480,7 +480,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1zNpREdEpFz4SPjyPHr6Fmtasad_i-QgL/preview"
@@ -491,7 +491,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1MEybQSZs4f7nzptJZEt_mBzKyZGs9K-E/preview"
@@ -502,7 +502,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1J9W-AS0J8Yv5snw-DlFdwHavEtzIIm11/preview"
@@ -513,7 +513,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1Hd8MCH49DcJLYU_pi-INsi6L6QOgKAOF/preview"
@@ -524,7 +524,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 2,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/d45d0aef-1e5c-5027-8fb2-d4d1563e3764.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1DogbFo9ieOG66hWlC9fHAUb6MLJeGODh/preview"
@@ -535,7 +535,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 2,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/19d828bb-308e-5502-8a19-4eda7058f296.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1D9XioAVyla0uliuybl7Rmas2cDjdQSTD/preview"
@@ -546,7 +546,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 2,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/3eb93708-cd69-51de-bd14-fb1d2dbe27bf.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1cmCP34ShB2VIejrQlbAVFs2cKQKQ0tUA/preview"
@@ -557,7 +557,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 2,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/98994b14-9c35-56c2-ad6d-83e7463d5d14.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1UnCZp-lNfWv24wVNzEcVAXGKE7-Ov2HU/preview"
@@ -568,7 +568,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 2,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/2d25d5d4-e4ca-5734-9f19-e80530ff6ed6.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1ffFesmQYFiyaxrZieOXuiPZ0YDrCx-ZS/preview"
@@ -579,7 +579,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 2,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/3f3117b9-c1c7-5f7a-97a5-a2178767011b.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1BWY0ita5PUaU4RMni0kFJybKxiLqLlep/preview"
@@ -590,7 +590,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 3,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/da600ff7-e994-5dbb-8de1-2bda6f36adf6.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1ifnn9QTBMB9tKjw7S7bXPTeMPfwkbhVS/preview"
@@ -601,7 +601,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Tin học",
     "grade": 3,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/f2e532d3-c338-54e4-bc2b-ca24f251369e.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1taCJ4mtvunimIjYHRsAfZCAKRNjwx2E7/preview"
@@ -612,7 +612,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 3,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/3450f0b0-18a0-5942-8ef4-662ff05ca5ea.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1P0mw65hZD-qCmcPmstuKwKy_94RifqG3/preview"
@@ -623,7 +623,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 3,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/3eda66bf-f980-5365-8190-442fdb368ce0.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/10BxerQG3N3i5NtTBe0rJnVLhEQJnosOU/preview"
@@ -634,7 +634,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 3,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/f191d1b0-f47a-5e95-ae21-931f03b4d5c7.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1oBoW6MKb-EQZ1qjjoMQ2nq0wikvOwkfH/preview"
@@ -645,7 +645,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 3,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/36c5cbc0-2ae5-57b3-8936-0f7ee96f1932.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1oC7DnJ_ELG4NxoR4bZJW4dtFb4wmlesL/preview"
@@ -656,7 +656,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 3,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/242294dc-e76a-51a4-8624-a6bd6d39f2dc.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1IPQhliPKwCKaIohPXR3LSUhwvM_lYGdO/preview"
@@ -667,7 +667,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 3,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22312b33-1bbe-5995-a58d-3ebf1c2b496d.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1GYfF_H7jzgMMf_Kc3Lr-GaMdIs_69M3A/preview"
@@ -678,7 +678,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 4,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/5bb779f4-1fd0-5c62-9505-de7ca0ab507e.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1gpAQfnf3i6DP6Hr7AaqbS0zigbtTe6P5/preview"
@@ -689,7 +689,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Lịch sử và Địa lí",
     "grade": 4,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/9271c84a-11f8-5d3c-aa31-e69519ab2a29.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1RVPY2IJ8cq6cNLgvi5shS9BXIVCTHXTZ/preview"
@@ -700,7 +700,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Tin học",
     "grade": 4,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/5e2f07e3-6604-57d0-9cd6-45c5dc37a80e.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1aH5UWoT_FieBCKEnkEFH2CYhI_oYmD01/preview"
@@ -711,7 +711,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 4,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/5b15b7e4-eef3-59f4-bf22-e699391dbb35.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1VMvA9uBpKHfv_GZik3kidboqJkiKpfIV/preview"
@@ -722,7 +722,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 4,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/a5891368-96b5-594b-9886-c13ddcb80450.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1SUoxtaftrSw7woDPQjICMyAKR47I9Dzy/preview"
@@ -733,7 +733,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 4,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/e420d325-04dc-5773-8c7d-72bdc3a4d332.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/146gtBzjZz49ZR6CY5bySdCBKjyVI_SaZ/preview"
@@ -744,7 +744,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 4,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/a05a4847-43cc-5631-aa88-771c1fb59393.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1czpPiyP2aa7TzwStQgJ-rEHAoNGhCYkY/preview"
@@ -755,7 +755,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 4,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/5797eb09-4387-5132-bc71-8cf0983af031.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/15WSYfm5L1V5y7fJ6RafGopRMT84sG-uQ/preview"
@@ -766,7 +766,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 5,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/7dd6f152-77f5-545b-85ca-a6e7e3386695.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1gmfMAX74Lag4Dit1HA3SSQ_qfY_zDjAD/preview"
@@ -777,7 +777,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Lịch sử và Địa lí",
     "grade": 5,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/bac97758-5ea6-57aa-825a-2fa82b8b43a7.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1FbhfZ67kt15-VdTIINPOzETfUFnMze8t/preview"
@@ -788,7 +788,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Tin học",
     "grade": 5,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/448dc365-aa84-5fd8-b792-75059a119a97.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1U_j6ERM3gKVqH9GY60kfzUr8QVMNN7Ge/preview"
@@ -799,7 +799,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 5,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/d67ec09b-ca28-5b67-b41a-9cf805fdd586.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1hQ4IDkonVRzbJcvk2YP1M7sQ_la629ol/preview"
@@ -810,7 +810,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 5,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/d173f751-deef-59a5-8a70-d324a673ae70.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1IrE5A21B9g2im7lZQq_pk_6qvhSYFA31/preview"
@@ -821,7 +821,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 5,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/85379bdb-d39f-596f-b099-ee134fbf67a2.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1fRIWaxY3nBqg7zTqgSLBGT4vc17e2mhQ/preview"
@@ -832,7 +832,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 5,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/9f8d5a9b-bb03-54b6-84ca-e60de8fc04d9.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1VpL-TwP8bu0D1r-SsQaaxg92BwWKhzlE/preview"
@@ -843,7 +843,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 5,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/792d254b-615d-5dc7-a3dd-ad628d2cf3b0.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1Oy-vdGZDwQV1RoHC3XfrNK4RpJ3kdlPu/preview"
@@ -854,7 +854,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 6,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/bbebe020-eb8e-54de-89d3-1218df541279.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1IuI7bkK_-g7QdPKxxTybkaN1YgcXREA4/preview"
@@ -865,7 +865,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Khoa học tự nhiên",
     "grade": 6,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/6b1e80dc-43e9-5d7d-b571-21b90f98ca15.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1pz9eg33ufTSw2g9Hn4ztwg2ZJp2p3XPX/preview"
@@ -876,7 +876,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Lịch sử và Địa lí",
     "grade": 6,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/1cc3bb88-e146-58b8-acff-a2a0537827b8.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1TnGNdvrpfEjIhNIX2f0g4kj3O0N8pNfI/preview"
@@ -887,7 +887,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 6,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/efd8edc7-2537-5669-a0ae-4d2b877ee273.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1faEqd3KOCZOQdSidagBbN_xsYzXxYA8j/preview"
@@ -898,7 +898,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 6,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/cf9f45c5-8685-5202-868d-ca21ce2b1b39.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1RVPq6d9pGHyDTPTCdG9yp_OxlRlEPHXb/preview"
@@ -909,7 +909,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Tin học",
     "grade": 6,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/2e4ca385-4029-5557-8425-09a7a213620b.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/17o0EW7j7zO67gw8gKHok4T659BdA57cp/preview"
@@ -920,7 +920,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Tiếng Anh",
     "grade": 6,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/6e803128-2385-5b80-86fe-03ca26685e0d.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1W9SnvVNLXvGRzxCHIOxuQW7rl-odA3_T/preview"
@@ -931,7 +931,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Tiếng Anh",
     "grade": 6,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/229a9404-60fc-5cfc-8421-d59f95b773ba.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/15odUw5e5ok8hM50QFcAKAf9qpCyFrPlK/preview"
@@ -942,7 +942,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 6,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/5113b3e4-b569-523d-9756-6cec0382fd38.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1Cg8_QsNC64RuiyXll74PSnvF2JKUfbV5/preview"
@@ -953,7 +953,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 6,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/764b1334-128b-5be0-9de0-021872d408a5.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1gG6muA1sOc6o75a--MsLIlZYe6AS5mPc/preview"
@@ -964,7 +964,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 7,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/e5f2a9b3-5dcf-555c-95da-30279ba8e871.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1QVdv5lGPc26l7rjQz3E3mz6L6bGlLc1L/preview"
@@ -975,7 +975,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Khoa học tự nhiên",
     "grade": 7,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/055aa419-46a8-582a-9318-7c0a0de985e7.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1yOd0-9in8B2ZvfC075kFKNiT_J-6gz4r/preview"
@@ -986,7 +986,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Lịch sử và Địa lí",
     "grade": 7,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/6d4011b2-db37-530e-82f7-c18d32b3da1b.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1G8ctdZgDLjUfavUhe35IaqZ-tWlE_fHh/preview"
@@ -997,7 +997,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 7,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/ba673061-0216-5e95-90be-860b93b70eda.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1LuFzMThTDxJsjnEaYJP3w3PpPAFryL6W/preview"
@@ -1008,7 +1008,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 7,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/6b74829c-0725-5845-9378-7afc8cada043.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1CXwKrtgUYswro7ouy5dVXsd92LCJPdfB/preview"
@@ -1019,7 +1019,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Tin học",
     "grade": 7,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/5294be1f-8dc1-572b-bc0e-d81ec6392cf6.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1yghYLjn-qXIZyuLchxxGBHKRL3MNn3aM/preview"
@@ -1030,7 +1030,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Tiếng Anh",
     "grade": 7,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/ce4dafc1-2948-557e-a187-c33d63d63533.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1nNUfV6FvKzfAwh2K2OL4BnNn-0WSS5Id/preview"
@@ -1041,7 +1041,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 7,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/15844cfd-e08d-5886-81c5-dc75405584b7.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1oPyUN9Yi285RnT08YFhpmNtkZHkIV0pO/preview"
@@ -1052,7 +1052,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 8,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/1ca9a322-71b6-5117-ade1-56f01764a631.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1-ScPW1M9jT-6AV4RgcdcWX2Od1lDO-Jq/preview"
@@ -1063,7 +1063,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Khoa học tự nhiên",
     "grade": 8,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/3da8f355-6750-5bf8-aba9-3f92a4adf39c.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1PznQGyQGUBwUodaeT-yHBoHZ6SC8vohz/preview"
@@ -1074,7 +1074,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Lịch sử và Địa lí",
     "grade": 8,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/257ab132-6092-5097-b2c5-52848102196a.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1rfx_9ShoqW5SBo_F5F85OPCYqhArjM-U/preview"
@@ -1085,7 +1085,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 8,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/efdf8524-ef1b-5547-b1f0-bea31fc4f7be.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1BXUcgyDPt3SxTT5Lp_IqOb4RDLBvloP-/preview"
@@ -1096,7 +1096,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 8,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/cf245aa6-42f2-5ca5-a78e-59cab2f82bdc.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1918XVAsXO1LHecXE04zAMGtv4RLOxtBD/preview"
@@ -1107,7 +1107,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Tin học",
     "grade": 8,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/772e48a7-1fcf-51aa-9f60-8fa7f99c768a.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1pJ_pQU0RnsqIlfljx9s5nbhvA01C3YBr/preview"
@@ -1118,7 +1118,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Tiếng Anh",
     "grade": 8,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/4a94b7c4-1f7c-54ec-aa87-65e593f76fc5.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1zxm9giE5mNVwEn1WhVQubAa27Gev1GSl/preview"
@@ -1129,7 +1129,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 8,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/7257d3a3-8497-5f0e-acd5-e5539f0f90fa.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1rwl4ubnd8aimI4sqju9AA2QM38K1gAX8/preview"
@@ -1140,7 +1140,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 8,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/c33f22fa-7513-53b2-b4f5-bb078d9d5a2b.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1cwJHNegO1UJKLszAQsHOoPAS5AeQr4US/preview"
@@ -1151,7 +1151,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 9,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/394d1e74-d4fc-5a6f-9206-50ca582839d4.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1b64ud-k98w9u_vgLwY8IQ4JibH76dihL/preview"
@@ -1162,7 +1162,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 9,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/be8c7526-379c-58f5-9f93-ab08eceb57fe.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/17h0lDXPLZtrJS8lvrMMyIplYpexjW3d-/preview"
@@ -1173,7 +1173,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 9,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/7d18a8d4-904e-5731-a565-6fe0e0205def.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1Jrebx8dkqAmMJhGmQT_swR8iMfSoTX3Q/preview"
@@ -1184,7 +1184,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 9,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/a6097f85-64ba-5e68-90ad-435e349fb9c1.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1GU-3WmPTpPfLp29aIIoLYmx_dNyCyQbN/preview"
@@ -1195,7 +1195,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Khoa học tự nhiên",
     "grade": 9,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/44289f65-a302-5337-be24-eacd2725c139.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1BqaSkgIeGkDxMRi5beYPENYySU1FWDE3/preview"
@@ -1206,7 +1206,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Lịch sử và Địa lí",
     "grade": 9,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/03012eb9-e2b8-5cfd-8d7f-ec3de1622d48.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1BKZjaHvsEjxjUrwmCUWEZZSyht4NLrsX/preview"
@@ -1217,7 +1217,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 9,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/4d5a2ffd-a2c3-5ff5-841d-37ed71454294.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1279ebHGHgfQkBypCJ2_keXJAXxcHgM-L/preview"
@@ -1228,7 +1228,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Chung",
     "grade": 9,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/78ef10bc-aa04-55e2-8e82-cefa60fef3ff.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1rivTA3JO4pZFiUQ9GYrJGkRmVAOvPqDO/preview"
@@ -1239,7 +1239,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Tin học",
     "grade": 9,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/2d56836d-d53b-5e1f-9ac3-640a48373611.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1Ls0c4pNKYoTBNUYL5d7mKHDmNu1eQI7n/preview"
@@ -1250,7 +1250,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Tiếng Anh",
     "grade": 9,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/a75afd7b-3418-56a8-8b28-d4ad7e67acbc.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1mOg4WGzJJ5uIDaAvKvNhYKiSzZ7lvwGs/preview"
@@ -1261,7 +1261,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 9,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/b5326dbe-ae19-5c7e-a5ca-ed0a42f975c3.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1yz9IhzrKGgL2_r9GzAROqPiwmG6pneEo/preview"
@@ -1272,7 +1272,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "subject": "Toán",
     "grade": 9,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/c3a016ed-ccca-5d3c-8224-cef6274f16d1.png",
     "pages": 100,
     "size": "N/A",
     "pdf_url": "https://drive.google.com/file/d/1BT1-FUg8WGBS4rjH0AfBkwnD7_AdpJbA/preview"
