@@ -365,12 +365,12 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
                 title={displayTitle}
               />
             ) : (
-              <Worker workerUrl={`https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js`}>
-                <Viewer 
-                  fileUrl={pdfUrl} 
-                  plugins={[defaultLayoutPluginInstance]} 
-                />
-              </Worker>
+              <iframe 
+                src={`https://docs.google.com/gview?url=${encodeURIComponent(pdfUrl)}&embedded=true`} 
+                className="w-full h-full border-0" 
+                allow="autoplay"
+                title={displayTitle}
+              />
             )
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4 p-8 text-center bg-slate-50">
