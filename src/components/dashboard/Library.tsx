@@ -105,7 +105,7 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
         
         // We only use the mappedSystemDocs now because they represent the unified books 
         // (Supabase metadata + Google Drive content)
-        setSystemDocs(finalSystem);
+        setSystemDocs(mappedSystemDocs);
       } catch (err) {
         console.error('Error fetching docs:', err);
       } finally {
