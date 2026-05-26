@@ -19,6 +19,12 @@ import '@react-pdf-viewer/default-layout/lib/styles/index.css';
 interface WorkspaceProps {
   user: UserType;
   setActiveTab?: (tab: string) => void;
+  config?: {
+    url: string;
+    title: string;
+    grade: string | number;
+    subject: string;
+  } | null;
 }
 
 interface Message {
@@ -26,9 +32,14 @@ interface Message {
   content: string;
 }
 
-export default function Workspace({ user, setActiveTab }: WorkspaceProps) {
+export default function Workspace({ user, setActiveTab, config }: WorkspaceProps) {
   // Theme is handled globally via CSS variables and brand classes
   const theme = { bg: 'bg-brand-600', text: 'text-brand-600', border: 'border-brand-200', light: 'bg-brand-50' };
+
+  const pdfUrl = config?.url || "https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf";
+  const displayTitle = config?.title || "Chương 2: Hàm số bậc nhất và bậc hai";
+  const displayGrade = config?.grade || user.grade;
+
 
   const [messages, setMessages] = useState<Message[]>([
     { 
@@ -277,8 +288,8 @@ export default function Workspace({ user, setActiveTab }: WorkspaceProps) {
                 <ArrowLeft className="w-5 h-5" />
               </button>
             )}
-            <span className={`px-2 py-1 ${theme.light} ${theme.text} text-xs font-bold rounded hidden sm:inline-block`}>Toán học {user.grade}</span>
-            <span className="font-semibold text-sm text-slate-700 truncate max-w-[200px] md:max-w-xs">Chương 2: Hàm số bậc nhất và bậc hai</span>
+            <span className={`px-2 py-1 ${theme.light} ${theme.text} text-xs font-bold rounded hidden sm:inline-block`}>{config?.subject || 'Toán học'} {displayGrade}</span>
+            <span className="font-semibold text-sm text-slate-700 truncate max-w-[200px] md:max-w-xs">{displayTitle}</span>
           </div>
 
           <div className="flex gap-3 relative items-center">
@@ -336,10 +347,9 @@ export default function Workspace({ user, setActiveTab }: WorkspaceProps) {
 
         {/* PDF Content */}
         <div className="flex-1 relative bg-slate-200">
-          {/* Using a sample PDF for demonstration */}
           <Worker workerUrl={`https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js`}>
             <Viewer 
-              fileUrl="https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf" 
+              fileUrl={pdfUrl} 
               plugins={[defaultLayoutPluginInstance]} 
             />
           </Worker>

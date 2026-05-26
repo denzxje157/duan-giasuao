@@ -8,10 +8,11 @@ import { supabase } from '../../lib/supabase';
 interface LibraryProps {
   currentGrade: Grade;
   setActiveTab?: (tab: string) => void;
+  onOpenWorkspace?: (config: {url: string, title: string, grade: string | number, subject: string}) => void;
   user: User;
 }
 
-export default function LibraryComponent({ currentGrade, setActiveTab, user }: LibraryProps) {
+export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWorkspace, user }: LibraryProps) {
   const [selectedSeries, setSelectedSeries] = useState<Textbook['series'] | 'Tất cả'>('Tất cả');
   const [selectedSubject, setSelectedSubject] = useState<string>('Tất cả');
   const [searchQuery, setSearchQuery] = useState('');
@@ -292,7 +293,12 @@ export default function LibraryComponent({ currentGrade, setActiveTab, user }: L
 
                     <div className="flex flex-col sm:flex-row gap-3 mt-6">
                       <button 
-                        onClick={() => setActiveTab?.('workspace')}
+                        onClick={() => onOpenWorkspace ? onOpenWorkspace({
+                          url: selectedBook.pdf_url || "https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf",
+                          title: selectedBook.title,
+                          grade: selectedBook.grade,
+                          subject: selectedBook.subject
+                        }) : setActiveTab?.('workspace')}
                         className="flex-1 flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-8 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all shadow-md"
                       >
                         <BookOpen className="w-5 h-5" />

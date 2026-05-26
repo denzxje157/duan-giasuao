@@ -19,8 +19,16 @@ interface DashboardProps {
   onGradeChange: (grade: Grade) => void;
 }
 
+export interface WorkspaceConfig {
+  url: string;
+  title: string;
+  grade: string | number;
+  subject: string;
+}
+
 export default function Dashboard({ user, onLogout, onGradeChange }: DashboardProps) {
   const [activeTab, setActiveTab] = useState(user.role === 'admin' ? 'admin' : 'library');
+  const [workspaceConfig, setWorkspaceConfig] = useState<WorkspaceConfig | null>(null);
   
   useStudyTracker(user, activeTab === 'ai' ? 'Trò chuyện AI' : activeTab === 'quiz' ? 'Luyện tập' : 'Chung');
 
@@ -31,9 +39,9 @@ export default function Dashboard({ user, onLogout, onGradeChange }: DashboardPr
       case 'ai':
         return <AIChat user={user} />;
       case 'library':
-        return <Library currentGrade={user.grade} setActiveTab={setActiveTab} user={user} />;
+        return <Library currentGrade={user.grade} setActiveTab={setActiveTab} user={user} onOpenWorkspace={(cfg) => { setWorkspaceConfig(cfg); setActiveTab('workspace'); }} />;
       case 'workspace':
-        return <Workspace user={user} setActiveTab={setActiveTab} />;
+        return <Workspace user={user} setActiveTab={setActiveTab} config={workspaceConfig} />;
       case 'quiz':
         return <Quiz user={user} />;
       case 'admin':
