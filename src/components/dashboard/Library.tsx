@@ -93,16 +93,31 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
         setPersonalDocs(finalPersonal);
         localStorage.setItem('giasuao_library_personal', JSON.stringify(finalPersonal));
 
-        const mappedSystemDocs = system.map(d => ({
-          id: d.id,
-          title: d.name || 'Sách giáo khoa',
-          subject: d.subject || 'Khác',
-          grade: Number(d.grade) || currentGrade,
-          series: 'Khác' as any,
-          thumbnail: d.thumbnail_url || '',
-          pages: 100,
-          size: '10 MB'
-        }));
+        const mappedSystemDocs = system.map(d => {
+          const lowerName = (d.name || d.subject || '').toLowerCase();
+          let thumb = d.thumbnail_url || '';
+          if (!thumb) {
+            if (lowerName.includes('toán')) thumb = 'https://images.unsplash.com/photo-1596496050827-8299e0220de1?auto=format&fit=crop&q=80&w=400';
+            else if (lowerName.includes('văn') || lowerName.includes('tiếng việt')) thumb = 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&q=80&w=400';
+            else if (lowerName.includes('anh')) thumb = 'https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?auto=format&fit=crop&q=80&w=400';
+            else if (lowerName.includes('lý') || lowerName.includes('hóa') || lowerName.includes('sinh') || lowerName.includes('khoa học')) thumb = 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&q=80&w=400';
+            else if (lowerName.includes('sử') || lowerName.includes('địa')) thumb = 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=400';
+            else if (lowerName.includes('tin') || lowerName.includes('công nghệ') || lowerName.includes('lâm nghiệp')) thumb = 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=400';
+            else thumb = 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&q=80&w=400';
+          }
+          
+          return {
+            id: d.id,
+            title: d.name || 'Sách giáo khoa',
+            subject: d.subject || 'Khác',
+            grade: Number(d.grade) || currentGrade,
+            series: 'Khác' as any,
+            thumbnail: thumb,
+            pages: 100,
+            size: '10 MB',
+            pdf_url: d.pdf_url
+          };
+        });
         
         const finalSystem = [...TEXTBOOKS_DATA, ...mappedSystemDocs];
         setSystemDocs(finalSystem);
