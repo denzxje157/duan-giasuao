@@ -202,7 +202,7 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
 
     try {
       const apiKey = localStorage.getItem('admin_gemini_api_key') || process.env.GEMINI_API_KEY;
-      const systemContext = `You are a helpful AI tutor for students. You are currently helping a student study the textbook "${displayTitle}". Always adapt your answers to be relevant to this book. You should use markdown and KaTeX formatted math equations when explaining math. Wrap inline math with single $ and block math with double $$. Output only the response in Vietnamese.`;
+      const learningContext = `Bạn là Gia sư AI đang hỗ trợ học sinh học cuốn sách "${displayTitle}". Hãy trả lời các câu hỏi dựa trên ngữ cảnh của cuốn sách này. Trình bày bằng tiếng Việt, sử dụng markdown và KaTeX cho công thức toán học ($ inline, $$ block).`;
       
       const chatUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/chat` : '/api/chat';
       const response = await fetch(chatUrl, {
@@ -212,8 +212,12 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
           'x-api-key': apiKey || '',
         },
         body: JSON.stringify({
-          messages: [...messages, { role: 'user', content: userMsg }],
-          systemContext
+          question: userMsg,
+          user_id: user.id || undefined,
+          grade: String(displayGrade),
+          subject: displayTitle,
+          learning_context: learningContext,
+          model_name: 'gemini-1.5-flash'
         })
       });
 
