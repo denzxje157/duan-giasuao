@@ -880,6 +880,11 @@ export default function AIChat({ user }: AIChatProps) {
     }
   };
 
+  const handleDrawingSave = (dataUrl: string) => {
+    setAttachedImage(dataUrl);
+    setIsDrawingMode(false);
+  };
+
   // Reusable hook for a future Visual Prompting button or any preset prompt source
   const handlePresetPrompt = async (promptText: string) => {
     await sendMessage(promptText);
