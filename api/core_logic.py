@@ -729,27 +729,82 @@ def process_image_to_text(file_bytes):
         return ""
 
 
+def _chunk_text(text, chunk_size=1500, overlap=200):
+    if not text:
+        return []
+    chunks = []
+    start = 0
+    text_len = len(text)
+    while start < text_len:
+        end = min(start + chunk_size, text_len)
+        chunks.append(text[start:end])
+        if end >= text_len:
+            break
+        start += chunk_size - overlap
+    return chunks
+
+
 def save_document_to_db(text_content, source_name, doc_id):
-    keys = get_all_keys()
     inferred_subject = _infer_subject_from_text(f"{source_name or ''} {text_content or ''}")
     _cache_document_context(doc_id, source_name=source_name, subject=inferred_subject)
-    for api_key in keys:
+    
+    try:
+        # 1. Split text into chunks
+        chunks = _chunk_text(text_content, chunk_size=1500, overlap=200)
+        
+        # 2. Delete existing chunks for this document to avoid duplicates on retry/update
         try:
-            safe_content = text_content[:9000]
-            vector = _embed_with_provider(safe_content, api_key)
-            if isinstance(vector[0], list):
-                vector = vector[0][:768]
-            else:
-                vector = vector[:768]
-            supabase.table("documents").update({"content": safe_content, "embedding": vector, "status": "ready"}).eq("id", doc_id).execute()
-            return "Thành công"
-        except Exception as e:
-            err_msg = str(e).lower()
-            if "429" in err_msg or "quota" in err_msg:
+            supabase.table("document_chunks").delete().eq("document_id", doc_id).execute()
+        except Exception as del_err:
+            print(f"⚠️ Warning: could not delete old chunks for document {doc_id}: {del_err}")
+
+        # 3. Create embeddings for each chunk and save to document_chunks
+        for chunk in chunks:
+            chunk = chunk.strip()
+            if not chunk:
                 continue
-            else:
-                return f"Lỗi: {str(e)}"
-    return "Lỗi: Không thể tạo Vector vì tất cả API Key đều hết hạn mức."
+            try:
+                vector = _embed_with_provider(chunk)
+                if vector:
+                    if isinstance(vector[0], list):
+                        vector = vector[0][:768]
+                    else:
+                        vector = vector[:768]
+                    supabase.table("document_chunks").insert({
+                        "document_id": doc_id,
+                        "content": chunk,
+                        "embedding": vector
+                    }).execute()
+            except Exception as chunk_err:
+                print(f"⚠️ Warning: failed to save chunk for document {doc_id}: {chunk_err}")
+                
+        # 4. Save first 9,000 characters and its embedding to main documents table for backward compatibility
+        safe_content = text_content[:9000]
+        main_vector = None
+        try:
+            main_vector = _embed_with_provider(safe_content)
+            if main_vector:
+                if isinstance(main_vector[0], list):
+                    main_vector = main_vector[0][:768]
+                else:
+                    main_vector = main_vector[:768]
+        except Exception as main_emb_err:
+            print(f"⚠️ Warning: failed to generate main document embedding: {main_emb_err}")
+            
+        supabase.table("documents").update({
+            "content": safe_content,
+            "embedding": main_vector,
+            "status": "ready"
+        }).eq("id", doc_id).execute()
+        return "Thành công"
+    except Exception as e:
+        print(f"❌ save_document_to_db failed for document {doc_id}: {e}")
+        # Try to set status to ready even if chunking/embeddings failed
+        try:
+            supabase.table("documents").update({"status": "ready"}).eq("id", doc_id).execute()
+        except Exception:
+            pass
+        return f"Lỗi: {str(e)}"
 
 
 def get_ai_response_stream_with_history(question, session_id=None, user_id=None, model_name="gemini-3.5-flash", grade=None, subject=None, force_reset_context=False, image_data=None):
@@ -871,33 +926,29 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
             try:
                 context = "Không tìm thấy dữ liệu liên quan trong sách."
                 try:
-                    question_vector = _embed_with_provider(question)
-                    if isinstance(question_vector[0], list):
-                        question_vector = question_vector[0][:768]
-                    else:
-                        question_vector = question_vector[:768]
-
+                    # 1. Fetch matching documents by grade and subject
                     docs_rows = []
                     try:
-                        docs_query = supabase.table("documents").select("id,content,grade,subject")
+                        docs_query = supabase.table("documents").select("id,grade,subject")
                         if target_grade:
                             docs_query = docs_query.eq("grade", target_grade)
                         if target_subject:
                             docs_query = docs_query.eq("subject", target_subject)
-                        docs_rows = docs_query.limit(5).execute().data or []
+                        docs_rows = docs_query.execute().data or []
                     except Exception as docs_err:
-                        print(f"⚠️ RAG query with subject/grade failed, retrying without those columns: {docs_err}")
+                        print(f"⚠️ Document query with subject/grade failed, retrying without subject: {docs_err}")
                         try:
-                            docs_query = supabase.table("documents").select("id,content,grade")
+                            docs_query = supabase.table("documents").select("id,grade")
                             if target_grade:
                                 docs_query = docs_query.eq("grade", target_grade)
-                            docs_rows = docs_query.limit(5).execute().data or []
+                            docs_rows = docs_query.execute().data or []
                         except Exception as docs_fallback_err:
-                            print(f"⚠️ RAG fallback query failed: {docs_fallback_err}")
+                            print(f"⚠️ Document fallback query failed: {docs_fallback_err}")
                             docs_rows = []
 
+                    # 2. Filter doc_ids precisely matching criteria
+                    doc_ids = []
                     if docs_rows:
-                        filtered_docs = []
                         for item in docs_rows:
                             doc_id = str(item.get("id") or "").strip()
                             doc_cache = DOCUMENT_CONTEXT_CACHE.get(doc_id, {}) if doc_id else {}
@@ -907,15 +958,90 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                                 continue
                             if target_subject and doc_subject and doc_subject != target_subject:
                                 continue
-                            filtered_docs.append(item)
+                            doc_ids.append(doc_id)
 
-                        docs_rows = filtered_docs or docs_rows
-                        if docs_rows:
-                            context = "\n".join([item.get("content", "") for item in docs_rows if item.get("content")])
+                    # 3. Retrieve chunks for matched documents and perform Cosine Similarity search in Python
+                    chunks_rows = []
+                    if doc_ids:
+                        try:
+                            chunks_query = supabase.table("document_chunks").select("content,embedding").in_("document_id", doc_ids)
+                            chunks_rows = chunks_query.limit(1000).execute().data or []
+                        except Exception as chunks_err:
+                            print(f"⚠️ Failed to fetch chunks from document_chunks: {chunks_err}")
+                            chunks_rows = []
+
+                    if chunks_rows:
+                        # Create embedding vector for the query
+                        question_vector = _embed_with_provider(question)
+                        if isinstance(question_vector[0], list):
+                            question_vector = question_vector[0][:768]
                         else:
-                            context = f"Hiện tại thầy chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, thầy có thể giải đáp như sau..."
+                            question_vector = question_vector[:768]
+
+                        # Define Cosine Similarity calculator
+                        import math
+                        def get_similarity(q_vec, c_vec_str):
+                            if not q_vec or not c_vec_str:
+                                return 0.0
+                            try:
+                                c_vec = json.loads(c_vec_str)
+                            except Exception:
+                                try:
+                                    c_vec = [float(x) for x in c_vec_str.strip("[]").split(",") if x.strip()]
+                                except Exception:
+                                    return 0.0
+                            if not c_vec or len(c_vec) != len(q_vec):
+                                return 0.0
+                            
+                            dot_prod = sum(a*b for a, b in zip(q_vec, c_vec))
+                            mag1 = math.sqrt(sum(a*a for a in q_vec))
+                            mag2 = math.sqrt(sum(b*b for b in c_vec))
+                            if mag1 * mag2 == 0:
+                                return 0.0
+                            return dot_prod / (mag1 * mag2)
+
+                        # Score each chunk
+                        scored_chunks = []
+                        for chunk in chunks_rows:
+                            content_str = chunk.get("content", "")
+                            embedding_str = chunk.get("embedding", "")
+                            if content_str and embedding_str:
+                                score = get_similarity(question_vector, embedding_str)
+                                scored_chunks.append((score, content_str))
+
+                        # Sort by score descending and take top 5 chunks
+                        scored_chunks.sort(key=lambda x: x[0], reverse=True)
+                        top_chunks = scored_chunks[:5]
+
+                        if top_chunks and top_chunks[0][0] > 0.3:
+                            context = "\n\n---\n\n".join([chunk[1] for chunk in top_chunks])
+                        else:
+                            # Fallback to first matching document preview content if no good chunk similarity match
+                            fallback_content = ""
+                            for d in docs_rows:
+                                if d.get("id") in doc_ids:
+                                    try:
+                                        preview_res = supabase.table("documents").select("content").eq("id", d.get("id")).execute()
+                                        if preview_res.data and preview_res.data[0].get("content"):
+                                            fallback_content = preview_res.data[0].get("content")
+                                            break
+                                    except Exception:
+                                        pass
+                            context = fallback_content or f"Hiện tại thầy chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, thầy có thể giải đáp như sau..."
                     else:
-                        context = f"Hiện tại thầy chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, thầy có thể giải đáp như sau..."
+                        # Fallback to loading preview content directly from documents if document_chunks table is empty
+                        fallback_content = ""
+                        if doc_ids:
+                            for d in docs_rows:
+                                if d.get("id") in doc_ids:
+                                    try:
+                                        preview_res = supabase.table("documents").select("content").eq("id", d.get("id")).execute()
+                                        if preview_res.data and preview_res.data[0].get("content"):
+                                            fallback_content = preview_res.data[0].get("content")
+                                            break
+                                    except Exception:
+                                        pass
+                        context = fallback_content or f"Hiện tại thầy chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, thầy có thể giải đáp như sau..."
                 except Exception as rag_err:
                     print(f"⚠️ RAG fallback activated (embedding/search failed): {rag_err}")
                     context = f"Hiện tại thầy chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, thầy có thể giải đáp như sau..."
