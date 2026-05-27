@@ -62,18 +62,50 @@ def _iter_model_candidates(preferred_model=None):
     return ordered
 
 
-def _iter_embedding_keys(preferred_key=None):
+_KEY_COOLDOWN_TIMESTAMPS = {}
+
+def mark_key_rate_limited(api_key):
+    import time
+    if api_key:
+        _KEY_COOLDOWN_TIMESTAMPS[api_key.strip()] = time.time()
+
+def _iter_active_keys(preferred_key=None):
+    import time
+    now = time.time()
     seen = set()
     ordered_keys = []
+    
+    def is_in_cooldown(k):
+        ts = _KEY_COOLDOWN_TIMESTAMPS.get(k.strip())
+        if ts and (now - ts) < 60:
+            return True
+        return False
+
     if preferred_key and preferred_key.strip():
-        clean_preferred = preferred_key.strip()
-        ordered_keys.append(clean_preferred)
-        seen.add(clean_preferred)
+        clean_pref = preferred_key.strip()
+        if not is_in_cooldown(clean_pref):
+            ordered_keys.append(clean_pref)
+            seen.add(clean_pref)
+            
+    working_keys = []
+    cooldown_keys = []
     for key in AVAILABLE_KEYS:
         if key and key.strip() and key.strip() not in seen:
-            ordered_keys.append(key.strip())
-            seen.add(key.strip())
+            k_clean = key.strip()
+            if is_in_cooldown(k_clean):
+                cooldown_keys.append(k_clean)
+            else:
+                working_keys.append(k_clean)
+                
+    for k in working_keys + cooldown_keys:
+        if k not in seen:
+            ordered_keys.append(k)
+            seen.add(k)
+            
     return ordered_keys
+
+def _iter_embedding_keys(preferred_key=None):
+    return _iter_active_keys(preferred_key)
 
 
 def _iter_embedding_models(preferred_model=None):
@@ -178,6 +210,7 @@ def _embed_with_provider(text, api_key=None, model_name="gemini-embedding-001"):
                     except Exception as e:
                         if _is_rate_limit_error(e):
                             print(f"⚠️ Key {_mask_key(current_key)} đã hết hạn mức embedding, đang thử key tiếp theo...")
+                            mark_key_rate_limited(current_key)
                             last_error = e
                             continue
                         print(f"genai embed_content failed for key {_mask_key(current_key)} with model {current_model}:", e)
@@ -190,6 +223,7 @@ def _embed_with_provider(text, api_key=None, model_name="gemini-embedding-001"):
                     except Exception as e:
                         if _is_rate_limit_error(e):
                             print(f"⚠️ Key {_mask_key(current_key)} đã hết hạn mức embedding, đang thử key tiếp theo...")
+                            mark_key_rate_limited(current_key)
                             last_error = e
                             continue
                         print(f"genai EmbeddingsClient failed for key {_mask_key(current_key)} with model {current_model}:", e)
@@ -197,6 +231,7 @@ def _embed_with_provider(text, api_key=None, model_name="gemini-embedding-001"):
             except Exception as e:
                 if _is_rate_limit_error(e):
                     print(f"⚠️ Key {_mask_key(current_key)} đã hết hạn mức embedding, đang thử key tiếp theo...")
+                    mark_key_rate_limited(current_key)
                     last_error = e
                     continue
                 last_error = e
@@ -922,14 +957,14 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
     for current_model in model_candidates:
         model_succeeded = False
 
-        for api_key in AVAILABLE_KEYS:
+        for api_key in _iter_active_keys():
             try:
                 context = "Không tìm thấy dữ liệu liên quan trong sách."
                 try:
-                    # 1. Fetch matching documents by grade and subject
+                    # 1. Fetch matching documents by grade and subject (including name)
                     docs_rows = []
                     try:
-                        docs_query = supabase.table("documents").select("id,grade,subject")
+                        docs_query = supabase.table("documents").select("id,name,grade,subject")
                         if target_grade:
                             docs_query = docs_query.eq("grade", target_grade)
                         if target_subject:
@@ -938,7 +973,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                     except Exception as docs_err:
                         print(f"⚠️ Document query with subject/grade failed, retrying without subject: {docs_err}")
                         try:
-                            docs_query = supabase.table("documents").select("id,grade")
+                            docs_query = supabase.table("documents").select("id,name,grade")
                             if target_grade:
                                 docs_query = docs_query.eq("grade", target_grade)
                             docs_rows = docs_query.execute().data or []
@@ -948,9 +983,13 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
 
                     # 2. Filter doc_ids precisely matching criteria
                     doc_ids = []
+                    doc_id_to_name = {}
                     if docs_rows:
                         for item in docs_rows:
                             doc_id = str(item.get("id") or "").strip()
+                            doc_name = item.get("name") or "Tài liệu không tên"
+                            doc_id_to_name[doc_id] = doc_name
+                            
                             doc_cache = DOCUMENT_CONTEXT_CACHE.get(doc_id, {}) if doc_id else {}
                             doc_subject = _normalize_subject_name(item.get("subject") or doc_cache.get("subject"))
                             doc_grade = str(item.get("grade") or "").strip()
@@ -964,7 +1003,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                     chunks_rows = []
                     if doc_ids:
                         try:
-                            chunks_query = supabase.table("document_chunks").select("content,embedding").in_("document_id", doc_ids)
+                            chunks_query = supabase.table("document_chunks").select("content,embedding,document_id").in_("document_id", doc_ids)
                             chunks_rows = chunks_query.limit(1000).execute().data or []
                         except Exception as chunks_err:
                             print(f"⚠️ Failed to fetch chunks from document_chunks: {chunks_err}")
@@ -1005,43 +1044,64 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                         for chunk in chunks_rows:
                             content_str = chunk.get("content", "")
                             embedding_str = chunk.get("embedding", "")
+                            doc_id = chunk.get("document_id", "")
                             if content_str and embedding_str:
                                 score = get_similarity(question_vector, embedding_str)
-                                scored_chunks.append((score, content_str))
+                                scored_chunks.append((score, content_str, doc_id))
 
                         # Sort by score descending and take top 5 chunks
                         scored_chunks.sort(key=lambda x: x[0], reverse=True)
                         top_chunks = scored_chunks[:5]
 
+                        # Detailed Console Log
+                        print(f"🔍 [RAG] Tìm thấy {len(top_chunks)} chunks phù hợp cho câu hỏi: '{question}'")
+                        for idx, (score, content_str, doc_id) in enumerate(top_chunks):
+                            doc_name = doc_id_to_name.get(doc_id, "Tài liệu không tên")
+                            print(f"   - Chunk {idx+1} (Độ khớp: {score:.4f} | Từ file: {doc_name}): {content_str[:120]}...")
+
                         if top_chunks and top_chunks[0][0] > 0.3:
-                            context = "\n\n---\n\n".join([chunk[1] for chunk in top_chunks])
+                            context_parts = []
+                            for idx, (score, content_str, doc_id) in enumerate(top_chunks):
+                                doc_name = doc_id_to_name.get(doc_id, "Tài liệu không tên")
+                                context_parts.append(f"[Nguồn: {doc_name} (Độ tương đồng: {score:.4f})]\n{content_str}")
+                            context = "\n\n---\n\n".join(context_parts)
                         else:
                             # Fallback to first matching document preview content if no good chunk similarity match
                             fallback_content = ""
+                            fallback_doc_name = "Tài liệu không tên"
                             for d in docs_rows:
                                 if d.get("id") in doc_ids:
                                     try:
-                                        preview_res = supabase.table("documents").select("content").eq("id", d.get("id")).execute()
+                                        preview_res = supabase.table("documents").select("name,content").eq("id", d.get("id")).execute()
                                         if preview_res.data and preview_res.data[0].get("content"):
                                             fallback_content = preview_res.data[0].get("content")
+                                            fallback_doc_name = preview_res.data[0].get("name") or "Tài liệu không tên"
                                             break
                                     except Exception:
                                         pass
-                            context = fallback_content or f"Hiện tại thầy chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, thầy có thể giải đáp như sau..."
+                            if fallback_content:
+                                context = f"[Nguồn: {fallback_doc_name} (Xem trước tài liệu)]\n{fallback_content[:4000]}"
+                            else:
+                                context = f"Hiện tại thầy chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, thầy có thể giải đáp như sau..."
                     else:
                         # Fallback to loading preview content directly from documents if document_chunks table is empty
                         fallback_content = ""
+                        fallback_doc_name = "Tài liệu không tên"
                         if doc_ids:
                             for d in docs_rows:
                                 if d.get("id") in doc_ids:
                                     try:
-                                        preview_res = supabase.table("documents").select("content").eq("id", d.get("id")).execute()
+                                        preview_res = supabase.table("documents").select("name,content").eq("id", d.get("id")).execute()
                                         if preview_res.data and preview_res.data[0].get("content"):
                                             fallback_content = preview_res.data[0].get("content")
+                                            fallback_doc_name = preview_res.data[0].get("name") or "Tài liệu không tên"
                                             break
                                     except Exception:
                                         pass
-                        context = fallback_content or f"Hiện tại thầy chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, thầy có thể giải đáp như sau..."
+                        if fallback_content:
+                            context = f"[Nguồn: {fallback_doc_name} (Xem trước tài liệu)]\n{fallback_content[:4000]}"
+                        else:
+                            context = f"Hiện tại thầy chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, thầy có thể giải đáp như sau..."
                 except Exception as rag_err:
                     print(f"⚠️ RAG fallback activated (embedding/search failed): {rag_err}")
                     context = f"Hiện tại thầy chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, thầy có thể giải đáp như sau..."
@@ -1089,11 +1149,12 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                 QUY TẮC NỘI DUNG:
                 1) Trả lời ngắn gọn, dễ hiểu, theo trình độ. Phải kết hợp linh hoạt "KIẾN THỨC THAM CHIẾU" và "LỊCH SỬ TRÒ CHUYỆN". Nếu học sinh đưa ra yêu cầu như "cô đọc lại bài thơ đó đi", "giải thích lại đoạn trên", hãy TỰ ĐỘNG hiểu ngữ cảnh từ LỊCH SỬ TRÒ CHUYỆN và thực hiện ngay yêu cầu (ví dụ: in lại bài thơ ra để hệ thống tự động đọc bằng giọng nói). Nếu không có dữ liệu, hãy dùng kiến thức phổ thông để đáp lại.
                 2) Luôn xưng hô là "Cô" (tuyệt đối không xưng là "Thầy") và gọi người dùng là "em" hoặc "con". Thân thiện, vui vẻ như một giáo viên thực sự.
-                2) Nhìn vào LỊCH SỬ TRÒ CHUYỆN để suy ra tiến độ học tập. Nếu học sinh đang ở chủ đề "Tích phân", gợi ý tiếp theo phải gần chủ đề đó; nếu học sinh nói đã xong bài, ưu tiên gợi ý "Kiểm tra kết quả" hoặc "Sang chương mới".
-                3) Không lặp lại các gợi ý đã từng xuất hiện trong lịch sử.
-                4) Nếu học sinh yêu cầu "Tạo đề thi tương tự", hãy tự động đọc nội dung hình ảnh/đề mẫu vừa gửi, sau đó SÁNG TẠO ra một đề thi trắc nghiệm hoặc tự luận hoàn toàn mới, có cấu trúc và độ khó tương đương đề mẫu, kèm theo đáp án chi tiết ở dưới cùng.
-                5) Không viết thêm nội dung nào ngoài các marker [ANSWER]...[END_ANSWER] và [SUGGESTIONS]...[END_SUGGESTIONS].
-                7) [TÙY CHỌN] NẾU NỘI DUNG LÀ GIẢI THÍCH LÝ THUYẾT: Sau khi giải thích xong (trong [ANSWER]), BẮT BUỘC chèn thêm một khối [QUIZ] ở cuối cùng chứa MỘT câu hỏi trắc nghiệm (A,B,C,D) bằng JSON theo ĐÚNG định dạng sau để kiểm tra xem học sinh có nhớ lý thuyết vừa học không. JSON phải CỰC KỲ CHÍNH XÁC:
+                3) Nhìn vào LỊCH SỬ TRÒ CHUYỆN để suy ra tiến độ học tập. Nếu học sinh đang ở chủ đề "Tích phân", gợi ý tiếp theo phải gần chủ đề đó; nếu học sinh nói đã xong bài, ưu tiên gợi ý "Kiểm tra kết quả" hoặc "Sang chương mới".
+                4) Không lặp lại các gợi ý đã từng xuất hiện trong lịch sử.
+                5) Nếu học sinh yêu cầu "Tạo đề thi tương tự", hãy tự động đọc nội dung hình ảnh/đề mẫu vừa gửi, sau đó SÁNG TẠO ra một đề thi trắc nghiệm hoặc tự luận hoàn toàn mới, có cấu trúc và độ khó tương đương đề mẫu, kèm theo đáp án chi tiết ở dưới cùng.
+                6) ĐỊNH DẠNG NGUỒN TRÍCH DẪN: Ở cuối câu trả lời (TRƯỚC marker [END_ANSWER]), hãy tự động thêm một phần "📚 **Tham chiếu từ Sách Giáo Khoa:**" liệt kê rõ ràng tên sách, độ tương đồng/độ khớp từ thông tin "[Nguồn: Tên_sách (Độ tương đồng: x.xxxx)]" trong phần KIẾN THỨC THAM CHIẾU để học sinh biết nguồn gốc nội dung đó (tuyệt đối không lặp lại phần trích dẫn văn bản, chỉ ghi tên sách và độ khớp, ví dụ: `* Sách Vật lí 11 (Độ khớp: 81%)`).
+                7) Không viết thêm nội dung nào ngoài các marker [ANSWER]...[END_ANSWER] và [SUGGESTIONS]...[END_SUGGESTIONS].
+                8) [TÙY CHỌN] NẾU NỘI DUNG LÀ GIẢI THÍCH LÝ THUYẾT: Sau khi giải thích xong (trong [ANSWER]), BẮT BUỘC chèn thêm một khối [QUIZ] ở cuối cùng chứa MỘT câu hỏi trắc nghiệm (A,B,C,D) bằng JSON theo ĐÚNG định dạng sau để kiểm tra xem học sinh có nhớ lý thuyết vừa học không. JSON phải CỰC KỲ CHÍNH XÁC:
 [QUIZ]
 {{
   "question": "Câu hỏi ở đây?",
@@ -1166,6 +1227,7 @@ PHẦN TRẢ LỜI CỦA BẠN PHẢI TUÂN THEO CẤU TRÚC SAU:
             except Exception as e:
                 if _is_rate_limit_error(e):
                     print(f"⚠️ Key {_mask_key(api_key)} đã hết hạn mức, đang thử key tiếp theo...")
+                    mark_key_rate_limited(api_key)
                     last_error = e
                     continue
                 last_error = e
