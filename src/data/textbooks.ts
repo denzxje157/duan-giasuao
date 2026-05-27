@@ -4,7 +4,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1Tg_1iojG0bOfqMSaa2z_w1eOB7JOdpTn",
     "title": "Tiếng Việt 1, tập hai",
-    "subject": "Chung",
+    "subject": "Tiếng Việt",
     "grade": 1,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/36bb8e21-c400-5a6b-98d0-86f7565d1785.png",
@@ -15,7 +15,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1d0-RtVSXcVwckJBV2QX6q-JyFsDO43qu",
     "title": "Tiếng Việt 1, tập một",
-    "subject": "Chung",
+    "subject": "Tiếng Việt",
     "grade": 1,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/50cd6c17-f42b-5919-8136-1c884ef3ffa4.png",
@@ -48,7 +48,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1le27sIOCx30JfuWtTCF1cUeMp-akmRHp",
     "title": "Tự nhiên và Xã hội 1",
-    "subject": "Chung",
+    "subject": "Tự nhiên và Xã hội",
     "grade": 1,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/f21b1ee3-3fbd-5e97-8904-06cfd5915254.png",
@@ -59,7 +59,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1UFJeIEZ69GNMDhmD89mLmbq7JgBcSKlJ",
     "title": "Đạo đức 1",
-    "subject": "Chung",
+    "subject": "Đạo đức",
     "grade": 1,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/71bb8757-9290-51cf-882a-b6a247d482ad.png",
@@ -70,7 +70,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1hK53705VQym7Z3oWAbANsdG_1ID0ARV7",
     "title": "Công nghệ 10 - Công nghệ trồng trọt",
-    "subject": "Chung",
+    "subject": "Công nghệ",
     "grade": 10,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/cf06819e-65fa-5b93-9503-8eda76085b39.png",
@@ -81,7 +81,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-11XSDdQn6HThYM9nSY8x9OD8sd2Gd2Y_9",
     "title": "Công nghệ 10 - Thiết kế và công nghệ",
-    "subject": "Chung",
+    "subject": "Công nghệ",
     "grade": 10,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/fbe6e5d7-31b2-55d3-a06b-838adafbf74a.png",
@@ -92,7 +92,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1ignQhCzhVxun96fIcOsInWOW68DUlAdo",
     "title": "Hóa học 10",
-    "subject": "Chung",
+    "subject": "Hóa học",
     "grade": 10,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/262ab376-30fc-533d-98d1-39052b4093ad.png",
@@ -103,7 +103,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1NFe1j1NojgU6D-I8Wm8Z9_6LWSWx1Ogm",
     "title": "Lịch sử 10",
-    "subject": "Lịch sử và Địa lí",
+    "subject": "Lịch sử",
     "grade": 10,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/5526b445-6202-5bda-9a8c-600e2b234c44.png",
@@ -114,7 +114,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1mCgjLvzkpv3cIoq712FP3oqW-EFqnPaM",
     "title": "Ngữ văn 10, tập hai",
-    "subject": "Chung",
+    "subject": "Ngữ văn",
     "grade": 10,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/b7701156-1e98-5f58-910f-aa08dc92223e.png",
@@ -125,7 +125,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1R3EMJNIo-PpCNVHS7Eb_PX4Ke5yk-eVS",
     "title": "Ngữ văn 10, tập một",
-    "subject": "Chung",
+    "subject": "Ngữ văn",
     "grade": 10,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/692eb6ea-f2ac-597d-95c2-152516608527.png",
@@ -136,7 +136,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1zhIQZIreiiU8M4Q45zt-60TMdIDWygz1",
     "title": "Sinh học 10",
-    "subject": "Khoa học tự nhiên",
+    "subject": "Sinh học",
     "grade": 10,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/a89fab6d-fac0-553f-b260-2c067cd80032.png",
@@ -191,7 +191,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1MEfnWYnJoamCVBZ4lasPkf0C2MeQhP_p",
     "title": "Vật lí 10",
-    "subject": "Chung",
+    "subject": "Vật lí",
     "grade": 10,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/6a64b3a1-6a15-5615-926c-4cdd65a4cf62.png",
@@ -202,7 +202,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1EEUmE1_ilV8dzVuXJ7c1nzJNQkLlwaw7",
     "title": "Địa lí 10",
-    "subject": "Chung",
+    "subject": "Địa lí",
     "grade": 10,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/a85288d1-036d-58a9-8194-aa3603692722.png",
@@ -213,7 +213,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1VP1Cdx9fZToR7I33pCZ91exT-0Ea2vlH",
     "title": "Công nghệ 11 - Công nghệ chăn nuôi",
-    "subject": "Chung",
+    "subject": "Công nghệ",
     "grade": 11,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/0c2c9f81-70d8-53bf-875b-4e25ed47f085.png",
@@ -224,7 +224,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1NQ5GRrzzuOZJ4dtaifxHwOhnV6ujmKEh",
     "title": "Công nghệ 11 - Công nghệ cơ khí",
-    "subject": "Chung",
+    "subject": "Công nghệ",
     "grade": 11,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/3278f30d-f546-564f-ae9a-6975d2b2a40d.png",
@@ -235,7 +235,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1ZOcS6Dd-DL7DZiT5SLI0wJRT1MafugQb",
     "title": "Hóa học 11",
-    "subject": "Chung",
+    "subject": "Hóa học",
     "grade": 11,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22fa52f6-32ab-501d-b54e-42de40ab164e.png",
@@ -246,7 +246,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-12eD20JSnxe8921343hUHZbJRKzug86Z5",
     "title": "Lịch sử 11",
-    "subject": "Lịch sử và Địa lí",
+    "subject": "Lịch sử",
     "grade": 11,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/bc8965b5-4f86-5f89-9f4e-0d7d976f0f2c.png",
@@ -257,7 +257,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1FZKhszxgb_UnJkcUyKN1_T6O7y9rLzRw",
     "title": "Ngữ văn 11, tập hai",
-    "subject": "Chung",
+    "subject": "Ngữ văn",
     "grade": 11,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/7dceb6e4-a6b0-5f35-ae61-2aef76800481.png",
@@ -268,7 +268,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1N5OFJj7G_ltLFFc-GSpRUFyjz873FVbJ",
     "title": "Ngữ văn 11, tập một",
-    "subject": "Chung",
+    "subject": "Ngữ văn",
     "grade": 11,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/bc3077b4-07a6-51b4-935f-feb334ef3143.png",
@@ -279,7 +279,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1vG83Eui2p7tpbkiLwrmiJ9TlD8btO94g",
     "title": "Sinh học 11",
-    "subject": "Khoa học tự nhiên",
+    "subject": "Sinh học",
     "grade": 11,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/a2e514f5-0a91-5718-9f81-402574619712.png",
@@ -290,7 +290,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1Gh7pJIrNj0XQ_3xOJ-8pLWAyuejb-Bma",
     "title": "Tin học 11 - Định hướng khoa học máy tính",
-    "subject": "Khoa học tự nhiên",
+    "subject": "Tin học",
     "grade": 11,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/ed79e973-4c66-5318-9c9c-a1a6da91ca8c.png",
@@ -345,7 +345,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-17fDdirG4gVB9kgJXwmKgQm4qACCVmJne",
     "title": "Vật lí 11",
-    "subject": "Chung",
+    "subject": "Vật lí",
     "grade": 11,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
@@ -356,7 +356,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-13BjOu86P0PvKLjlc7YjiOIPa8hG4LOcB",
     "title": "Địa lí 11",
-    "subject": "Chung",
+    "subject": "Địa lí",
     "grade": 11,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/c7e68429-3cfa-5dee-9c45-d373da076970.png",
@@ -367,7 +367,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1Y3FJSYE3NmJSlTM8Q52jfDIGte0oIEB-",
     "title": "Hóa học 12",
-    "subject": "Chung",
+    "subject": "Hóa học",
     "grade": 12,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22fa52f6-32ab-501d-b54e-42de40ab164e.png",
@@ -378,7 +378,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1PN8blTfV_Q2BrzBknNZlrbnHiS7irPTT",
     "title": "Hóa học 12",
-    "subject": "Chung",
+    "subject": "Hóa học",
     "grade": 12,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22fa52f6-32ab-501d-b54e-42de40ab164e.png",
@@ -389,7 +389,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1IDOVzemFsTa5XfSoonAKGa70rfA8KICL",
     "title": "Hóa học 12",
-    "subject": "Chung",
+    "subject": "Hóa học",
     "grade": 12,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22fa52f6-32ab-501d-b54e-42de40ab164e.png",
@@ -400,7 +400,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-17P1Sbni8XtSdTCkla3vkreSATDmCOvQ-",
     "title": "Vật lí 12",
-    "subject": "Chung",
+    "subject": "Vật lí",
     "grade": 12,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
@@ -411,7 +411,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1VNiSjVsu9tESE-XJsDxy-3biN5mz3nIj",
     "title": "Vật lí 12",
-    "subject": "Chung",
+    "subject": "Vật lí",
     "grade": 12,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
@@ -422,7 +422,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1o5rwJpABnb0m3mqTVmno3RjorXsBrcIg",
     "title": "Vật lí 12",
-    "subject": "Chung",
+    "subject": "Vật lí",
     "grade": 12,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
@@ -433,7 +433,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1nfCB5k0I5Wg04GE069avm-tqK5vv8ymE",
     "title": "Hóa học 12",
-    "subject": "Chung",
+    "subject": "Hóa học",
     "grade": 12,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22fa52f6-32ab-501d-b54e-42de40ab164e.png",
@@ -444,7 +444,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-19Y2B_Y3dF1KQeysnFO4cO-iLWkT-LfUr",
     "title": "Vật lí 12",
-    "subject": "Chung",
+    "subject": "Vật lí",
     "grade": 12,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
@@ -455,7 +455,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1RHrp2DO5F_9tCtsGuk9Emh58LKFPhQrR",
     "title": "Hóa học 12",
-    "subject": "Chung",
+    "subject": "Hóa học",
     "grade": 12,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22fa52f6-32ab-501d-b54e-42de40ab164e.png",
@@ -466,7 +466,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-17RB9e1xc-8QaQ1hp3vRXiGIp_DYWT2tb",
     "title": "Vật lí 12",
-    "subject": "Chung",
+    "subject": "Vật lí",
     "grade": 12,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
@@ -477,7 +477,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1zNpREdEpFz4SPjyPHr6Fmtasad_i-QgL",
     "title": "Vật lí 12",
-    "subject": "Chung",
+    "subject": "Vật lí",
     "grade": 12,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
@@ -488,7 +488,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1MEybQSZs4f7nzptJZEt_mBzKyZGs9K-E",
     "title": "Vật lí 12",
-    "subject": "Chung",
+    "subject": "Vật lí",
     "grade": 12,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
@@ -499,7 +499,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1J9W-AS0J8Yv5snw-DlFdwHavEtzIIm11",
     "title": "Vật lí 12",
-    "subject": "Chung",
+    "subject": "Vật lí",
     "grade": 12,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
@@ -510,7 +510,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1Hd8MCH49DcJLYU_pi-INsi6L6QOgKAOF",
     "title": "Vật lí 12",
-    "subject": "Chung",
+    "subject": "Vật lí",
     "grade": 12,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
@@ -521,7 +521,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1DogbFo9ieOG66hWlC9fHAUb6MLJeGODh",
     "title": "Tiếng Việt 2, tập hai",
-    "subject": "Chung",
+    "subject": "Tiếng Việt",
     "grade": 2,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/d45d0aef-1e5c-5027-8fb2-d4d1563e3764.png",
@@ -532,7 +532,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1D9XioAVyla0uliuybl7Rmas2cDjdQSTD",
     "title": "Tiếng Việt 2, tập một",
-    "subject": "Chung",
+    "subject": "Tiếng Việt",
     "grade": 2,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/19d828bb-308e-5502-8a19-4eda7058f296.png",
@@ -565,7 +565,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1ffFesmQYFiyaxrZieOXuiPZ0YDrCx-ZS",
     "title": "Tự nhiên và Xã hội 2",
-    "subject": "Chung",
+    "subject": "Tự nhiên và Xã hội",
     "grade": 2,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/2d25d5d4-e4ca-5734-9f19-e80530ff6ed6.png",
@@ -576,7 +576,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1BWY0ita5PUaU4RMni0kFJybKxiLqLlep",
     "title": "Đạo đức 2",
-    "subject": "Chung",
+    "subject": "Đạo đức",
     "grade": 2,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/3f3117b9-c1c7-5f7a-97a5-a2178767011b.png",
@@ -587,7 +587,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1ifnn9QTBMB9tKjw7S7bXPTeMPfwkbhVS",
     "title": "Công nghệ 3",
-    "subject": "Chung",
+    "subject": "Công nghệ",
     "grade": 3,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/da600ff7-e994-5dbb-8de1-2bda6f36adf6.png",
@@ -609,7 +609,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1P0mw65hZD-qCmcPmstuKwKy_94RifqG3",
     "title": "Tiếng Việt 3, tập hai",
-    "subject": "Chung",
+    "subject": "Tiếng Việt",
     "grade": 3,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/3450f0b0-18a0-5942-8ef4-662ff05ca5ea.png",
@@ -620,7 +620,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-10BxerQG3N3i5NtTBe0rJnVLhEQJnosOU",
     "title": "Tiếng Việt 3, tập một",
-    "subject": "Chung",
+    "subject": "Tiếng Việt",
     "grade": 3,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/3eda66bf-f980-5365-8190-442fdb368ce0.png",
@@ -653,7 +653,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1IPQhliPKwCKaIohPXR3LSUhwvM_lYGdO",
     "title": "Tự nhiên và Xã hội 3",
-    "subject": "Chung",
+    "subject": "Tự nhiên và Xã hội",
     "grade": 3,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/242294dc-e76a-51a4-8624-a6bd6d39f2dc.png",
@@ -664,7 +664,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1GYfF_H7jzgMMf_Kc3Lr-GaMdIs_69M3A",
     "title": "Đạo đức 3",
-    "subject": "Chung",
+    "subject": "Đạo đức",
     "grade": 3,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22312b33-1bbe-5995-a58d-3ebf1c2b496d.png",
@@ -675,7 +675,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1gpAQfnf3i6DP6Hr7AaqbS0zigbtTe6P5",
     "title": "Công nghệ 4",
-    "subject": "Chung",
+    "subject": "Công nghệ",
     "grade": 4,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/5bb779f4-1fd0-5c62-9505-de7ca0ab507e.png",
@@ -708,7 +708,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1VMvA9uBpKHfv_GZik3kidboqJkiKpfIV",
     "title": "Tiếng Việt 4, tập hai",
-    "subject": "Chung",
+    "subject": "Tiếng Việt",
     "grade": 4,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/5b15b7e4-eef3-59f4-bf22-e699391dbb35.png",
@@ -719,7 +719,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1SUoxtaftrSw7woDPQjICMyAKR47I9Dzy",
     "title": "Tiếng Việt 4, tập một",
-    "subject": "Chung",
+    "subject": "Tiếng Việt",
     "grade": 4,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/a5891368-96b5-594b-9886-c13ddcb80450.png",
@@ -752,7 +752,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-15WSYfm5L1V5y7fJ6RafGopRMT84sG-uQ",
     "title": "Đạo đức 4",
-    "subject": "Chung",
+    "subject": "Đạo đức",
     "grade": 4,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/5797eb09-4387-5132-bc71-8cf0983af031.png",
@@ -763,7 +763,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1gmfMAX74Lag4Dit1HA3SSQ_qfY_zDjAD",
     "title": "Công nghệ 5",
-    "subject": "Chung",
+    "subject": "Công nghệ",
     "grade": 5,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/7dd6f152-77f5-545b-85ca-a6e7e3386695.png",
@@ -796,7 +796,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1hQ4IDkonVRzbJcvk2YP1M7sQ_la629ol",
     "title": "Tiếng Việt 5, tập hai",
-    "subject": "Chung",
+    "subject": "Tiếng Việt",
     "grade": 5,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/d67ec09b-ca28-5b67-b41a-9cf805fdd586.png",
@@ -807,7 +807,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1IrE5A21B9g2im7lZQq_pk_6qvhSYFA31",
     "title": "Tiếng Việt 5, tập một",
-    "subject": "Chung",
+    "subject": "Tiếng Việt",
     "grade": 5,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/d173f751-deef-59a5-8a70-d324a673ae70.png",
@@ -840,7 +840,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1Oy-vdGZDwQV1RoHC3XfrNK4RpJ3kdlPu",
     "title": "Đạo đức 5",
-    "subject": "Chung",
+    "subject": "Đạo đức",
     "grade": 5,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/792d254b-615d-5dc7-a3dd-ad628d2cf3b0.png",
@@ -851,7 +851,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1IuI7bkK_-g7QdPKxxTybkaN1YgcXREA4",
     "title": "Công nghệ 6",
-    "subject": "Chung",
+    "subject": "Công nghệ",
     "grade": 6,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/bbebe020-eb8e-54de-89d3-1218df541279.png",
@@ -884,7 +884,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1faEqd3KOCZOQdSidagBbN_xsYzXxYA8j",
     "title": "Ngữ văn 6, tập hai",
-    "subject": "Chung",
+    "subject": "Ngữ văn",
     "grade": 6,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/efd8edc7-2537-5669-a0ae-4d2b877ee273.png",
@@ -895,7 +895,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1RVPq6d9pGHyDTPTCdG9yp_OxlRlEPHXb",
     "title": "Ngữ văn 6, tập một",
-    "subject": "Chung",
+    "subject": "Ngữ văn",
     "grade": 6,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/cf9f45c5-8685-5202-868d-ca21ce2b1b39.png",
@@ -961,7 +961,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1QVdv5lGPc26l7rjQz3E3mz6L6bGlLc1L",
     "title": "Công nghệ 7",
-    "subject": "Chung",
+    "subject": "Công nghệ",
     "grade": 7,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/e5f2a9b3-5dcf-555c-95da-30279ba8e871.png",
@@ -994,7 +994,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1LuFzMThTDxJsjnEaYJP3w3PpPAFryL6W",
     "title": "Ngữ văn 7, tập hai",
-    "subject": "Chung",
+    "subject": "Ngữ văn",
     "grade": 7,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/ba673061-0216-5e95-90be-860b93b70eda.png",
@@ -1005,7 +1005,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1CXwKrtgUYswro7ouy5dVXsd92LCJPdfB",
     "title": "Ngữ văn 7, tập một",
-    "subject": "Chung",
+    "subject": "Ngữ văn",
     "grade": 7,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/6b74829c-0725-5845-9378-7afc8cada043.png",
@@ -1049,7 +1049,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1-ScPW1M9jT-6AV4RgcdcWX2Od1lDO-Jq",
     "title": "Công nghệ 8",
-    "subject": "Chung",
+    "subject": "Công nghệ",
     "grade": 8,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/1ca9a322-71b6-5117-ade1-56f01764a631.png",
@@ -1082,7 +1082,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1BXUcgyDPt3SxTT5Lp_IqOb4RDLBvloP-",
     "title": "Ngữ văn 8, tập hai",
-    "subject": "Chung",
+    "subject": "Ngữ văn",
     "grade": 8,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/efdf8524-ef1b-5547-b1f0-bea31fc4f7be.png",
@@ -1093,7 +1093,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1918XVAsXO1LHecXE04zAMGtv4RLOxtBD",
     "title": "Ngữ văn 8, tập một",
-    "subject": "Chung",
+    "subject": "Ngữ văn",
     "grade": 8,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/cf245aa6-42f2-5ca5-a78e-59cab2f82bdc.png",
@@ -1148,7 +1148,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1b64ud-k98w9u_vgLwY8IQ4JibH76dihL",
     "title": "Công nghệ 9 - Trải nghiệm nghề nghiệp Mô đun Chế biến thực phẩm",
-    "subject": "Chung",
+    "subject": "Công nghệ",
     "grade": 9,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/394d1e74-d4fc-5a6f-9206-50ca582839d4.png",
@@ -1159,7 +1159,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-17h0lDXPLZtrJS8lvrMMyIplYpexjW3d-",
     "title": "Công nghệ 9 - Trải nghiệm nghề nghiệp Mô đun Lắp đặt mạng điện trong nhà",
-    "subject": "Chung",
+    "subject": "Công nghệ",
     "grade": 9,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/be8c7526-379c-58f5-9f93-ab08eceb57fe.png",
@@ -1170,7 +1170,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1Jrebx8dkqAmMJhGmQT_swR8iMfSoTX3Q",
     "title": "Công nghệ 9 - Trải nghiệm nghề nghiệp Mô đun Trồng cây ăn quả",
-    "subject": "Chung",
+    "subject": "Công nghệ",
     "grade": 9,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/7d18a8d4-904e-5731-a565-6fe0e0205def.png",
@@ -1181,7 +1181,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1GU-3WmPTpPfLp29aIIoLYmx_dNyCyQbN",
     "title": "Công nghệ 9 - Định hướng nghề nghiệp",
-    "subject": "Chung",
+    "subject": "Công nghệ",
     "grade": 9,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/a6097f85-64ba-5e68-90ad-435e349fb9c1.png",
@@ -1214,7 +1214,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1279ebHGHgfQkBypCJ2_keXJAXxcHgM-L",
     "title": "Ngữ văn 9, tập hai",
-    "subject": "Chung",
+    "subject": "Ngữ văn",
     "grade": 9,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/4d5a2ffd-a2c3-5ff5-841d-37ed71454294.png",
@@ -1225,7 +1225,7 @@ export const TEXTBOOKS_DATA: Textbook[] = [
   {
     "id": "gdrive-1rivTA3JO4pZFiUQ9GYrJGkRmVAOvPqDO",
     "title": "Ngữ văn 9, tập một",
-    "subject": "Chung",
+    "subject": "Ngữ văn",
     "grade": 9,
     "series": "Kết nối tri thức",
     "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/78ef10bc-aa04-55e2-8e82-cefa60fef3ff.png",
