@@ -112,15 +112,15 @@ def proxy_tts(text: str, gender: str = "female"):
             'https://api.fpt.ai/hmi/tts/v5',
             headers={'api-key': FPT_TTS_KEY, 'voice': fpt_voice, 'speed': '1'},
             data=text.encode('utf-8'),
-            timeout=5
+            timeout=2.0
         )
         if fpt_res.status_code == 200:
             fpt_data = fpt_res.json()
             if "async" in fpt_data:
                 audio_url = fpt_data["async"]
-                # Poll FPT for up to 8 seconds
-                for _ in range(16):
-                    audio_res = requests.get(audio_url, timeout=3)
+                # Poll FPT for up to 4 seconds (8 attempts * 0.5s)
+                for _ in range(8):
+                    audio_res = requests.get(audio_url, timeout=1.5)
                     if audio_res.status_code == 200 and len(audio_res.content) > 1000:
                         return Response(content=audio_res.content, media_type="audio/mpeg")
                     time.sleep(0.5)
@@ -133,15 +133,15 @@ def proxy_tts(text: str, gender: str = "female"):
             'https://api.zalo.ai/v1/tts/synthesize',
             headers={'apikey': ZALO_TTS_KEY},
             data={'input': text, 'encode_type': 1, 'speaker_id': zalo_speaker},
-            timeout=5
+            timeout=2.0
         )
         if zalo_res.status_code == 200:
             zalo_data = zalo_res.json()
             if zalo_data.get("error_code") == 0 and "url" in zalo_data.get("data", {}):
                 audio_url = zalo_data["data"]["url"]
-                # Poll Zalo for up to 8 seconds (file takes time to generate)
-                for _ in range(16):
-                    audio_res = requests.get(audio_url, timeout=3)
+                # Poll Zalo for up to 3 seconds (6 attempts * 0.5s)
+                for _ in range(6):
+                    audio_res = requests.get(audio_url, timeout=1.5)
                     if audio_res.status_code == 200 and len(audio_res.content) > 1000:
                         return Response(content=audio_res.content, media_type="audio/mpeg")
                     time.sleep(0.5)

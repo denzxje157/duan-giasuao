@@ -4,6 +4,7 @@ import { MessageSquare, Send, Sparkles, User, Bot, Maximize2, Minimize2, Setting
 import { GoogleGenAI } from "@google/genai";
 import { User as UserType } from '../../types';
 import { uploadDocument, API_BASE_URL } from '../../lib/api';
+import { convertMathToVietnameseSpeech } from './AIChat.tsx';
 
 // Markdown & Math
 import ReactMarkdown from 'react-markdown';
@@ -112,14 +113,17 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
 
   const handleTTS = (text: string) => {
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'vi-VN';
       const voices = window.speechSynthesis.getVoices();
-      const viVoice = voices.find(v => v.lang.includes('vi') || v.lang.includes('VI'));
-      if (viVoice) {
-        utterance.voice = viVoice;
+      const viVoice = voices.find(v => v.lang.toLowerCase().includes('vi'));
+      if (!viVoice) {
+        console.warn("No local Vietnamese voice detected. Skipping TTS.");
+        return;
       }
+      window.speechSynthesis.cancel();
+      const cleanText = convertMathToVietnameseSpeech(text.replace(/[*#_]/g, ''));
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = 'vi-VN';
+      utterance.voice = viVoice;
       window.speechSynthesis.speak(utterance);
     }
   };

@@ -160,8 +160,16 @@ const MessageContent = ({ content }: { content: string }) => {
   );
 };
 
-const convertMathToVietnameseSpeech = (text: string) => {
+export const convertMathToVietnameseSpeech = (text: string) => {
   let spoken = text;
+  
+  // Dọn dẹp dấu ngoặc LaTeX rỗng và dấu ngoặc đơn rỗng trước khi xử lý toán học
+  spoken = spoken.replace(/\\\(\s*\\\)/g, ' ');
+  spoken = spoken.replace(/\\\[\s*\\\]/g, ' ');
+  spoken = spoken.replace(/\(\s*\)/g, ' ');
+  spoken = spoken.replace(/\[\s*\]/g, ' ');
+  spoken = spoken.replace(/\{\s*\}/g, ' ');
+
   // Toán học cơ bản & cấp 3
   spoken = spoken.replace(/\\frac{([^}]+)}{([^}]+)}/g, '$1 phần $2');
   spoken = spoken.replace(/\\widehat{([^}]+)}/g, 'góc $1');
@@ -206,10 +214,21 @@ const convertMathToVietnameseSpeech = (text: string) => {
   spoken = spoken.replace(/_4/g, ' bốn '); // H2SO4
   spoken = spoken.replace(/_{([^}]+)}/g, ' $1 '); // Các chỉ số dưới khác
   
+  // Xử lý đạo hàm: y', y'', f'(x), y′ (chữ prime unicode), y’ (curly quote), \prime
+  spoken = spoken.replace(/\^\\prime/g, ' phẩy ');
+  spoken = spoken.replace(/\\prime/g, ' phẩy ');
+  spoken = spoken.replace(/\^{'}/g, ' phẩy ');
+  spoken = spoken.replace(/([a-zA-Z])\s*['’′]{2}/g, ' $1 hai phẩy ');
+  spoken = spoken.replace(/([a-zA-Z])\s*['’′]/g, ' $1 phẩy ');
+  
   // Dọn dẹp ký tự thừa của LaTeX
   spoken = spoken.replace(/\$/g, '');
   spoken = spoken.replace(/\\/g, '');
   spoken = spoken.replace(/[{}]/g, ' ');
+  
+  // Xóa các khoảng trắng thừa
+  spoken = spoken.replace(/\s+/g, ' ').trim();
+  
   return spoken;
 };
 
@@ -269,6 +288,37 @@ export default function AIChat({ user }: AIChatProps) {
   const [isListening, setIsListening] = useState(false);
   const usedVoiceRef = useRef(false);
   const activeAudioSeqRef = useRef<number>(0);
+  const activeAudioQueueRef = useRef<HTMLAudioElement[]>([]);
+  const currentPlayingAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const stopAllAudio = () => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    if (currentPlayingAudioRef.current) {
+      try {
+        currentPlayingAudioRef.current.pause();
+        currentPlayingAudioRef.current.src = "";
+        currentPlayingAudioRef.current.load();
+      } catch (e) {
+        console.warn("Error pausing playing audio:", e);
+      }
+      currentPlayingAudioRef.current = null;
+    }
+    activeAudioQueueRef.current.forEach((audio) => {
+      try {
+        audio.pause();
+        audio.onended = null;
+        audio.onerror = null;
+        audio.src = "";
+        audio.load();
+      } catch (e) {
+        // ignore
+      }
+    });
+    activeAudioQueueRef.current = [];
+  };
+
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
@@ -332,24 +382,18 @@ export default function AIChat({ user }: AIChatProps) {
     activeAudioSeqRef.current++;
     const seqId = activeAudioSeqRef.current;
 
-    // Pause any background HTML audio
-    const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
-    if (audioElement) {
-      audioElement.pause();
-      audioElement.removeAttribute('src');
-    }
-
     if (typeof window === 'undefined') return;
 
-    // Stop any active SpeechSynthesis
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+    stopAllAudio();
 
     const cleanText = convertMathToVietnameseSpeech(textToSpeak.replace(/[*#_]/g, ''));
 
+    // Check if local Vietnamese voice is available
+    const localVoices = 'speechSynthesis' in window ? window.speechSynthesis.getVoices() : [];
+    const hasLocalViVoice = localVoices.some(v => v.lang.toLowerCase().includes('vi'));
+
     // Check voiceEngine selection
-    if (voiceEngine === 'local' && 'speechSynthesis' in window) {
+    if (voiceEngine === 'local' && 'speechSynthesis' in window && hasLocalViVoice) {
       // Direct instant local speech
       const rawSentences = cleanText.split(/([.!?\n]+)/);
       const chunks: string[] = [];
@@ -383,13 +427,34 @@ export default function AIChat({ user }: AIChatProps) {
         utterance.lang = 'vi-VN';
         
         const voices = window.speechSynthesis.getVoices();
-        let viVoice = voices.find(v => v.voiceURI === selectedLocalVoiceURI);
-        if (!viVoice) {
-          const viVoices = voices.filter(v => v.lang.includes('vi') || v.lang.includes('VI'));
+        const viVoices = voices.filter(v => v.lang.toLowerCase().includes('vi'));
+        let viVoice = null;
+
+        // If selectedLocalVoiceURI is set and matches current gender setting, use it.
+        if (selectedLocalVoiceURI) {
+          const matchedVoice = viVoices.find(v => v.voiceURI === selectedLocalVoiceURI);
+          if (matchedVoice) {
+            const nameLower = matchedVoice.name.toLowerCase();
+            const isMaleVoice = nameLower.includes('nam') || nameLower.includes('male') || nameLower.includes('hung');
+            const targetMale = voiceGender === 'male';
+            if (isMaleVoice === targetMale) {
+              viVoice = matchedVoice;
+            }
+          }
+        }
+
+        // If no voice is found or it's gender-mismatched, find one matching the requested gender.
+        if (!viVoice && viVoices.length > 0) {
           if (voiceGender === 'male') {
-            viVoice = viVoices.find(v => v.name.toLowerCase().includes('nam') || v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('hung')) || viVoices[0];
+            viVoice = viVoices.find(v => {
+              const nameLower = v.name.toLowerCase();
+              return nameLower.includes('nam') || nameLower.includes('male') || nameLower.includes('hung');
+            }) || viVoices.find(v => v.name.toLowerCase().includes('an')) || viVoices[0];
           } else {
-            viVoice = viVoices.find(v => v.name.toLowerCase().includes('hoaimy') || v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('an') || v.name.toLowerCase().includes('linh')) || viVoices[0];
+            viVoice = viVoices.find(v => {
+              const nameLower = v.name.toLowerCase();
+              return nameLower.includes('hoaimy') || nameLower.includes('female') || nameLower.includes('linh');
+            }) || viVoices[0];
           }
         }
 
@@ -437,13 +502,7 @@ export default function AIChat({ user }: AIChatProps) {
       const audioQueue: HTMLAudioElement[] = [];
 
       const stopQueue = () => {
-        audioQueue.forEach((audio) => {
-          audio.pause();
-          audio.onended = null;
-          audio.onerror = null;
-          audio.src = "";
-          audio.load();
-        });
+        stopAllAudio();
       };
 
       const fallbackToClientSpeech = (startIndex: number) => {
@@ -452,6 +511,13 @@ export default function AIChat({ user }: AIChatProps) {
 
         const remainingText = sentences.slice(startIndex).join(' ');
         if (!remainingText.trim()) return;
+
+        // Skip fallback if no local Vietnamese voice is available on this device
+        const localVoices = typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis.getVoices() : [];
+        if (!localVoices.some(v => v.lang.toLowerCase().includes('vi'))) {
+          console.warn("No local Vietnamese voice detected. Skipping Web Speech fallback to avoid foreign accent.");
+          return;
+        }
 
         if ('speechSynthesis' in window) {
           activeAudioSeqRef.current++;
@@ -486,13 +552,34 @@ export default function AIChat({ user }: AIChatProps) {
             utterance.lang = 'vi-VN';
             
             const voices = window.speechSynthesis.getVoices();
-            let viVoice = voices.find(v => v.voiceURI === selectedLocalVoiceURI);
-            if (!viVoice) {
-              const viVoices = voices.filter(v => v.lang.includes('vi') || v.lang.includes('VI'));
+            const viVoices = voices.filter(v => v.lang.toLowerCase().includes('vi'));
+            let viVoice = null;
+
+            // If selectedLocalVoiceURI is set and matches current gender setting, use it.
+            if (selectedLocalVoiceURI) {
+              const matchedVoice = viVoices.find(v => v.voiceURI === selectedLocalVoiceURI);
+              if (matchedVoice) {
+                const nameLower = matchedVoice.name.toLowerCase();
+                const isMaleVoice = nameLower.includes('nam') || nameLower.includes('male') || nameLower.includes('hung');
+                const targetMale = voiceGender === 'male';
+                if (isMaleVoice === targetMale) {
+                  viVoice = matchedVoice;
+                }
+              }
+            }
+
+            // If no voice is found or it's gender-mismatched, find one matching the requested gender.
+            if (!viVoice && viVoices.length > 0) {
               if (voiceGender === 'male') {
-                viVoice = viVoices.find(v => v.name.toLowerCase().includes('nam') || v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('hung')) || viVoices[0];
+                viVoice = viVoices.find(v => {
+                  const nameLower = v.name.toLowerCase();
+                  return nameLower.includes('nam') || nameLower.includes('male') || nameLower.includes('hung');
+                }) || viVoices.find(v => v.name.toLowerCase().includes('an')) || viVoices[0];
               } else {
-                viVoice = viVoices.find(v => v.name.toLowerCase().includes('hoaimy') || v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('an') || v.name.toLowerCase().includes('linh')) || viVoices[0];
+                viVoice = viVoices.find(v => {
+                  const nameLower = v.name.toLowerCase();
+                  return nameLower.includes('hoaimy') || nameLower.includes('female') || nameLower.includes('linh');
+                }) || viVoices[0];
               }
             }
 
@@ -538,6 +625,8 @@ export default function AIChat({ user }: AIChatProps) {
         audioQueue.push(audio);
       });
 
+      activeAudioQueueRef.current = audioQueue;
+
       let currentSentence = 0;
 
       const playNext = () => {
@@ -551,10 +640,12 @@ export default function AIChat({ user }: AIChatProps) {
         }
 
         const currentAudio = audioQueue[currentSentence];
+        currentPlayingAudioRef.current = currentAudio;
         currentAudio.playbackRate = speechRate;
         
         currentAudio.onended = () => {
           if (seqId !== activeAudioSeqRef.current) return;
+          currentPlayingAudioRef.current = null;
           currentSentence++;
           playNext();
         };
@@ -593,7 +684,7 @@ export default function AIChat({ user }: AIChatProps) {
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       const loadLocalVoices = () => {
         const voices = window.speechSynthesis.getVoices();
-        const vi = voices.filter(v => v.lang.includes('vi') || v.lang.includes('VI'));
+        const vi = voices.filter(v => v.lang.toLowerCase().includes('vi'));
         setAvailableLocalVoices(vi);
         if (vi.length > 0) {
           setSelectedLocalVoiceURI(prev => {
@@ -601,12 +692,17 @@ export default function AIChat({ user }: AIChatProps) {
             localStorage.setItem('giasuao_local_voice_uri', vi[0].voiceURI);
             return vi[0].voiceURI;
           });
+        } else {
+          // If no local Vietnamese voice is found, fallback to API
+          setVoiceEngine('api');
         }
       };
 
       loadLocalVoices();
       window.speechSynthesis.addEventListener('voiceschanged', loadLocalVoices);
       return () => window.speechSynthesis.removeEventListener('voiceschanged', loadLocalVoices);
+    } else {
+      setVoiceEngine('api');
     }
   }, []);
 
@@ -691,15 +787,12 @@ export default function AIChat({ user }: AIChatProps) {
     const loadSessions = async () => {
       if (user.isGuest) return;
       try {
-        setIsHistoryLoading(true);
         const data = await fetchChatSessions();
         if (!cancelled) {
           setSessionGroups(data || []);
         }
       } catch (error) {
         console.error('Failed to load chat sessions', error);
-      } finally {
-        if (!cancelled) setIsHistoryLoading(false);
       }
     };
 
@@ -1430,16 +1523,10 @@ export default function AIChat({ user }: AIChatProps) {
                   setAutoVoiceEnabled(newState);
                   
                   activeAudioSeqRef.current++; // Stop any ongoing sequence
-                  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                    window.speechSynthesis.cancel();
-                  }
+                  stopAllAudio();
+                  
                   const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
-                  if (!newState && audioElement) {
-                    // Stop audio immediately when toggled off
-                    audioElement.pause();
-                    audioElement.removeAttribute('src');
-                    audioElement.load();
-                  } else if (newState && audioElement && !audioElement.src) {
+                  if (newState && audioElement) {
                      audioElement.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
                      audioElement.play().catch(()=> {});
                   }
@@ -1458,9 +1545,7 @@ export default function AIChat({ user }: AIChatProps) {
                       onClick={() => {
                         setVoiceEngine('api');
                         activeAudioSeqRef.current++;
-                        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                          window.speechSynthesis.cancel();
-                        }
+                        stopAllAudio();
                       }}
                       className={`rounded-lg px-2 py-1 text-xs font-bold transition-all ${voiceEngine === 'api' ? 'bg-brand-600 text-white shadow-sm' : 'text-[var(--muted-primary)] hover:text-white'}`}
                       title="Giọng đọc Zalo/FPT chất lượng cao (Trễ 2-3s)"
@@ -1472,9 +1557,7 @@ export default function AIChat({ user }: AIChatProps) {
                       onClick={() => {
                         setVoiceEngine('local');
                         activeAudioSeqRef.current++;
-                        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                          window.speechSynthesis.cancel();
-                        }
+                        stopAllAudio();
                       }}
                       className={`rounded-lg px-2 py-1 text-xs font-bold transition-all ${voiceEngine === 'local' ? 'bg-brand-600 text-white shadow-sm' : 'text-[var(--muted-primary)] hover:text-white'}`}
                       title="Giọng đọc nhanh của thiết bị (Không trễ)"
@@ -1490,9 +1573,7 @@ export default function AIChat({ user }: AIChatProps) {
                         setVoiceGender('female');
                         localStorage.setItem('giasuao_voice_gender', 'female');
                         activeAudioSeqRef.current++;
-                        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                          window.speechSynthesis.cancel();
-                        }
+                        stopAllAudio();
                       }}
                       className={`rounded-lg px-2 py-1 text-xs font-bold transition-all ${voiceGender === 'female' ? 'bg-brand-600 text-white shadow-sm' : 'text-[var(--muted-primary)] hover:text-white'}`}
                     >
@@ -1504,9 +1585,7 @@ export default function AIChat({ user }: AIChatProps) {
                         setVoiceGender('male');
                         localStorage.setItem('giasuao_voice_gender', 'male');
                         activeAudioSeqRef.current++;
-                        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                          window.speechSynthesis.cancel();
-                        }
+                        stopAllAudio();
                       }}
                       className={`rounded-lg px-2 py-1 text-xs font-bold transition-all ${voiceGender === 'male' ? 'bg-brand-600 text-white shadow-sm' : 'text-[var(--muted-primary)] hover:text-white'}`}
                     >
@@ -1522,6 +1601,9 @@ export default function AIChat({ user }: AIChatProps) {
                         onClick={() => {
                           setSpeechRate(rate);
                           localStorage.setItem('giasuao_speech_rate', String(rate));
+                          if (currentPlayingAudioRef.current) {
+                            currentPlayingAudioRef.current.playbackRate = rate;
+                          }
                         }}
                         className={`rounded-lg px-2 py-1 text-xs font-bold transition-all ${speechRate === rate ? 'bg-brand-600 text-white shadow-sm' : 'text-[var(--muted-primary)] hover:text-white'}`}
                       >
