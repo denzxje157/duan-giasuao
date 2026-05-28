@@ -84,6 +84,8 @@ from langdetect import detect
 FPT_TTS_KEY = "Fe55FqdswrC1wNAK01vaMctxh7wDHiaW"
 ZALO_TTS_KEY = "QiYuYBwz8EKfVlwJH3D3vndLxNZaPZzR"
 
+LAST_PROVIDER: Dict[str, str] = {}
+
 @app.get("/api/tts")
 def proxy_tts(text: str, gender: str = "female"):
     # Detect language
@@ -99,81 +101,94 @@ def proxy_tts(text: str, gender: str = "female"):
             r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5)
             return Response(content=r.content, media_type="audio/mpeg")
         except:
-            pass # Fallback xuống FPT nếu Google lỗi
+            pass # Fallback xuống các nhà cung cấp khác nếu Google lỗi
 
     # Determine voice and speaker based on gender
     is_male = (gender.lower() == "male")
     fpt_voice = "giaxuan" if is_male else "banmai"
     zalo_speaker = 3 if is_male else 2
 
-    # --- Priority 1: FPT AI ---
-    try:
-        fpt_res = requests.post(
-            'https://api.fpt.ai/hmi/tts/v5',
-            headers={'api-key': FPT_TTS_KEY, 'voice': fpt_voice, 'speed': '1'},
-            data=text.encode('utf-8'),
-            timeout=2.0
-        )
-        if fpt_res.status_code == 200:
-            fpt_data = fpt_res.json()
-            if "async" in fpt_data:
-                audio_url = fpt_data["async"]
-                # Poll FPT for up to 1.5 seconds (3 attempts * 0.5s)
-                for _ in range(3):
-                    audio_res = requests.get(audio_url, timeout=1.5)
-                    if audio_res.status_code == 200 and len(audio_res.content) > 1000:
-                        return Response(content=audio_res.content, media_type="audio/mpeg")
-                    time.sleep(0.5)
-    except Exception as e:
-        print("FPT TTS Error:", e)
+    # Get preferred provider order to ensure consistent voice selection (stickiness)
+    pref = LAST_PROVIDER.get(gender.lower(), "fpt")
+    providers = ["fpt", "zalo", "google"]
+    if pref in providers:
+        providers.remove(pref)
+        providers.insert(0, pref)
 
-    # --- Priority 2: Zalo AI ---
-    try:
-        zalo_res = requests.post(
-            'https://api.zalo.ai/v1/tts/synthesize',
-            headers={'apikey': ZALO_TTS_KEY},
-            data={'input': text, 'encode_type': 1, 'speaker_id': zalo_speaker},
-            timeout=2.0
-        )
-        if zalo_res.status_code == 200:
-            zalo_data = zalo_res.json()
-            if zalo_data.get("error_code") == 0 and "url" in zalo_data.get("data", {}):
-                audio_url = zalo_data["data"]["url"]
-                # Poll Zalo for up to 1.5 seconds (3 attempts * 0.5s)
-                for _ in range(3):
-                    audio_res = requests.get(audio_url, timeout=1.5)
-                    if audio_res.status_code == 200 and len(audio_res.content) > 1000:
-                        return Response(content=audio_res.content, media_type="audio/mpeg")
-                    time.sleep(0.5)
-    except Exception as e:
-        print("Zalo TTS Error:", e)
+    for provider in providers:
+        if provider == "fpt":
+            # --- FPT AI ---
+            try:
+                fpt_res = requests.post(
+                    'https://api.fpt.ai/hmi/tts/v5',
+                    headers={'api-key': FPT_TTS_KEY, 'voice': fpt_voice, 'speed': '1'},
+                    data=text.encode('utf-8'),
+                    timeout=2.0
+                )
+                if fpt_res.status_code == 200:
+                    fpt_data = fpt_res.json()
+                    if "async" in fpt_data:
+                        audio_url = fpt_data["async"]
+                        # Poll FPT for up to 1.5 seconds (3 attempts * 0.5s)
+                        for _ in range(3):
+                            audio_res = requests.get(audio_url, timeout=1.5)
+                            if audio_res.status_code == 200 and len(audio_res.content) > 1000:
+                                LAST_PROVIDER[gender.lower()] = "fpt"
+                                return Response(content=audio_res.content, media_type="audio/mpeg")
+                            time.sleep(0.5)
+            except Exception as e:
+                print("FPT TTS Error:", e)
+        elif provider == "zalo":
+            # --- Zalo AI ---
+            try:
+                zalo_res = requests.post(
+                    'https://api.zalo.ai/v1/tts/synthesize',
+                    headers={'apikey': ZALO_TTS_KEY},
+                    data={'input': text, 'encode_type': 1, 'speaker_id': zalo_speaker},
+                    timeout=2.0
+                )
+                if zalo_res.status_code == 200:
+                    zalo_data = zalo_res.json()
+                    if zalo_data.get("error_code") == 0 and "url" in zalo_data.get("data", {}):
+                        audio_url = zalo_data["data"]["url"]
+                        # Poll Zalo for up to 1.5 seconds (3 attempts * 0.5s)
+                        for _ in range(3):
+                            audio_res = requests.get(audio_url, timeout=1.5)
+                            if audio_res.status_code == 200 and len(audio_res.content) > 1000:
+                                LAST_PROVIDER[gender.lower()] = "zalo"
+                                return Response(content=audio_res.content, media_type="audio/mpeg")
+                            time.sleep(0.5)
+            except Exception as e:
+                print("Zalo TTS Error:", e)
+        elif provider == "google":
+            # --- Google TTS (Fallback) ---
+            try:
+                audio_content = b""
+                # Băm nhỏ văn bản nếu quá dài (Google TTS giới hạn ~200 ký tự)
+                words = text.split()
+                chunks = []
+                current_chunk = ""
+                for word in words:
+                    if len(current_chunk) + len(word) + 1 > 200:
+                        chunks.append(current_chunk.strip())
+                        current_chunk = word + " "
+                    else:
+                        current_chunk += word + " "
+                if current_chunk:
+                    chunks.append(current_chunk.strip())
 
-    # --- Priority 3: Google TTS (Fallback) ---
-    try:
-        audio_content = b""
-        # Băm nhỏ văn bản nếu quá dài (Google TTS giới hạn ~200 ký tự)
-        words = text.split()
-        chunks = []
-        current_chunk = ""
-        for word in words:
-            if len(current_chunk) + len(word) + 1 > 200:
-                chunks.append(current_chunk.strip())
-                current_chunk = word + " "
-            else:
-                current_chunk += word + " "
-        if current_chunk:
-            chunks.append(current_chunk.strip())
+                for chunk in chunks:
+                    url = f"https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=vi-VN&client=gtx&q={urllib.parse.quote(chunk)}"
+                    r = requests.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}, timeout=5)
+                    if r.status_code == 200:
+                        audio_content += r.content
+                        
+                if audio_content:
+                    LAST_PROVIDER[gender.lower()] = "google"
+                    return Response(content=audio_content, media_type="audio/mpeg")
+            except Exception as e:
+                pass
 
-        for chunk in chunks:
-            url = f"https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=vi-VN&client=gtx&q={urllib.parse.quote(chunk)}"
-            r = requests.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}, timeout=5)
-            if r.status_code == 200:
-                audio_content += r.content
-                
-        if audio_content:
-            return Response(content=audio_content, media_type="audio/mpeg")
-    except Exception as e:
-        pass
     raise HTTPException(status_code=500, detail="All TTS providers failed")
 class ChatRequest(BaseModel):
     question: str
