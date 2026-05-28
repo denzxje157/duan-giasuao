@@ -274,6 +274,28 @@ export default function AIChat({ user }: AIChatProps) {
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [historyRows, setHistoryRows] = useState<ChatHistoryRow[]>([]);
   const [sessionGroups, setSessionGroups] = useState<ChatSessionGroup[]>([]);
+  const [sidebarRefreshTrigger, setSidebarRefreshTrigger] = useState(0);
+  const [voiceGender, setVoiceGender] = useState<'female' | 'male'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('giasuao_voice_gender');
+      return (saved === 'male' || saved === 'female') ? saved : 'female';
+    }
+    return 'female';
+  });
+  const [speechRate, setSpeechRate] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('giasuao_speech_rate');
+      return saved ? parseFloat(saved) : 1.15;
+    }
+    return 1.15;
+  });
+  const [availableLocalVoices, setAvailableLocalVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedLocalVoiceURI, setSelectedLocalVoiceURI] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('giasuao_local_voice_uri') || '';
+    }
+    return '';
+  });
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>('gemini-3.5-flash');
   const [currentView, setCurrentView] = useState<'selection' | 'chat'>('selection');
@@ -304,6 +326,7 @@ export default function AIChat({ user }: AIChatProps) {
   };
   const [subjectLoadingKey, setSubjectLoadingKey] = useState<string | null>(null);
   const [autoVoiceEnabled, setAutoVoiceEnabled] = useState(true);
+  const [voiceEngine, setVoiceEngine] = useState<'api' | 'local'>('local'); // Default to local (instant) for Hackathon demo!
 
   const playVoiceSequence = (textToSpeak: string) => {
     activeAudioSeqRef.current++;
@@ -325,132 +348,230 @@ export default function AIChat({ user }: AIChatProps) {
 
     const cleanText = convertMathToVietnameseSpeech(textToSpeak.replace(/[*#_]/g, ''));
 
-    // Group sentences into chunks of ~200 characters
-    const rawSentences = cleanText.match(/[^.!?\n]+[.!?\n]+/g) || [cleanText];
-    const sentences: string[] = [];
-    let currentGroup = "";
-    for (const s of rawSentences) {
-      if (currentGroup.length + s.length > 200 && currentGroup.length > 0) {
-        sentences.push(currentGroup.trim());
-        currentGroup = s;
-      } else {
-        currentGroup += " " + s;
+    // Check voiceEngine selection
+    if (voiceEngine === 'local' && 'speechSynthesis' in window) {
+      // Direct instant local speech
+      const rawSentences = cleanText.split(/([.!?\n]+)/);
+      const chunks: string[] = [];
+      let currentChunk = "";
+
+      for (let i = 0; i < rawSentences.length; i++) {
+        const item = rawSentences[i];
+        if (!item) continue;
+        currentChunk += item;
+        if (/[.!?\n]/.test(item) || currentChunk.length > 150) {
+          const trimmed = currentChunk.trim();
+          if (trimmed) {
+            chunks.push(trimmed);
+          }
+          currentChunk = "";
+        }
       }
-    }
-    if (currentGroup.trim()) sentences.push(currentGroup.trim());
+      if (currentChunk.trim()) {
+        chunks.push(currentChunk.trim());
+      }
 
-    if (sentences.length === 0) return;
+      if (chunks.length === 0) return;
 
-    const audioQueue: HTMLAudioElement[] = [];
+      let currentLocalIndex = 0;
+      const playNextLocal = () => {
+        if (seqId !== activeAudioSeqRef.current) return;
+        if (currentLocalIndex >= chunks.length) return;
 
-    const stopQueue = () => {
-      audioQueue.forEach((audio) => {
-        audio.pause();
-        audio.onended = null;
-        audio.onerror = null;
-        audio.src = "";
-        audio.load();
-      });
-    };
-
-    const fallbackToClientSpeech = (startIndex: number) => {
-      if (seqId !== activeAudioSeqRef.current) return;
-      stopQueue();
-
-      const remainingText = sentences.slice(startIndex).join(' ');
-      if (!remainingText.trim()) return;
-
-      if ('speechSynthesis' in window) {
-        activeAudioSeqRef.current++;
+        const chunkText = chunks[currentLocalIndex];
+        const utterance = new SpeechSynthesisUtterance(chunkText);
+        utterance.lang = 'vi-VN';
         
-        window.speechSynthesis.cancel();
-        const rawSentencesLocal = remainingText.split(/([.!?\n]+)/);
-        const chunksLocal: string[] = [];
-        let currentChunkLocal = "";
-
-        for (let i = 0; i < rawSentencesLocal.length; i++) {
-          const item = rawSentencesLocal[i];
-          if (!item) continue;
-          currentChunkLocal += item;
-          if (/[.!?\n]/.test(item) || currentChunkLocal.length > 150) {
-            const trimmed = currentChunkLocal.trim();
-            if (trimmed) {
-              chunksLocal.push(trimmed);
-            }
-            currentChunkLocal = "";
+        const voices = window.speechSynthesis.getVoices();
+        let viVoice = voices.find(v => v.voiceURI === selectedLocalVoiceURI);
+        if (!viVoice) {
+          const viVoices = voices.filter(v => v.lang.includes('vi') || v.lang.includes('VI'));
+          if (voiceGender === 'male') {
+            viVoice = viVoices.find(v => v.name.toLowerCase().includes('nam') || v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('hung')) || viVoices[0];
+          } else {
+            viVoice = viVoices.find(v => v.name.toLowerCase().includes('hoaimy') || v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('an') || v.name.toLowerCase().includes('linh')) || viVoices[0];
           }
         }
-        if (currentChunkLocal.trim()) chunksLocal.push(currentChunkLocal.trim());
 
-        chunksLocal.forEach((chunkText) => {
-          const utterance = new SpeechSynthesisUtterance(chunkText);
-          utterance.lang = 'vi-VN';
-          
-          const voices = window.speechSynthesis.getVoices();
-          const viVoice = voices.find(v => v.lang.includes('vi') || v.lang.includes('VI'));
-          if (viVoice) {
-            utterance.voice = viVoice;
+        if (viVoice) {
+          utterance.voice = viVoice;
+        }
+        utterance.rate = speechRate;
+        
+        utterance.onend = () => {
+          if (seqId !== activeAudioSeqRef.current) return;
+          currentLocalIndex++;
+          playNextLocal();
+        };
+
+        utterance.onerror = (e) => {
+          if (e.error !== 'interrupted') {
+            console.warn("SpeechSynthesis utterance error in local queue:", e);
           }
-          utterance.rate = 1.05;
+          if (seqId !== activeAudioSeqRef.current) return;
+          currentLocalIndex++;
+          playNextLocal();
+        };
+
+        window.speechSynthesis.speak(utterance);
+      };
+
+      playNextLocal();
+    } else {
+      // API (FPT/Zalo) primary audio queue
+      const rawSentences = cleanText.match(/[^.!?\n]+[.!?\n]+/g) || [cleanText];
+      const sentences: string[] = [];
+      let currentGroup = "";
+      for (const s of rawSentences) {
+        if (currentGroup.length + s.length > 200 && currentGroup.length > 0) {
+          sentences.push(currentGroup.trim());
+          currentGroup = s;
+        } else {
+          currentGroup += " " + s;
+        }
+      }
+      if (currentGroup.trim()) sentences.push(currentGroup.trim());
+
+      if (sentences.length === 0) return;
+
+      const audioQueue: HTMLAudioElement[] = [];
+
+      const stopQueue = () => {
+        audioQueue.forEach((audio) => {
+          audio.pause();
+          audio.onended = null;
+          audio.onerror = null;
+          audio.src = "";
+          audio.load();
+        });
+      };
+
+      const fallbackToClientSpeech = (startIndex: number) => {
+        if (seqId !== activeAudioSeqRef.current) return;
+        stopQueue();
+
+        const remainingText = sentences.slice(startIndex).join(' ');
+        if (!remainingText.trim()) return;
+
+        if ('speechSynthesis' in window) {
+          activeAudioSeqRef.current++;
+          const innerSeqId = activeAudioSeqRef.current;
           
-          utterance.onerror = (e) => {
-            if (e.error !== 'interrupted') {
-              console.warn("SpeechSynthesis utterance error:", e);
+          window.speechSynthesis.cancel();
+          const rawSentencesLocal = remainingText.split(/([.!?\n]+)/);
+          const chunksLocal: string[] = [];
+          let currentChunkLocal = "";
+
+          for (let i = 0; i < rawSentencesLocal.length; i++) {
+            const item = rawSentencesLocal[i];
+            if (!item) continue;
+            currentChunkLocal += item;
+            if (/[.!?\n]/.test(item) || currentChunkLocal.length > 150) {
+              const trimmed = currentChunkLocal.trim();
+              if (trimmed) {
+                chunksLocal.push(trimmed);
+              }
+              currentChunkLocal = "";
             }
+          }
+          if (currentChunkLocal.trim()) chunksLocal.push(currentChunkLocal.trim());
+
+          let currentFallbackIndex = 0;
+          const playNextFallback = () => {
+            if (innerSeqId !== activeAudioSeqRef.current) return;
+            if (currentFallbackIndex >= chunksLocal.length) return;
+
+            const chunkText = chunksLocal[currentFallbackIndex];
+            const utterance = new SpeechSynthesisUtterance(chunkText);
+            utterance.lang = 'vi-VN';
+            
+            const voices = window.speechSynthesis.getVoices();
+            let viVoice = voices.find(v => v.voiceURI === selectedLocalVoiceURI);
+            if (!viVoice) {
+              const viVoices = voices.filter(v => v.lang.includes('vi') || v.lang.includes('VI'));
+              if (voiceGender === 'male') {
+                viVoice = viVoices.find(v => v.name.toLowerCase().includes('nam') || v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('hung')) || viVoices[0];
+              } else {
+                viVoice = viVoices.find(v => v.name.toLowerCase().includes('hoaimy') || v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('an') || v.name.toLowerCase().includes('linh')) || viVoices[0];
+              }
+            }
+
+            if (viVoice) {
+              utterance.voice = viVoice;
+            }
+            utterance.rate = speechRate;
+            
+            utterance.onend = () => {
+              if (innerSeqId !== activeAudioSeqRef.current) return;
+              currentFallbackIndex++;
+              playNextFallback();
+            };
+
+            utterance.onerror = (e) => {
+              if (e.error !== 'interrupted') {
+                console.warn("SpeechSynthesis fallback utterance error:", e);
+              }
+              if (innerSeqId !== activeAudioSeqRef.current) return;
+              currentFallbackIndex++;
+              playNextFallback();
+            };
+
+            window.speechSynthesis.speak(utterance);
           };
 
-          window.speechSynthesis.speak(utterance);
-        });
-      }
-    };
-
-    // Preload ALL chunks in parallel right at the start to reduce overall latency and avoid gaps
-    sentences.forEach((chunkText, index) => {
-      const audio = new Audio();
-      audio.preload = 'auto';
-      audio.src = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunkText.trim())}`;
-      
-      audio.onerror = (e) => {
-        console.warn(`Audio chunk ${index} failed to load, falling back to Web Speech.`, e);
-        fallbackToClientSpeech(index);
-      };
-      
-      audioQueue.push(audio);
-    });
-
-    let currentSentence = 0;
-
-    const playNext = () => {
-      if (seqId !== activeAudioSeqRef.current) {
-        stopQueue();
-        return;
-      }
-      if (currentSentence >= audioQueue.length) {
-        stopQueue();
-        return;
-      }
-
-      const currentAudio = audioQueue[currentSentence];
-      
-      currentAudio.onended = () => {
-        if (seqId !== activeAudioSeqRef.current) return;
-        currentSentence++;
-        playNext();
+          playNextFallback();
+        }
       };
 
-      currentAudio.play().catch((err) => {
-        if (err.name === 'AbortError' && seqId !== activeAudioSeqRef.current) {
+      // Preload ALL chunks in parallel
+      sentences.forEach((chunkText, index) => {
+        const audio = new Audio();
+        audio.preload = 'auto';
+        audio.src = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunkText.trim())}&gender=${voiceGender}`;
+        audio.playbackRate = speechRate;
+        
+        audio.onerror = (e) => {
+          console.warn(`Audio chunk ${index} failed to load, falling back to Web Speech.`, e);
+          fallbackToClientSpeech(index);
+        };
+        
+        audioQueue.push(audio);
+      });
+
+      let currentSentence = 0;
+
+      const playNext = () => {
+        if (seqId !== activeAudioSeqRef.current) {
+          stopQueue();
           return;
         }
-        console.warn(`Play failed for chunk ${currentSentence}, falling back to Web Speech.`, err);
-        fallbackToClientSpeech(currentSentence);
-      });
-    };
+        if (currentSentence >= audioQueue.length) {
+          stopQueue();
+          return;
+        }
 
-    playNext();
+        const currentAudio = audioQueue[currentSentence];
+        currentAudio.playbackRate = speechRate;
+        
+        currentAudio.onended = () => {
+          if (seqId !== activeAudioSeqRef.current) return;
+          currentSentence++;
+          playNext();
+        };
+
+        currentAudio.play().catch((err) => {
+          if (err.name === 'AbortError' && seqId !== activeAudioSeqRef.current) {
+            return;
+          }
+          console.warn(`Play failed for chunk ${currentSentence}, falling back to Web Speech.`, err);
+          fallbackToClientSpeech(currentSentence);
+        });
+      };
+
+      playNext();
+    }
   };
 
-  
   const [sessionId, setSessionId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(`ai_chat_session_${user.id || user.email}`);
@@ -465,6 +586,27 @@ export default function AIChat({ user }: AIChatProps) {
     const savedTheme = window.localStorage.getItem('giasuao_theme');
     if (savedTheme === 'light' || savedTheme === 'dark') {
       setIsDarkMode(savedTheme === 'dark');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const loadLocalVoices = () => {
+        const voices = window.speechSynthesis.getVoices();
+        const vi = voices.filter(v => v.lang.includes('vi') || v.lang.includes('VI'));
+        setAvailableLocalVoices(vi);
+        if (vi.length > 0) {
+          setSelectedLocalVoiceURI(prev => {
+            if (prev && vi.some(v => v.voiceURI === prev)) return prev;
+            localStorage.setItem('giasuao_local_voice_uri', vi[0].voiceURI);
+            return vi[0].voiceURI;
+          });
+        }
+      };
+
+      loadLocalVoices();
+      window.speechSynthesis.addEventListener('voiceschanged', loadLocalVoices);
+      return () => window.speechSynthesis.removeEventListener('voiceschanged', loadLocalVoices);
     }
   }, []);
 
@@ -495,15 +637,20 @@ export default function AIChat({ user }: AIChatProps) {
     const loadHistory = async () => {
       if (user.isGuest) return;
 
+      const storedSessionId = localStorage.getItem(`ai_chat_session_${user.id || user.email}`);
+      if (!storedSessionId) {
+        setMessages([]);
+        return;
+      }
+
       try {
         setIsHistoryLoading(true);
-        const data = await fetchChatHistory();
+        // Fetch only current active session's messages
+        const data = await fetchChatHistory(storedSessionId);
         console.log('Dữ liệu lịch sử lấy về:', data);
         if (cancelled) return;
 
         const rows = Array.isArray(data) ? data : [];
-        setHistoryRows(rows);
-
         if (rows.length > 0) {
           const mappedMessages: Message[] = rows.map((row: any) => ({
             id: row.id || `${row.role}-${Math.random()}`,
@@ -513,6 +660,16 @@ export default function AIChat({ user }: AIChatProps) {
             status: 'completed',
           }));
           setMessages(mappedMessages);
+
+          const firstUserMsg = mappedMessages.find(m => m.role === 'user');
+          if (firstUserMsg) {
+            setSelectedSubject(inferSubjectFromText(firstUserMsg.content));
+          } else {
+            setSelectedSubject('Môn học');
+          }
+          setCurrentView('chat');
+        } else {
+          setMessages([]);
         }
       } catch (error) {
         console.error('Failed to load chat history', error);
@@ -551,7 +708,7 @@ export default function AIChat({ user }: AIChatProps) {
     return () => {
       cancelled = true;
     };
-  }, [user.isGuest, historyRows]);
+  }, [user.isGuest, sidebarRefreshTrigger]);
 
   useEffect(() => {
     if (!historyUserId || !sessionId || user.isGuest) return;
@@ -881,12 +1038,7 @@ export default function AIChat({ user }: AIChatProps) {
         usedVoiceRef.current = false;
       }
 
-      try {
-        const refreshed = await fetchChatHistory();
-        setHistoryRows(refreshed || []);
-      } catch (e) {
-        console.error('Không thể tải lại danh sách lịch sử', e);
-      }
+      setSidebarRefreshTrigger(prev => prev + 1);
     } catch (error) {
       console.error(error);
       setMessages(prev => [...prev, { id: `e-${Date.now()}`, role: 'assistant', content: "Có chút lỗi kỹ thuật, bạn thử lại sau nhen!" }]);
@@ -936,12 +1088,7 @@ export default function AIChat({ user }: AIChatProps) {
             ]
           }
         ]);
-        try {
-          const refreshed = await fetchChatHistory();
-          setHistoryRows(refreshed || []);
-        } catch (e) {
-          // ignore
-        }
+        setSidebarRefreshTrigger(prev => prev + 1);
       } else {
         setMessages(prev => [...prev, { id: `e-${Date.now()}`, role: 'assistant', content: 'Không thể tải lên tệp, bạn thử lại nhé.' }]);
       }
@@ -1276,32 +1423,133 @@ export default function AIChat({ user }: AIChatProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                const newState = !autoVoiceEnabled;
-                setAutoVoiceEnabled(newState);
-                
-                activeAudioSeqRef.current++; // Stop any ongoing sequence
-                if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-                  window.speechSynthesis.cancel();
-                }
-                const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
-                if (!newState && audioElement) {
-                  // Stop audio immediately when toggled off
-                  audioElement.pause();
-                  audioElement.removeAttribute('src');
-                  audioElement.load();
-                } else if (newState && audioElement && !audioElement.src) {
-                   audioElement.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-                   audioElement.play().catch(()=> {});
-                }
-              }}
-              className={`flex items-center gap-2 rounded-xl border border-white/10 px-3 py-1.5 text-sm font-medium transition-colors ${autoVoiceEnabled ? 'bg-brand-500/20 text-brand-300' : 'bg-white/5 text-[var(--muted-primary)]'}`}
-              title={autoVoiceEnabled ? 'Đang bật tự động đọc' : 'Đã tắt tự động đọc'}
-            >
-              {autoVoiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-              {autoVoiceEnabled ? 'Bật giọng nói' : 'Tắt giọng nói'}
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  const newState = !autoVoiceEnabled;
+                  setAutoVoiceEnabled(newState);
+                  
+                  activeAudioSeqRef.current++; // Stop any ongoing sequence
+                  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                  }
+                  const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
+                  if (!newState && audioElement) {
+                    // Stop audio immediately when toggled off
+                    audioElement.pause();
+                    audioElement.removeAttribute('src');
+                    audioElement.load();
+                  } else if (newState && audioElement && !audioElement.src) {
+                     audioElement.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+                     audioElement.play().catch(()=> {});
+                  }
+                }}
+                className={`flex items-center gap-2 rounded-xl border border-white/10 px-3 py-1.5 text-sm font-medium transition-colors ${autoVoiceEnabled ? 'bg-brand-500/20 text-brand-300' : 'bg-white/5 text-[var(--muted-primary)]'}`}
+                title={autoVoiceEnabled ? 'Đang bật tự động đọc' : 'Đã tắt tự động đọc'}
+              >
+                {autoVoiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                {autoVoiceEnabled ? 'Bật giọng nói' : 'Tắt giọng nói'}
+              </button>
+              {autoVoiceEnabled && (
+                <>
+                  <div className="flex rounded-xl border border-white/10 bg-white/5 p-0.5" title="Chọn bộ máy phát thanh">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVoiceEngine('api');
+                        activeAudioSeqRef.current++;
+                        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                          window.speechSynthesis.cancel();
+                        }
+                      }}
+                      className={`rounded-lg px-2 py-1 text-xs font-bold transition-all ${voiceEngine === 'api' ? 'bg-brand-600 text-white shadow-sm' : 'text-[var(--muted-primary)] hover:text-white'}`}
+                      title="Giọng đọc Zalo/FPT chất lượng cao (Trễ 2-3s)"
+                    >
+                      AI 🌟
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVoiceEngine('local');
+                        activeAudioSeqRef.current++;
+                        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                          window.speechSynthesis.cancel();
+                        }
+                      }}
+                      className={`rounded-lg px-2 py-1 text-xs font-bold transition-all ${voiceEngine === 'local' ? 'bg-brand-600 text-white shadow-sm' : 'text-[var(--muted-primary)] hover:text-white'}`}
+                      title="Giọng đọc nhanh của thiết bị (Không trễ)"
+                    >
+                      Nhanh ⚡
+                    </button>
+                  </div>
+
+                  <div className="flex rounded-xl border border-white/10 bg-white/5 p-0.5" title="Chọn giới tính giọng đọc">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVoiceGender('female');
+                        localStorage.setItem('giasuao_voice_gender', 'female');
+                        activeAudioSeqRef.current++;
+                        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                          window.speechSynthesis.cancel();
+                        }
+                      }}
+                      className={`rounded-lg px-2 py-1 text-xs font-bold transition-all ${voiceGender === 'female' ? 'bg-brand-600 text-white shadow-sm' : 'text-[var(--muted-primary)] hover:text-white'}`}
+                    >
+                      Nữ 👩
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVoiceGender('male');
+                        localStorage.setItem('giasuao_voice_gender', 'male');
+                        activeAudioSeqRef.current++;
+                        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                          window.speechSynthesis.cancel();
+                        }
+                      }}
+                      className={`rounded-lg px-2 py-1 text-xs font-bold transition-all ${voiceGender === 'male' ? 'bg-brand-600 text-white shadow-sm' : 'text-[var(--muted-primary)] hover:text-white'}`}
+                    >
+                      Nam 👨
+                    </button>
+                  </div>
+
+                  <div className="hidden sm:flex rounded-xl border border-white/10 bg-white/5 p-0.5" title="Chọn tốc độ đọc">
+                    {[1.0, 1.2, 1.5].map((rate) => (
+                      <button
+                        key={rate}
+                        type="button"
+                        onClick={() => {
+                          setSpeechRate(rate);
+                          localStorage.setItem('giasuao_speech_rate', String(rate));
+                        }}
+                        className={`rounded-lg px-2 py-1 text-xs font-bold transition-all ${speechRate === rate ? 'bg-brand-600 text-white shadow-sm' : 'text-[var(--muted-primary)] hover:text-white'}`}
+                      >
+                        {rate}x
+                      </button>
+                    ))}
+                  </div>
+
+                  {voiceEngine === 'local' && availableLocalVoices.length > 0 && (
+                    <select
+                      value={selectedLocalVoiceURI}
+                      onChange={(e) => {
+                        setSelectedLocalVoiceURI(e.target.value);
+                        localStorage.setItem('giasuao_local_voice_uri', e.target.value);
+                      }}
+                      className="hidden md:block rounded-xl border border-white/10 bg-[#1e1e1f] px-2 py-1 text-xs font-medium text-[var(--text-primary)] focus:outline-none max-w-[110px] truncate"
+                      title="Chọn giọng đọc thiết bị"
+                    >
+                      {availableLocalVoices.map((voice) => (
+                        <option key={voice.voiceURI} value={voice.voiceURI}>
+                          {voice.name.replace(/Microsoft|Google/g, '').trim()}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </>
+              )}
+            </div>
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
               className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-white/10"

@@ -85,7 +85,7 @@ FPT_TTS_KEY = "Fe55FqdswrC1wNAK01vaMctxh7wDHiaW"
 ZALO_TTS_KEY = "QiYuYBwz8EKfVlwJH3D3vndLxNZaPZzR"
 
 @app.get("/api/tts")
-def proxy_tts(text: str):
+def proxy_tts(text: str, gender: str = "female"):
     # Detect language
     try:
         lang = detect(text)
@@ -101,11 +101,16 @@ def proxy_tts(text: str):
         except:
             pass # Fallback xuống FPT nếu Google lỗi
 
-    # --- Priority 1: FPT AI (Ban Mai) ---
+    # Determine voice and speaker based on gender
+    is_male = (gender.lower() == "male")
+    fpt_voice = "giaxuan" if is_male else "banmai"
+    zalo_speaker = 3 if is_male else 2
+
+    # --- Priority 1: FPT AI ---
     try:
         fpt_res = requests.post(
             'https://api.fpt.ai/hmi/tts/v5',
-            headers={'api-key': FPT_TTS_KEY, 'voice': 'banmai', 'speed': '1'},
+            headers={'api-key': FPT_TTS_KEY, 'voice': fpt_voice, 'speed': '1'},
             data=text.encode('utf-8'),
             timeout=5
         )
@@ -122,12 +127,12 @@ def proxy_tts(text: str):
     except Exception as e:
         print("FPT TTS Error:", e)
 
-    # --- Priority 2: Zalo AI (Northern Female) ---
+    # --- Priority 2: Zalo AI ---
     try:
         zalo_res = requests.post(
             'https://api.zalo.ai/v1/tts/synthesize',
             headers={'apikey': ZALO_TTS_KEY},
-            data={'input': text, 'encode_type': 1, 'speaker_id': 2},
+            data={'input': text, 'encode_type': 1, 'speaker_id': zalo_speaker},
             timeout=5
         )
         if zalo_res.status_code == 200:
@@ -798,8 +803,51 @@ def get_chat_sessions_me(credentials: HTTPAuthorizationCredentials = Depends(HTT
         if profile_res.data:
             current_grade = str(profile_res.data[0].get('grade') or '')
 
-        history_res = supabase.table('chat_history').select('id, user_id, role, content, session_id, timestamp').eq('user_id', token_user_id).execute()
-        history_rows = history_res.data or []
+        # 1. Fetch metadata without the large content field
+        history_res = supabase.table('chat_history').select('id, user_id, role, session_id, timestamp').eq('user_id', token_user_id).execute()
+        history_rows_meta = history_res.data or []
+        
+        # Sort them by timestamp to correctly identify first and last messages
+        try:
+            history_rows_meta = sorted(history_rows_meta, key=lambda r: r.get('timestamp') or '')
+        except Exception:
+            pass
+
+        # Identify which message IDs we actually need the content for
+        session_to_msg_ids = {}
+        for row in history_rows_meta:
+            sid = str(row.get('session_id') or 'no-session')
+            session_to_msg_ids.setdefault(sid, []).append(row)
+
+        content_ids_to_fetch = set()
+        for sid, rows in session_to_msg_ids.items():
+            user_rows = [r for r in rows if r.get('role') == 'user']
+            if user_rows:
+                content_ids_to_fetch.add(user_rows[0]['id'])
+                if len(user_rows) > 1:
+                    content_ids_to_fetch.add(user_rows[1]['id'])
+            if rows:
+                content_ids_to_fetch.add(rows[0]['id'])
+                content_ids_to_fetch.add(rows[-1]['id'])
+
+        # 2. Query content only for those specific message IDs
+        content_map = {}
+        if content_ids_to_fetch:
+            try:
+                id_list = list(content_ids_to_fetch)
+                content_res = supabase.table('chat_history').select('id, content').in_('id', id_list).execute()
+                for c_row in (content_res.data or []):
+                    content_map[c_row['id']] = c_row.get('content') or ''
+            except Exception as content_err:
+                print(f"⚠️ Không thể lấy content cho chat_history: {content_err}")
+
+        # 3. Populate content back into our metadata rows
+        history_rows = []
+        for row in history_rows_meta:
+            row_id = row['id']
+            row['content'] = content_map.get(row_id, '')
+            history_rows.append(row)
+
         session_ids = sorted({str(row.get('session_id')) for row in history_rows if row.get('session_id')})
 
         session_rows = []

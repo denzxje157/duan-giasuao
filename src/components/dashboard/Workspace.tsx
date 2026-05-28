@@ -110,12 +110,16 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // TTS Logic
   const handleTTS = (text: string) => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'vi-VN';
+      const voices = window.speechSynthesis.getVoices();
+      const viVoice = voices.find(v => v.lang.includes('vi') || v.lang.includes('VI'));
+      if (viVoice) {
+        utterance.voice = viVoice;
+      }
       window.speechSynthesis.speak(utterance);
     }
   };
