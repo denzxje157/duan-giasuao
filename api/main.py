@@ -118,8 +118,8 @@ def proxy_tts(text: str, gender: str = "female"):
             fpt_data = fpt_res.json()
             if "async" in fpt_data:
                 audio_url = fpt_data["async"]
-                # Poll FPT for up to 4 seconds (8 attempts * 0.5s)
-                for _ in range(8):
+                # Poll FPT for up to 1.5 seconds (3 attempts * 0.5s)
+                for _ in range(3):
                     audio_res = requests.get(audio_url, timeout=1.5)
                     if audio_res.status_code == 200 and len(audio_res.content) > 1000:
                         return Response(content=audio_res.content, media_type="audio/mpeg")
@@ -139,8 +139,8 @@ def proxy_tts(text: str, gender: str = "female"):
             zalo_data = zalo_res.json()
             if zalo_data.get("error_code") == 0 and "url" in zalo_data.get("data", {}):
                 audio_url = zalo_data["data"]["url"]
-                # Poll Zalo for up to 3 seconds (6 attempts * 0.5s)
-                for _ in range(6):
+                # Poll Zalo for up to 1.5 seconds (3 attempts * 0.5s)
+                for _ in range(3):
                     audio_res = requests.get(audio_url, timeout=1.5)
                     if audio_res.status_code == 200 and len(audio_res.content) > 1000:
                         return Response(content=audio_res.content, media_type="audio/mpeg")

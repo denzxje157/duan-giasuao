@@ -483,7 +483,7 @@ export default function AIChat({ user }: AIChatProps) {
 
       playNextLocal();
     } else {
-      // API (FPT/Zalo) primary audio queue
+      // API (FPT/Zalo) primary audio queue with sequential loading & retry logic (NO fallback to Web Speech to prevent voice switching)
       const rawSentences = cleanText.match(/[^.!?\n]+[.!?\n]+/g) || [cleanText];
       const sentences: string[] = [];
       let currentGroup = "";
@@ -499,150 +499,95 @@ export default function AIChat({ user }: AIChatProps) {
 
       if (sentences.length === 0) return;
 
-      const audioQueue: HTMLAudioElement[] = [];
+      const audioElements = new Array<HTMLAudioElement | null>(sentences.length).fill(null);
+      let currentSentence = 0;
 
       const stopQueue = () => {
         stopAllAudio();
       };
 
-      const fallbackToClientSpeech = (startIndex: number) => {
-        if (seqId !== activeAudioSeqRef.current) return;
-        stopQueue();
-
-        const remainingText = sentences.slice(startIndex).join(' ');
-        if (!remainingText.trim()) return;
-
-        // Skip fallback if no local Vietnamese voice is available on this device
-        const localVoices = typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis.getVoices() : [];
-        if (!localVoices.some(v => v.lang.toLowerCase().includes('vi'))) {
-          console.warn("No local Vietnamese voice detected. Skipping Web Speech fallback to avoid foreign accent.");
-          return;
+      const getAudioForIndex = (index: number, retryCount = 0): HTMLAudioElement => {
+        if (audioElements[index]) {
+          return audioElements[index]!;
         }
 
-        if ('speechSynthesis' in window) {
-          activeAudioSeqRef.current++;
-          const innerSeqId = activeAudioSeqRef.current;
-          
-          window.speechSynthesis.cancel();
-          const rawSentencesLocal = remainingText.split(/([.!?\n]+)/);
-          const chunksLocal: string[] = [];
-          let currentChunkLocal = "";
-
-          for (let i = 0; i < rawSentencesLocal.length; i++) {
-            const item = rawSentencesLocal[i];
-            if (!item) continue;
-            currentChunkLocal += item;
-            if (/[.!?\n]/.test(item) || currentChunkLocal.length > 150) {
-              const trimmed = currentChunkLocal.trim();
-              if (trimmed) {
-                chunksLocal.push(trimmed);
-              }
-              currentChunkLocal = "";
-            }
-          }
-          if (currentChunkLocal.trim()) chunksLocal.push(currentChunkLocal.trim());
-
-          let currentFallbackIndex = 0;
-          const playNextFallback = () => {
-            if (innerSeqId !== activeAudioSeqRef.current) return;
-            if (currentFallbackIndex >= chunksLocal.length) return;
-
-            const chunkText = chunksLocal[currentFallbackIndex];
-            const utterance = new SpeechSynthesisUtterance(chunkText);
-            utterance.lang = 'vi-VN';
-            
-            const voices = window.speechSynthesis.getVoices();
-            const viVoices = voices.filter(v => v.lang.toLowerCase().includes('vi'));
-            let viVoice = null;
-
-            // If selectedLocalVoiceURI is set and matches current gender setting, use it.
-            if (selectedLocalVoiceURI) {
-              const matchedVoice = viVoices.find(v => v.voiceURI === selectedLocalVoiceURI);
-              if (matchedVoice) {
-                const nameLower = matchedVoice.name.toLowerCase();
-                const isMaleVoice = nameLower.includes('nam') || nameLower.includes('male') || nameLower.includes('hung');
-                const targetMale = voiceGender === 'male';
-                if (isMaleVoice === targetMale) {
-                  viVoice = matchedVoice;
-                }
-              }
-            }
-
-            // If no voice is found or it's gender-mismatched, find one matching the requested gender.
-            if (!viVoice && viVoices.length > 0) {
-              if (voiceGender === 'male') {
-                viVoice = viVoices.find(v => {
-                  const nameLower = v.name.toLowerCase();
-                  return nameLower.includes('nam') || nameLower.includes('male') || nameLower.includes('hung');
-                }) || viVoices.find(v => v.name.toLowerCase().includes('an')) || viVoices[0];
-              } else {
-                viVoice = viVoices.find(v => {
-                  const nameLower = v.name.toLowerCase();
-                  return nameLower.includes('hoaimy') || nameLower.includes('female') || nameLower.includes('linh');
-                }) || viVoices[0];
-              }
-            }
-
-            if (viVoice) {
-              utterance.voice = viVoice;
-            }
-            utterance.rate = speechRate;
-            
-            utterance.onend = () => {
-              if (innerSeqId !== activeAudioSeqRef.current) return;
-              currentFallbackIndex++;
-              playNextFallback();
-            };
-
-            utterance.onerror = (e) => {
-              if (e.error !== 'interrupted') {
-                console.warn("SpeechSynthesis fallback utterance error:", e);
-              }
-              if (innerSeqId !== activeAudioSeqRef.current) return;
-              currentFallbackIndex++;
-              playNextFallback();
-            };
-
-            window.speechSynthesis.speak(utterance);
-          };
-
-          playNextFallback();
-        }
-      };
-
-      // Preload ALL chunks in parallel
-      sentences.forEach((chunkText, index) => {
         const audio = new Audio();
         audio.preload = 'auto';
-        audio.src = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunkText.trim())}&gender=${voiceGender}`;
+        audio.src = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(sentences[index].trim())}&gender=${voiceGender}`;
         audio.playbackRate = speechRate;
         
+        let hasError = false;
         audio.onerror = (e) => {
-          console.warn(`Audio chunk ${index} failed to load, falling back to Web Speech.`, e);
-          fallbackToClientSpeech(index);
+          console.warn(`Audio chunk ${index} failed to load (attempt ${retryCount + 1}).`, e);
+          
+          if (retryCount < 2) {
+            // Remove this audio from the queue and retry creating a new one
+            const idx = activeAudioQueueRef.current.indexOf(audio);
+            if (idx > -1) activeAudioQueueRef.current.splice(idx, 1);
+            
+            audioElements[index] = null;
+            setTimeout(() => {
+              if (seqId === activeAudioSeqRef.current) {
+                const retryAudio = getAudioForIndex(index, retryCount + 1);
+                // If it has become the active sentence, try playing it
+                if (index === currentSentence) {
+                  currentPlayingAudioRef.current = retryAudio;
+                  retryAudio.play().catch((err) => {
+                    console.warn(`Retry play failed for chunk ${index}`, err);
+                  });
+                }
+              }
+            }, 1000);
+          } else {
+            hasError = true;
+            if (index === currentSentence) {
+              console.error(`All retry attempts failed for chunk ${index}. Skipping to next.`);
+              currentSentence++;
+              playNext();
+            }
+          }
         };
-        
-        audioQueue.push(audio);
-      });
 
-      activeAudioQueueRef.current = audioQueue;
+        (audio as any)._hasError = () => hasError;
 
-      let currentSentence = 0;
+        audioElements[index] = audio;
+        activeAudioQueueRef.current.push(audio);
+        return audio;
+      };
+
+      const preloadNext = () => {
+        const nextIndex = currentSentence + 1;
+        if (nextIndex < sentences.length) {
+          getAudioForIndex(nextIndex); // Triggers background load for next chunk
+        }
+      };
 
       const playNext = () => {
         if (seqId !== activeAudioSeqRef.current) {
           stopQueue();
           return;
         }
-        if (currentSentence >= audioQueue.length) {
+        if (currentSentence >= sentences.length) {
           stopQueue();
           return;
         }
 
-        const currentAudio = audioQueue[currentSentence];
+        const currentAudio = getAudioForIndex(currentSentence);
+        
+        // If it already failed, skip to next immediately
+        if ((currentAudio as any)._hasError && (currentAudio as any)._hasError()) {
+          console.warn(`Skipping chunk ${currentSentence} because it failed to load previously.`);
+          currentSentence++;
+          playNext();
+          return;
+        }
+
         currentPlayingAudioRef.current = currentAudio;
         currentAudio.playbackRate = speechRate;
-        
+
+        // Preload next chunk in parallel while playing current
+        preloadNext();
+
         currentAudio.onended = () => {
           if (seqId !== activeAudioSeqRef.current) return;
           currentPlayingAudioRef.current = null;
@@ -654,11 +599,14 @@ export default function AIChat({ user }: AIChatProps) {
           if (err.name === 'AbortError' && seqId !== activeAudioSeqRef.current) {
             return;
           }
-          console.warn(`Play failed for chunk ${currentSentence}, falling back to Web Speech.`, err);
-          fallbackToClientSpeech(currentSentence);
+          console.warn(`Play failed for chunk ${currentSentence}. Skipping to next.`, err);
+          currentPlayingAudioRef.current = null;
+          currentSentence++;
+          playNext();
         });
       };
 
+      // Start playing
       playNext();
     }
   };
