@@ -304,6 +304,136 @@ export default function AIChat({ user }: AIChatProps) {
   };
   const [subjectLoadingKey, setSubjectLoadingKey] = useState<string | null>(null);
   const [autoVoiceEnabled, setAutoVoiceEnabled] = useState(true);
+
+  const playVoiceSequence = (textToSpeak: string) => {
+    activeAudioSeqRef.current++;
+    const seqId = activeAudioSeqRef.current;
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+
+    const cleanText = convertMathToVietnameseSpeech(textToSpeak.replace(/[*#_]/g, ''));
+    const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
+    if (!audioElement) return;
+
+    audioElement.pause();
+    audioElement.removeAttribute('src');
+
+    const rawSentences = cleanText.match(/[^.!?\n]+[.!?\n]+/g) || [cleanText];
+    const sentences: string[] = [];
+    let currentGroup = "";
+    for (const s of rawSentences) {
+      if (currentGroup.length + s.length > 200 && currentGroup.length > 0) {
+        sentences.push(currentGroup.trim());
+        currentGroup = s;
+      } else {
+        currentGroup += " " + s;
+      }
+    }
+    if (currentGroup.trim()) sentences.push(currentGroup.trim());
+    
+    let currentSentence = 0;
+    const preloadedAudios: { [key: number]: HTMLAudioElement } = {};
+
+    const preloadChunk = (index: number) => {
+      if (index >= sentences.length) return;
+      const chunk = sentences[index].trim();
+      if (!chunk || preloadedAudios[index]) return;
+      const audio = new Audio();
+      audio.preload = 'auto';
+      audio.src = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
+      audio.load();
+      preloadedAudios[index] = audio;
+    };
+
+    const fallbackToSpeechSynthesis = () => {
+      if (seqId !== activeAudioSeqRef.current) return;
+      
+      audioElement.onended = null;
+      audioElement.onerror = null;
+      audioElement.pause();
+      
+      Object.values(preloadedAudios).forEach(audio => {
+        audio.src = '';
+        audio.load();
+      });
+
+      const remainingText = sentences.slice(currentSentence).join(' ');
+      if (!remainingText.trim()) return;
+
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        activeAudioSeqRef.current++;
+        const fallbackSeqId = activeAudioSeqRef.current;
+        
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(remainingText);
+        const voices = window.speechSynthesis.getVoices();
+        const viVoice = voices.find(v => v.lang.includes('vi') || v.lang.includes('VI'));
+        if (viVoice) {
+          utterance.voice = viVoice;
+        }
+        utterance.lang = 'vi-VN';
+        utterance.rate = 1.0;
+        
+        utterance.onerror = (e) => {
+          if (e.error !== 'interrupted') {
+            console.warn("Browser SpeechSynthesis error:", e);
+          }
+        };
+
+        window.speechSynthesis.speak(utterance);
+      }
+    };
+
+    const playNext = () => {
+      if (seqId !== activeAudioSeqRef.current) {
+        audioElement.onended = null;
+        audioElement.onerror = null;
+        return;
+      }
+      if (currentSentence >= sentences.length) {
+        audioElement.onended = null;
+        audioElement.onerror = null;
+        return;
+      }
+      const chunk = sentences[currentSentence].trim();
+      if (!chunk) {
+        currentSentence++;
+        playNext();
+        return;
+      }
+
+      preloadChunk(currentSentence + 1);
+
+      const url = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
+      audioElement.src = url;
+      
+      audioElement.onended = () => {
+        if (seqId !== activeAudioSeqRef.current) return;
+        audioElement.onerror = null;
+        currentSentence++;
+        playNext();
+      };
+
+      audioElement.onerror = (e) => {
+        console.warn("Audio element failed to load source, falling back to Web Speech synthesis:", e);
+        fallbackToSpeechSynthesis();
+      };
+
+      audioElement.play().catch((err) => {
+        if (err.name === 'AbortError' && seqId !== activeAudioSeqRef.current) {
+          return;
+        }
+        console.warn("Audio play failed, falling back to Web Speech synthesis:", err);
+        fallbackToSpeechSynthesis();
+      });
+    };
+
+    preloadChunk(0);
+    playNext();
+  };
+
   
   const [sessionId, setSessionId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
@@ -729,86 +859,9 @@ export default function AIChat({ user }: AIChatProps) {
 
       if (usedVoiceRef.current) {
         const textToSpeak = extractAnswerFromMarkers(fullAssistantText);
-        
-        const autoPlayVietnamese = () => {
-          if (!autoVoiceEnabled) return;
-          activeAudioSeqRef.current++;
-          const seqId = activeAudioSeqRef.current;
-
-          const cleanText = convertMathToVietnameseSpeech(textToSpeak.replace(/[*#_]/g, ''));
-          const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
-          if (!audioElement) return;
-
-          // Group sentences into chunks of ~200 characters to prevent TTS stuttering on newlines
-          const rawSentences = cleanText.match(/[^.!?\n]+[.!?\n]+/g) || [cleanText];
-          const sentences: string[] = [];
-          let currentGroup = "";
-          for (const s of rawSentences) {
-            if (currentGroup.length + s.length > 200 && currentGroup.length > 0) {
-              sentences.push(currentGroup.trim());
-              currentGroup = s;
-            } else {
-              currentGroup += " " + s;
-            }
-          }
-          if (currentGroup.trim()) sentences.push(currentGroup.trim());
-          
-          let currentSentence = 0;
-          const preloadedAudios: { [key: number]: HTMLAudioElement } = {};
-
-          const preloadChunk = (index: number) => {
-            if (index >= sentences.length) return;
-            const chunk = sentences[index].trim();
-            if (!chunk || preloadedAudios[index]) return;
-            const audio = new Audio();
-            audio.preload = 'auto';
-            audio.src = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
-            audio.load();
-            preloadedAudios[index] = audio;
-          };
-
-          const playNext = () => {
-            if (seqId !== activeAudioSeqRef.current) {
-              audioElement.onended = null;
-              return;
-            }
-            if (currentSentence >= sentences.length) {
-              audioElement.onended = null;
-              return;
-            }
-            const chunk = sentences[currentSentence].trim();
-            if (!chunk) {
-              currentSentence++;
-              playNext();
-              return;
-            }
-
-            // Preload the next chunk to eliminate network delay
-            preloadChunk(currentSentence + 1);
-
-            const url = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
-            audioElement.src = url;
-            audioElement.onended = () => {
-              if (seqId !== activeAudioSeqRef.current) return;
-              currentSentence++;
-              playNext();
-            };
-            audioElement.play().catch((err) => {
-              if (err.name === 'AbortError' && seqId !== activeAudioSeqRef.current) {
-                return; // Stop sequence quietly if interrupted
-              }
-              console.error("Audio play failed:", err);
-              // Try next chunk if this one fails for other reasons (e.g., network, or transient AbortError)
-              currentSentence++;
-              playNext();
-            });
-          };
-
-          preloadChunk(0);
-          playNext();
-        };
-
-        autoPlayVietnamese();
+        if (autoVoiceEnabled) {
+          playVoiceSequence(textToSpeak);
+        }
         usedVoiceRef.current = false;
       }
 
@@ -1062,82 +1115,7 @@ export default function AIChat({ user }: AIChatProps) {
                           {msg.status === 'completed' && answerPart && (
                             <div className="mt-1 flex items-center justify-start">
                               <button
-                                onClick={() => {
-                                  activeAudioSeqRef.current++;
-                                  const seqId = activeAudioSeqRef.current;
-
-                                  const cleanText = convertMathToVietnameseSpeech(answerPart.replace(/[*#_]/g, ''));
-                                  const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
-                                  if (!audioElement) return;
-
-                                  // Group sentences into chunks of ~200 characters to prevent TTS stuttering on newlines
-                                  const rawSentences = cleanText.match(/[^.!?\n]+[.!?\n]+/g) || [cleanText];
-                                  const sentences: string[] = [];
-                                  let currentGroup = "";
-                                  for (const s of rawSentences) {
-                                    if (currentGroup.length + s.length > 200 && currentGroup.length > 0) {
-                                      sentences.push(currentGroup.trim());
-                                      currentGroup = s;
-                                    } else {
-                                      currentGroup += " " + s;
-                                    }
-                                  }
-                                  if (currentGroup.trim()) sentences.push(currentGroup.trim());
-                                  
-                                  let currentSentence = 0;
-                                  const preloadedAudios: { [key: number]: HTMLAudioElement } = {};
-
-                                  const preloadChunk = (index: number) => {
-                                    if (index >= sentences.length) return;
-                                    const chunk = sentences[index].trim();
-                                    if (!chunk || preloadedAudios[index]) return;
-                                    const audio = new Audio();
-                                    audio.preload = 'auto';
-                                    audio.src = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
-                                    audio.load();
-                                    preloadedAudios[index] = audio;
-                                  };
-
-                                  const playNext = () => {
-                                    if (seqId !== activeAudioSeqRef.current) {
-                                      audioElement.onended = null;
-                                      return;
-                                    }
-                                    if (currentSentence >= sentences.length) {
-                                      audioElement.onended = null;
-                                      return;
-                                    }
-                                    const chunk = sentences[currentSentence].trim();
-                                    if (!chunk) {
-                                      currentSentence++;
-                                      playNext();
-                                      return;
-                                    }
-
-                                    // Preload the next chunk to eliminate network delay
-                                    preloadChunk(currentSentence + 1);
-
-                                    const url = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
-                                    audioElement.src = url;
-                                    audioElement.onended = () => {
-                                      if (seqId !== activeAudioSeqRef.current) return;
-                                      currentSentence++;
-                                      playNext();
-                                    };
-                                    audioElement.play().catch((err) => {
-                                      if (err.name === 'AbortError' && seqId !== activeAudioSeqRef.current) {
-                                        return; // Stop sequence quietly if interrupted
-                                      }
-                                      console.error("Audio play failed:", err);
-                                      // Try next chunk if this one fails for other reasons (e.g., network, or transient AbortError)
-                                      currentSentence++;
-                                      playNext();
-                                    });
-                                  };
-
-                                  preloadChunk(0);
-                                  playNext();
-                                }}
+                                onClick={() => playVoiceSequence(answerPart)}
                                 className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-brand-400 transition-colors hover:bg-white/10 hover:text-brand-300"
                                 title="Đọc câu trả lời"
                               >
@@ -1288,6 +1266,9 @@ export default function AIChat({ user }: AIChatProps) {
                 setAutoVoiceEnabled(newState);
                 
                 activeAudioSeqRef.current++; // Stop any ongoing sequence
+                if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                  window.speechSynthesis.cancel();
+                }
                 const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
                 if (!newState && audioElement) {
                   // Stop audio immediately when toggled off
