@@ -268,6 +268,7 @@ export default function AIChat({ user }: AIChatProps) {
   const [quizResults, setQuizResults] = useState<Record<string, boolean>>({});
   const [isListening, setIsListening] = useState(false);
   const usedVoiceRef = useRef(false);
+  const activeAudioSeqRef = useRef<number>(0);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
@@ -731,6 +732,9 @@ export default function AIChat({ user }: AIChatProps) {
         
         const autoPlayVietnamese = () => {
           if (!autoVoiceEnabled) return;
+          activeAudioSeqRef.current++;
+          const seqId = activeAudioSeqRef.current;
+
           const cleanText = convertMathToVietnameseSpeech(textToSpeak.replace(/[*#_]/g, ''));
           const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
           if (!audioElement) return;
@@ -764,6 +768,10 @@ export default function AIChat({ user }: AIChatProps) {
           };
 
           const playNext = () => {
+            if (seqId !== activeAudioSeqRef.current) {
+              audioElement.onended = null;
+              return;
+            }
             if (currentSentence >= sentences.length) {
               audioElement.onended = null;
               return;
@@ -781,13 +789,16 @@ export default function AIChat({ user }: AIChatProps) {
             const url = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
             audioElement.src = url;
             audioElement.onended = () => {
+              if (seqId !== activeAudioSeqRef.current) return;
               currentSentence++;
               playNext();
             };
             audioElement.play().catch((err) => {
-              if (err.name === 'AbortError') return; // Stop sequence quietly if interrupted
+              if (err.name === 'AbortError' && seqId !== activeAudioSeqRef.current) {
+                return; // Stop sequence quietly if interrupted
+              }
               console.error("Audio play failed:", err);
-              // Try next chunk if this one fails for other reasons (e.g., network)
+              // Try next chunk if this one fails for other reasons (e.g., network, or transient AbortError)
               currentSentence++;
               playNext();
             });
@@ -1052,6 +1063,9 @@ export default function AIChat({ user }: AIChatProps) {
                             <div className="mt-1 flex items-center justify-start">
                               <button
                                 onClick={() => {
+                                  activeAudioSeqRef.current++;
+                                  const seqId = activeAudioSeqRef.current;
+
                                   const cleanText = convertMathToVietnameseSpeech(answerPart.replace(/[*#_]/g, ''));
                                   const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
                                   if (!audioElement) return;
@@ -1085,6 +1099,10 @@ export default function AIChat({ user }: AIChatProps) {
                                   };
 
                                   const playNext = () => {
+                                    if (seqId !== activeAudioSeqRef.current) {
+                                      audioElement.onended = null;
+                                      return;
+                                    }
                                     if (currentSentence >= sentences.length) {
                                       audioElement.onended = null;
                                       return;
@@ -1102,12 +1120,16 @@ export default function AIChat({ user }: AIChatProps) {
                                     const url = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
                                     audioElement.src = url;
                                     audioElement.onended = () => {
+                                      if (seqId !== activeAudioSeqRef.current) return;
                                       currentSentence++;
                                       playNext();
                                     };
                                     audioElement.play().catch((err) => {
-                                      if (err.name === 'AbortError') return; // Stop sequence quietly if interrupted
+                                      if (err.name === 'AbortError' && seqId !== activeAudioSeqRef.current) {
+                                        return; // Stop sequence quietly if interrupted
+                                      }
                                       console.error("Audio play failed:", err);
+                                      // Try next chunk if this one fails for other reasons (e.g., network, or transient AbortError)
                                       currentSentence++;
                                       playNext();
                                     });
@@ -1265,6 +1287,7 @@ export default function AIChat({ user }: AIChatProps) {
                 const newState = !autoVoiceEnabled;
                 setAutoVoiceEnabled(newState);
                 
+                activeAudioSeqRef.current++; // Stop any ongoing sequence
                 const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
                 if (!newState && audioElement) {
                   // Stop audio immediately when toggled off
