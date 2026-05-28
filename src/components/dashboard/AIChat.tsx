@@ -309,129 +309,95 @@ export default function AIChat({ user }: AIChatProps) {
     activeAudioSeqRef.current++;
     const seqId = activeAudioSeqRef.current;
 
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
+    // Pause any background HTML audio
+    const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
+    if (audioElement) {
+      audioElement.pause();
+      audioElement.removeAttribute('src');
     }
+
+    if (typeof window === 'undefined') return;
 
     const cleanText = convertMathToVietnameseSpeech(textToSpeak.replace(/[*#_]/g, ''));
-    const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
-    if (!audioElement) return;
 
-    audioElement.pause();
-    audioElement.removeAttribute('src');
+    // Use client-side SpeechSynthesis as the primary engine for instant zero-latency speech
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
 
-    const rawSentences = cleanText.match(/[^.!?\n]+[.!?\n]+/g) || [cleanText];
-    const sentences: string[] = [];
-    let currentGroup = "";
-    for (const s of rawSentences) {
-      if (currentGroup.length + s.length > 200 && currentGroup.length > 0) {
-        sentences.push(currentGroup.trim());
-        currentGroup = s;
-      } else {
-        currentGroup += " " + s;
+      // Split the text by punctuation to feed moderate chunks, preventing Chrome long-text cutoff bugs
+      const rawSentences = cleanText.split(/([.!?\n]+)/);
+      const chunks: string[] = [];
+      let currentChunk = "";
+
+      for (let i = 0; i < rawSentences.length; i++) {
+        const item = rawSentences[i];
+        if (!item) continue;
+        currentChunk += item;
+        if (/[.!?\n]/.test(item) || currentChunk.length > 150) {
+          const trimmed = currentChunk.trim();
+          if (trimmed) {
+            chunks.push(trimmed);
+          }
+          currentChunk = "";
+        }
       }
-    }
-    if (currentGroup.trim()) sentences.push(currentGroup.trim());
-    
-    let currentSentence = 0;
-    const preloadedAudios: { [key: number]: HTMLAudioElement } = {};
+      if (currentChunk.trim()) {
+        chunks.push(currentChunk.trim());
+      }
 
-    const preloadChunk = (index: number) => {
-      if (index >= sentences.length) return;
-      const chunk = sentences[index].trim();
-      if (!chunk || preloadedAudios[index]) return;
-      const audio = new Audio();
-      audio.preload = 'auto';
-      audio.src = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
-      audio.load();
-      preloadedAudios[index] = audio;
-    };
+      if (chunks.length === 0) return;
 
-    const fallbackToSpeechSynthesis = () => {
-      if (seqId !== activeAudioSeqRef.current) return;
-      
-      audioElement.onended = null;
-      audioElement.onerror = null;
-      audioElement.pause();
-      
-      Object.values(preloadedAudios).forEach(audio => {
-        audio.src = '';
-        audio.load();
-      });
-
-      const remainingText = sentences.slice(currentSentence).join(' ');
-      if (!remainingText.trim()) return;
-
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        activeAudioSeqRef.current++;
-        const fallbackSeqId = activeAudioSeqRef.current;
+      // Queue all chunks instantly in browser speech memory.
+      // The browser plays them back-to-back with zero delay, ensuring continuous, natural speech.
+      chunks.forEach((chunkText) => {
+        const utterance = new SpeechSynthesisUtterance(chunkText);
+        utterance.lang = 'vi-VN';
         
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(remainingText);
         const voices = window.speechSynthesis.getVoices();
         const viVoice = voices.find(v => v.lang.includes('vi') || v.lang.includes('VI'));
         if (viVoice) {
           utterance.voice = viVoice;
         }
-        utterance.lang = 'vi-VN';
-        utterance.rate = 1.0;
+        utterance.rate = 1.05; // Slightly faster for premium responsiveness
         
         utterance.onerror = (e) => {
           if (e.error !== 'interrupted') {
-            console.warn("Browser SpeechSynthesis error:", e);
+            console.warn("SpeechSynthesis utterance error:", e);
           }
         };
 
         window.speechSynthesis.speak(utterance);
-      }
-    };
+      });
+    } else {
+      // API TTS Fallback ONLY if the browser does not support SpeechSynthesis at all
+      const rawSentences = cleanText.match(/[^.!?\n]+[.!?\n]+/g) || [cleanText];
+      const sentences = rawSentences.map(s => s.trim()).filter(Boolean);
+      let currentSentence = 0;
 
-    const playNext = () => {
-      if (seqId !== activeAudioSeqRef.current) {
-        audioElement.onended = null;
-        audioElement.onerror = null;
-        return;
-      }
-      if (currentSentence >= sentences.length) {
-        audioElement.onended = null;
-        audioElement.onerror = null;
-        return;
-      }
-      const chunk = sentences[currentSentence].trim();
-      if (!chunk) {
-        currentSentence++;
-        playNext();
-        return;
-      }
-
-      preloadChunk(currentSentence + 1);
-
-      const url = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
-      audioElement.src = url;
-      
-      audioElement.onended = () => {
+      const playNext = () => {
         if (seqId !== activeAudioSeqRef.current) return;
-        audioElement.onerror = null;
-        currentSentence++;
-        playNext();
-      };
-
-      audioElement.onerror = (e) => {
-        console.warn("Audio element failed to load source, falling back to Web Speech synthesis:", e);
-        fallbackToSpeechSynthesis();
-      };
-
-      audioElement.play().catch((err) => {
-        if (err.name === 'AbortError' && seqId !== activeAudioSeqRef.current) {
+        if (currentSentence >= sentences.length) return;
+        const chunk = sentences[currentSentence];
+        if (!chunk) {
+          currentSentence++;
+          playNext();
           return;
         }
-        console.warn("Audio play failed, falling back to Web Speech synthesis:", err);
-        fallbackToSpeechSynthesis();
-      });
-    };
 
-    preloadChunk(0);
-    playNext();
+        const url = `${API_BASE_URL}/api/tts?text=${encodeURIComponent(chunk)}`;
+        audioElement.src = url;
+        audioElement.onended = () => {
+          if (seqId !== activeAudioSeqRef.current) return;
+          currentSentence++;
+          playNext();
+        };
+        audioElement.play().catch(() => {
+          currentSentence++;
+          playNext();
+        });
+      };
+      playNext();
+    }
   };
 
   
