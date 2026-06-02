@@ -582,7 +582,12 @@ def chat(req: ChatRequest):
         except Exception as e:
             print(f"⚠️ Lỗi khi cố gắng lưu lịch sử trò chuyện: {e}")
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    headers = {
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no"
+    }
+    return StreamingResponse(event_stream(), media_type="text/event-stream", headers=headers)
 
 
 @app.post("/api/generate-quiz")
