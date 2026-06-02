@@ -1,4 +1,17 @@
 import os
+import sys
+# Configure stdout and stderr to use UTF-8 and ignore encoding errors to prevent Windows UnicodeEncodeError crashes
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='backslashreplace')
+    except Exception:
+        pass
+if hasattr(sys.stderr, 'reconfigure'):
+    try:
+        sys.stderr.reconfigure(encoding='utf-8', errors='backslashreplace')
+    except Exception:
+        pass
+
 import uuid
 import json
 import re
@@ -246,7 +259,7 @@ def _embed_with_provider(text, api_key=None, model_name="gemini-embedding-001"):
     raise Exception("No embedding provider available or all providers failed")
 
 
-def _generate_stream(prompt, api_key, model_name="gemini-3.5-flash", image_data=None):
+def _generate_stream(prompt, api_key, model_name="gemini-2.5-flash", image_data=None):
     if genai is not None:
         if hasattr(genai, 'configure'):
             try:
@@ -292,12 +305,14 @@ print(f"[Supabase] CORE_LOGIC: {SUPABASE_URL}")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 FALLBACK_MODELS = [
+    "gemini-2.5-flash",
     "gemini-2.0-flash",
     "gemini-1.5-flash",
     "gemini-flash-latest",
 ]
 
 EMBEDDING_FALLBACK_MODELS = [
+    "text-embedding-004",
     "gemini-embedding-001",
 ]
 
@@ -324,7 +339,13 @@ def refresh_available_keys():
 
 
 def get_user_profile(user_id):
-    if not user_id:
+    if not user_id or str(user_id).strip() == "guest":
+        return None
+
+    try:
+        # Validate UUID format to prevent database syntax errors
+        uuid.UUID(str(user_id).strip())
+    except ValueError:
         return None
 
     try:
@@ -430,7 +451,7 @@ def _build_default_chat_title(subject=None, grade=None):
     return clean_subject
 
 
-def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, file_content=None, user_id=None, model_name="gemini-3.5-flash"):
+def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, file_content=None, user_id=None, model_name="gemini-2.5-flash"):
     if genai is None or not topic:
         return []
     
@@ -508,7 +529,7 @@ def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, fi
     return []
 
 
-def generate_flashcards(topic, grade=None, subject=None, file_content=None, user_id=None, model_name="gemini-3.5-flash"):
+def generate_flashcards(topic, grade=None, subject=None, file_content=None, user_id=None, model_name="gemini-2.5-flash"):
     if genai is None or not topic:
         return []
         
@@ -580,7 +601,7 @@ def generate_flashcards(topic, grade=None, subject=None, file_content=None, user
     return []
 
 
-def _generate_chat_title(question, api_key=None, model_name="gemini-3.5-flash", subject=None, grade=None):
+def _generate_chat_title(question, api_key=None, model_name="gemini-2.5-flash", subject=None, grade=None):
     if genai is None or not question:
         return _build_default_chat_title(subject, grade)
 
@@ -842,12 +863,41 @@ def save_document_to_db(text_content, source_name, doc_id):
         return f"Lỗi: {str(e)}"
 
 
+def _document_matches_subject(doc_name, target_subject):
+    if not target_subject:
+        return True
+    doc_name_lower = (doc_name or "").lower()
+    target_lower = target_subject.lower()
+    
+    # Common mappings/aliases to check in file name
+    if target_lower == "toán":
+        return "toán" in doc_name_lower or "toan" in doc_name_lower
+    if target_lower == "ngữ văn" or target_lower == "văn":
+        return "văn" in doc_name_lower or "van" in doc_name_lower or "tiếng việt" in doc_name_lower or "viet" in doc_name_lower
+    if target_lower == "tin học":
+        return "tin" in doc_name_lower
+    if target_lower == "tiếng anh":
+        return "anh" in doc_name_lower or "english" in doc_name_lower
+    if target_lower == "vật lý" or target_lower == "vật lí":
+        return "lý" in doc_name_lower or "li" in doc_name_lower
+    if target_lower == "hóa học" or target_lower == "hóa":
+        return "hóa" in doc_name_lower or "hoa" in doc_name_lower
+    if target_lower == "sinh học" or target_lower == "sinh":
+        return "sinh" in doc_name_lower
+    if target_lower == "lịch sử":
+        return "sử" in doc_name_lower or "su" in doc_name_lower
+    if target_lower == "địa lý" or target_lower == "địa lí":
+        return "địa" in doc_name_lower or "dia" in doc_name_lower
+        
+    return target_lower in doc_name_lower
+
+
 _CHUNKS_CACHE = {}
 _SESSION_CACHE = {}
 _DOCS_CACHE = {}
 
 
-def get_ai_response_stream_with_history(question, session_id=None, user_id=None, model_name="gemini-3.5-flash", grade=None, subject=None, force_reset_context=False, image_data=None):
+def get_ai_response_stream_with_history(question, session_id=None, user_id=None, model_name="gemini-2.5-flash", grade=None, subject=None, force_reset_context=False, image_data=None):
     keys = refresh_available_keys()
     if not keys:
         yield "Hệ thống chưa được cấu hình API Key!"
@@ -1004,6 +1054,23 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                                 if target_subject:
                                     docs_query = docs_query.eq("subject", target_subject)
                                 docs_rows = docs_query.execute().data or []
+                                
+                                # Fallback: if no documents matched target_subject directly, query all matching grade and filter locally by matching subject keywords in name
+                                if not docs_rows and target_grade:
+                                    try:
+                                        print(f"🔍 [Docs Fallback] Thử tìm tài liệu lớp {target_grade} không lọc môn học để tìm theo tên...")
+                                        fallback_query = supabase.table("documents").select("id,name,grade,subject")
+                                        fallback_query = fallback_query.eq("grade", target_grade)
+                                        all_docs = fallback_query.execute().data or []
+                                        docs_rows = [
+                                            d for d in all_docs
+                                            if _normalize_subject_name(d.get("subject")) == target_subject 
+                                            or _document_matches_subject(d.get("name"), target_subject)
+                                        ]
+                                        print(f"💾 [Docs Fallback] Tìm thấy {len(docs_rows)} tài liệu phù hợp sau khi lọc tên.")
+                                    except Exception as fallback_err:
+                                        print(f"⚠️ Document fallback query failed: {fallback_err}")
+                                
                                 _DOCS_CACHE[docs_cache_key] = docs_rows
                                 print(f"💾 [Docs Cache] Lưu {len(docs_rows)} documents vào bộ nhớ đệm.")
                             except Exception as docs_err:

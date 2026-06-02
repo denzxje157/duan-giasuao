@@ -347,7 +347,7 @@ export default function AIChat({ user }: AIChatProps) {
     return '';
   });
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-2.0-flash');
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-2.5-flash');
   const [currentView, setCurrentView] = useState<'selection' | 'chat'>('selection');
   const [generalInput, setGeneralInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);

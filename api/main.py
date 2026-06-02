@@ -3,6 +3,18 @@ import sys
 # Ensure the api directory is on sys.path so local imports work
 sys.path.insert(0, os.path.dirname(__file__))
 
+# Configure stdout and stderr to use UTF-8 and ignore encoding errors to prevent Windows UnicodeEncodeError crashes
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='backslashreplace')
+    except Exception:
+        pass
+if hasattr(sys.stderr, 'reconfigure'):
+    try:
+        sys.stderr.reconfigure(encoding='utf-8', errors='backslashreplace')
+    except Exception:
+        pass
+
 from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import StreamingResponse

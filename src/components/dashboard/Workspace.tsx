@@ -225,7 +225,7 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
           grade: String(displayGrade),
           subject: displayTitle,
           learning_context: learningContext,
-          model_name: 'gemini-1.5-flash'
+          model_name: 'gemini-2.5-flash'
         })
       });
 
