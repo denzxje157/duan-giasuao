@@ -843,6 +843,8 @@ def save_document_to_db(text_content, source_name, doc_id):
 
 
 _CHUNKS_CACHE = {}
+_SESSION_CACHE = {}
+_DOCS_CACHE = {}
 
 
 def get_ai_response_stream_with_history(question, session_id=None, user_id=None, model_name="gemini-3.5-flash", grade=None, subject=None, force_reset_context=False, image_data=None):
@@ -890,23 +892,39 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                 session_id = str(uuid.uuid4())
 
         session_row = {}
-        try:
-            res = supabase.table("chat_sessions").select("messages,grade,subject").eq("id", session_id).execute()
-            if res.data and len(res.data) > 0:
-                session_row = res.data[0] or {}
-                if session_row.get("messages"):
-                    chat_history = session_row["messages"]
-        except Exception as session_err:
-            print(f"⚠️ Không thể đọc chat_sessions đầy đủ: {session_err}")
+        if session_id in _SESSION_CACHE:
+            session_row = _SESSION_CACHE[session_id]
+            chat_history = session_row.get("messages") or []
+            print(f"⚡ [Session Cache] Lấy thành công lịch sử session {session_id} từ bộ nhớ đệm (0ms)!")
+        else:
             try:
-                res = supabase.table("chat_sessions").select("messages").eq("id", session_id).execute()
+                res = supabase.table("chat_sessions").select("messages,grade,subject").eq("id", session_id).execute()
                 if res.data and len(res.data) > 0:
                     session_row = res.data[0] or {}
                     if session_row.get("messages"):
                         chat_history = session_row["messages"]
-            except Exception as narrow_err:
-                print(f"⚠️ Không thể đọc chat_sessions tối giản: {narrow_err}")
-                chat_history = []
+                    _SESSION_CACHE[session_id] = {
+                        "messages": chat_history,
+                        "grade": session_row.get("grade") or target_grade,
+                        "subject": session_row.get("subject") or target_subject
+                    }
+                    print(f"💾 [Session Cache] Lưu session {session_id} vào bộ nhớ đệm.")
+            except Exception as session_err:
+                print(f"⚠️ Không thể đọc chat_sessions đầy đủ: {session_err}")
+                try:
+                    res = supabase.table("chat_sessions").select("messages").eq("id", session_id).execute()
+                    if res.data and len(res.data) > 0:
+                        session_row = res.data[0] or {}
+                        if session_row.get("messages"):
+                            chat_history = session_row["messages"]
+                        _SESSION_CACHE[session_id] = {
+                            "messages": chat_history,
+                            "grade": target_grade,
+                            "subject": target_subject
+                        }
+                except Exception as narrow_err:
+                    print(f"⚠️ Không thể đọc chat_sessions tối giản: {narrow_err}")
+                    chat_history = []
 
         db_grade = str(session_row.get("grade") or cached_session_context.get("grade") or "").strip()
         db_subject = _normalize_subject_name(session_row.get("subject") or cached_session_context.get("subject"))
@@ -963,26 +981,44 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
         for api_key in _iter_active_keys():
             try:
                 context = "Không tìm thấy dữ liệu liên quan trong sách."
-                try:
-                    # 1. Fetch matching documents by grade and subject (including name)
+                
+                # Check for short or conversational queries to bypass expensive RAG
+                is_conversational_only = len(question.strip()) < 15 or question.strip().lower() in [
+                    "ok", "chào", "chào cô", "cảm ơn", "cảm ơn cô", "dạ", "dạ vâng", "tiếp đi", "tiếp tục", "hi", "hello"
+                ]
+                
+                if is_conversational_only:
+                    print(f"⚡ [RAG Skip] Bỏ qua RAG cho câu hỏi hội thoại ngắn: '{question}'")
                     docs_rows = []
+                else:
                     try:
-                        docs_query = supabase.table("documents").select("id,name,grade,subject")
-                        if target_grade:
-                            docs_query = docs_query.eq("grade", target_grade)
-                        if target_subject:
-                            docs_query = docs_query.eq("subject", target_subject)
-                        docs_rows = docs_query.execute().data or []
-                    except Exception as docs_err:
-                        print(f"⚠️ Document query with subject/grade failed, retrying without subject: {docs_err}")
-                        try:
-                            docs_query = supabase.table("documents").select("id,name,grade")
-                            if target_grade:
-                                docs_query = docs_query.eq("grade", target_grade)
-                            docs_rows = docs_query.execute().data or []
-                        except Exception as docs_fallback_err:
-                            print(f"⚠️ Document fallback query failed: {docs_fallback_err}")
-                            docs_rows = []
+                        # 1. Fetch matching documents by grade and subject (including name) (using in-memory cache)
+                        docs_rows = []
+                        docs_cache_key = (target_grade, target_subject)
+                        if docs_cache_key in _DOCS_CACHE:
+                            docs_rows = _DOCS_CACHE[docs_cache_key]
+                            print(f"⚡ [Docs Cache] Lấy thành công {len(docs_rows)} documents từ bộ nhớ đệm (0ms)!")
+                        else:
+                            try:
+                                docs_query = supabase.table("documents").select("id,name,grade,subject")
+                                if target_grade:
+                                    docs_query = docs_query.eq("grade", target_grade)
+                                if target_subject:
+                                    docs_query = docs_query.eq("subject", target_subject)
+                                docs_rows = docs_query.execute().data or []
+                                _DOCS_CACHE[docs_cache_key] = docs_rows
+                                print(f"💾 [Docs Cache] Lưu {len(docs_rows)} documents vào bộ nhớ đệm.")
+                            except Exception as docs_err:
+                                print(f"⚠️ Document query with subject/grade failed, retrying without subject: {docs_err}")
+                                try:
+                                    docs_query = supabase.table("documents").select("id,name,grade")
+                                    if target_grade:
+                                        docs_query = docs_query.eq("grade", target_grade)
+                                    docs_rows = docs_query.execute().data or []
+                                    _DOCS_CACHE[docs_cache_key] = docs_rows
+                                except Exception as docs_fallback_err:
+                                    print(f"⚠️ Document fallback query failed: {docs_fallback_err}")
+                                    docs_rows = []
 
                     # 2. Filter doc_ids precisely matching criteria
                     doc_ids = []
@@ -1195,7 +1231,8 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
 {{
   "question": "Câu hỏi ở đây?",
   "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
-  "answer": <số_nguyên_từ_0_đến_3_tương_ứng_vị_trí_đáp_án_đúng>
+  "answer": <số_nguyên_từ_0_đến_3_tương_ứng_vị_trí_đáp_án_đúng>,
+  "explanation": "Lời giải thích ngắn gọn, cặn kẽ vì sao chọn đáp án đó là ĐÚNG và vì sao các đáp án khác là SAI để học sinh hiểu rõ bản chất."
 }}
 [END_QUIZ]
 
@@ -1253,6 +1290,11 @@ PHẦN TRẢ LỜI CỦA BẠN PHẢI TUÂN THEO CẤU TRÚC SAU:
                         update_payload["subject"] = target_subject
                     
                     supabase.table("chat_sessions").update(update_payload).eq("id", session_id).execute()
+                    _SESSION_CACHE[session_id] = {
+                        "messages": chat_history,
+                        "grade": target_grade,
+                        "subject": target_subject
+                    }
                     _cache_chat_session_context(session_id, grade=update_payload.get("grade") or target_grade, subject=update_payload.get("subject") or target_subject)
                 except Exception as session_err:
                     print(f"⚠️ Không thể cập nhật chat_sessions: {session_err}")
