@@ -1228,6 +1228,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                                 doc_name = doc_id_to_name.get(doc_id, "Tài liệu không tên")
                                 context_parts.append(f"[Nguồn: {doc_name} (Độ tương đồng: {score:.4f})]\n{content_str}")
                             context = "\n\n---\n\n".join(context_parts)
+                        else:
                             # Fallback: Do NOT download the entire content column to prevent Vercel Gateway timeouts!
                             # Instead, just reference the matching document by name.
                             if docs_rows:
