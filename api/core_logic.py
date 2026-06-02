@@ -292,8 +292,8 @@ print(f"[Supabase] CORE_LOGIC: {SUPABASE_URL}")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 FALLBACK_MODELS = [
-    "gemini-3.5-flash",
-    "gemini-2.5-flash-lite",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
     "gemini-flash-latest",
 ]
 
@@ -842,6 +842,9 @@ def save_document_to_db(text_content, source_name, doc_id):
         return f"Lỗi: {str(e)}"
 
 
+_CHUNKS_CACHE = {}
+
+
 def get_ai_response_stream_with_history(question, session_id=None, user_id=None, model_name="gemini-3.5-flash", grade=None, subject=None, force_reset_context=False, image_data=None):
     keys = refresh_available_keys()
     if not keys:
@@ -999,15 +1002,22 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                                 continue
                             doc_ids.append(doc_id)
 
-                    # 3. Retrieve chunks for matched documents and perform Cosine Similarity search in Python
+                    # 3. Retrieve chunks for matched documents and perform Cosine Similarity search in Python (using in-memory caching)
                     chunks_rows = []
                     if doc_ids:
-                        try:
-                            chunks_query = supabase.table("document_chunks").select("content,embedding,document_id").in_("document_id", doc_ids)
-                            chunks_rows = chunks_query.limit(1000).execute().data or []
-                        except Exception as chunks_err:
-                            print(f"⚠️ Failed to fetch chunks from document_chunks: {chunks_err}")
-                            chunks_rows = []
+                        cache_key = tuple(sorted(doc_ids))
+                        if cache_key in _CHUNKS_CACHE:
+                            chunks_rows = _CHUNKS_CACHE[cache_key]
+                            print(f"⚡ [RAG Cache] Lấy thành công {len(chunks_rows)} chunks từ bộ nhớ đệm (0ms)!")
+                        else:
+                            try:
+                                chunks_query = supabase.table("document_chunks").select("content,embedding,document_id").in_("document_id", doc_ids)
+                                chunks_rows = chunks_query.limit(1000).execute().data or []
+                                _CHUNKS_CACHE[cache_key] = chunks_rows
+                                print(f"💾 [RAG Cache] Tải và lưu {len(chunks_rows)} chunks của {len(doc_ids)} tài liệu vào bộ nhớ đệm.")
+                            except Exception as chunks_err:
+                                print(f"⚠️ Failed to fetch chunks from document_chunks: {chunks_err}")
+                                chunks_rows = []
 
                     if chunks_rows:
                         # Create embedding vector for the query
