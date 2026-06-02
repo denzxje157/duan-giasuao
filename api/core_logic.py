@@ -981,19 +981,17 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
         for api_key in _iter_active_keys():
             try:
                 context = "Không tìm thấy dữ liệu liên quan trong sách."
-                
-                # Check for short or conversational queries to bypass expensive RAG
-                is_conversational_only = len(question.strip()) < 15 or question.strip().lower() in [
-                    "ok", "chào", "chào cô", "cảm ơn", "cảm ơn cô", "dạ", "dạ vâng", "tiếp đi", "tiếp tục", "hi", "hello"
-                ]
-                
-                if is_conversational_only:
-                    print(f"⚡ [RAG Skip] Bỏ qua RAG cho câu hỏi hội thoại ngắn: '{question}'")
+                try:
+                    # Check for short or conversational queries to bypass expensive RAG
+                    is_conversational_only = len(question.strip()) < 15 or question.strip().lower() in [
+                        "ok", "chào", "chào cô", "cảm ơn", "cảm ơn cô", "dạ", "dạ vâng", "tiếp đi", "tiếp tục", "hi", "hello"
+                    ]
+                    
                     docs_rows = []
-                else:
-                    try:
+                    if is_conversational_only:
+                        print(f"⚡ [RAG Skip] Bỏ qua RAG cho câu hỏi hội thoại ngắn: '{question}'")
+                    else:
                         # 1. Fetch matching documents by grade and subject (including name) (using in-memory cache)
-                        docs_rows = []
                         docs_cache_key = (target_grade, target_subject)
                         if docs_cache_key in _DOCS_CACHE:
                             docs_rows = _DOCS_CACHE[docs_cache_key]
