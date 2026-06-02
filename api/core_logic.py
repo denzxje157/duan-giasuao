@@ -901,6 +901,34 @@ def _document_matches_subject(doc_name, target_subject):
     return False
 
 
+_LOCAL_CHUNKS = None
+
+def _load_local_chunks():
+    global _LOCAL_CHUNKS
+    if _LOCAL_CHUNKS is not None:
+        return _LOCAL_CHUNKS
+    
+    paths_to_try = [
+        os.path.join(os.path.dirname(__file__), "chunks_cache.json"),
+        "api/chunks_cache.json",
+        "chunks_cache.json"
+    ]
+    for path in paths_to_try:
+        if os.path.exists(path):
+            try:
+                print(f"⚡ [Local Cache] Loading chunks from {path}...")
+                with open(path, "r", encoding="utf-8") as f:
+                    _LOCAL_CHUNKS = json.load(f)
+                print(f"⚡ [Local Cache] Successfully loaded {len(_LOCAL_CHUNKS)} chunks into memory!")
+                return _LOCAL_CHUNKS
+            except Exception as e:
+                print(f"⚠️ Failed to load local chunks from {path}: {e}")
+    
+    print("⚠️ [Local Cache] chunks_cache.json not found, falling back to database query.")
+    _LOCAL_CHUNKS = []
+    return _LOCAL_CHUNKS
+
+
 _CHUNKS_CACHE = {}
 _SESSION_CACHE = {}
 _DOCS_CACHE = {}
@@ -1120,14 +1148,29 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                             chunks_rows = _CHUNKS_CACHE[cache_key]
                             print(f"⚡ [RAG Cache] Lấy thành công {len(chunks_rows)} chunks từ bộ nhớ đệm (0ms)!")
                         else:
-                            try:
-                                chunks_query = supabase.table("document_chunks").select("content,embedding,document_id").in_("document_id", doc_ids)
-                                chunks_rows = chunks_query.limit(1000).execute().data or []
-                                _CHUNKS_CACHE[cache_key] = chunks_rows
-                                print(f"💾 [RAG Cache] Tải và lưu {len(chunks_rows)} chunks của {len(doc_ids)} tài liệu vào bộ nhớ đệm.")
-                            except Exception as chunks_err:
-                                print(f"⚠️ Failed to fetch chunks from document_chunks: {chunks_err}")
-                                chunks_rows = []
+                            local_chunks = _load_local_chunks()
+                            local_doc_ids = set(c.get("document_id") for c in local_chunks if c.get("document_id"))
+                            
+                            # Filter local chunks for matched doc_ids
+                            cached_doc_chunks = [c for c in local_chunks if str(c.get("document_id") or "").strip() in doc_ids]
+                            chunks_rows.extend(cached_doc_chunks)
+                            
+                            # Find which doc_ids are missing from the local cache
+                            missing_doc_ids = [d for d in doc_ids if d not in local_doc_ids]
+                            
+                            # Query missing doc_ids from Supabase
+                            if missing_doc_ids:
+                                try:
+                                    print(f"🔍 [RAG Database] Tìm thấy {len(missing_doc_ids)} tài liệu mới chưa được cache, đang truy vấn Supabase...")
+                                    chunks_query = supabase.table("document_chunks").select("content,embedding,document_id").in_("document_id", missing_doc_ids)
+                                    db_chunks = chunks_query.limit(1000).execute().data or []
+                                    chunks_rows.extend(db_chunks)
+                                    print(f"💾 [RAG Database] Tải thành công {len(db_chunks)} chunks từ database.")
+                                except Exception as chunks_err:
+                                    print(f"⚠️ Failed to fetch missing chunks from document_chunks: {chunks_err}")
+                            
+                            _CHUNKS_CACHE[cache_key] = chunks_rows
+                            print(f"⚡ [RAG Cache] Đã chuẩn bị {len(chunks_rows)} chunks từ cache/database.")
 
                     if chunks_rows:
                         # Create embedding vector for the query
