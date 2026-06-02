@@ -1268,6 +1268,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                 current_time_guidance = f"Thời gian hiện tại ở Việt Nam: {vn_time_str}. Số câu hỏi học sinh đã gửi trong phiên học này: {user_msg_count} câu."
                 
                 recent_suggestions = _extract_recent_suggestion_labels(chat_history)
+                # Send only last 10 messages to AI prompt for speed — full history is kept in DB
                 recent_history_text = '\n'.join([f"{m['role']}: {m['content']}" for m in chat_history[-10:]])
                 is_image_attached = image_data is not None
                 image_guidance = "Học sinh vừa tải lên một hình ảnh/đề thi mẫu. BẠN PHẢI ĐỌC HÌNH ẢNH ĐÓ. Nếu học sinh yêu cầu, hãy giải thích đề mẫu hoặc hướng dẫn giải chi tiết. ĐẶC BIỆT CHÚ Ý: Bạn PHẢI trả về 3 gợi ý sau trong phần SUGGESTIONS: 1. Giải thích đề mẫu này, 2. Hướng dẫn mình cách giải, 3. Tạo đề thi tương tự đề mẫu." if is_image_attached else ""
@@ -1389,9 +1390,7 @@ PHẦN TRẢ LỜI CỦA BẠN PHẢI TUÂN THEO CẤU TRÚC SAU:
                 chat_history.append(user_msg)
                 
                 chat_history.append({"role": "model", "content": full_answer})
-                # Keep only the last 20 messages to prevent prompt from growing unbounded
-                if len(chat_history) > 20:
-                    chat_history = chat_history[-20:]
+                # Full history is preserved — do NOT trim. AI prompt only uses last 10 (see above).
                 try:
                     update_payload = {"messages": chat_history}
                     if target_grade:
