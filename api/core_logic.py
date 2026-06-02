@@ -1185,24 +1185,13 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                                 doc_name = doc_id_to_name.get(doc_id, "Tài liệu không tên")
                                 context_parts.append(f"[Nguồn: {doc_name} (Độ tương đồng: {score:.4f})]\n{content_str}")
                             context = "\n\n---\n\n".join(context_parts)
-                        else:
-                            # Fallback to first matching document preview content if no good chunk similarity match
-                            fallback_content = ""
-                            fallback_doc_name = "Tài liệu không tên"
-                            for d in docs_rows:
-                                if d.get("id") in doc_ids:
-                                    try:
-                                        preview_res = supabase.table("documents").select("name,content").eq("id", d.get("id")).execute()
-                                        if preview_res.data and preview_res.data[0].get("content"):
-                                            fallback_content = preview_res.data[0].get("content")
-                                            fallback_doc_name = preview_res.data[0].get("name") or "Tài liệu không tên"
-                                            break
-                                    except Exception:
-                                        pass
-                            if fallback_content:
-                                context = f"[Nguồn: {fallback_doc_name} (Xem trước tài liệu)]\n{fallback_content[:4000]}"
+                            # Fallback: Do NOT download the entire content column to prevent Vercel Gateway timeouts!
+                            # Instead, just reference the matching document by name.
+                            if docs_rows:
+                                fallback_doc_name = docs_rows[0].get("name") or "Tài liệu không tên"
+                                context = f"[Nguồn: {fallback_doc_name} (Chưa được chia nhỏ)]\nSách giáo khoa có sẵn nhưng chưa được tạo chỉ mục vector."
                             else:
-                                context = f"Hiện tại thầy chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, thầy có thể giải đáp như sau..."
+                                context = f"Hiện tại cô chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, cô sẽ giải đáp như sau..."
                     else:
                         # Fallback to loading preview content directly from documents if document_chunks table is empty
                         fallback_content = ""
