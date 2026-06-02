@@ -901,13 +901,14 @@ def _document_matches_subject(doc_name, target_subject):
     return False
 
 
-_LOCAL_CHUNKS = None
+# Pre-load chunks.json into memory at module startup (runs once per Vercel function lifecycle)
+_CHUNKS_CACHE = {}
+_SESSION_CACHE = {}
+_DOCS_CACHE = {}
 
 def _load_local_chunks():
-    global _LOCAL_CHUNKS
-    if _LOCAL_CHUNKS is not None:
-        return _LOCAL_CHUNKS
-    
+    """Load all pre-indexed document chunks from local JSON file into memory.
+    Called once at module startup; subsequent calls return the already-loaded data instantly."""
     paths_to_try = [
         os.path.join(os.path.dirname(__file__), "chunks_cache.json"),
         "api/chunks_cache.json",
@@ -918,20 +919,19 @@ def _load_local_chunks():
             try:
                 print(f"⚡ [Local Cache] Loading chunks from {path}...")
                 with open(path, "r", encoding="utf-8") as f:
-                    _LOCAL_CHUNKS = json.load(f)
-                print(f"⚡ [Local Cache] Successfully loaded {len(_LOCAL_CHUNKS)} chunks into memory!")
-                return _LOCAL_CHUNKS
+                    data = json.load(f)
+                print(f"⚡ [Local Cache] Successfully loaded {len(data)} chunks into memory!")
+                return data
             except Exception as e:
                 print(f"⚠️ Failed to load local chunks from {path}: {e}")
     
     print("⚠️ [Local Cache] chunks_cache.json not found, falling back to database query.")
-    _LOCAL_CHUNKS = []
-    return _LOCAL_CHUNKS
+    return []
 
 
-_CHUNKS_CACHE = {}
-_SESSION_CACHE = {}
-_DOCS_CACHE = {}
+# Load once at module startup — stored at module level, never re-read from disk per request
+_LOCAL_CHUNKS = _load_local_chunks()
+
 
 
 def get_ai_response_stream_with_history(question, session_id=None, user_id=None, model_name="gemini-2.5-flash", grade=None, subject=None, force_reset_context=False, image_data=None):
@@ -1389,6 +1389,9 @@ PHẦN TRẢ LỜI CỦA BẠN PHẢI TUÂN THEO CẤU TRÚC SAU:
                 chat_history.append(user_msg)
                 
                 chat_history.append({"role": "model", "content": full_answer})
+                # Keep only the last 20 messages to prevent prompt from growing unbounded
+                if len(chat_history) > 20:
+                    chat_history = chat_history[-20:]
                 try:
                     update_payload = {"messages": chat_history}
                     if target_grade:
@@ -1397,14 +1400,17 @@ PHẦN TRẢ LỜI CỦA BẠN PHẢI TUÂN THEO CẤU TRÚC SAU:
                         update_payload["subject"] = target_subject
                     
                     supabase.table("chat_sessions").update(update_payload).eq("id", session_id).execute()
+                    # CRITICAL: update in-memory session cache so next request reads from here (not DB)
                     _SESSION_CACHE[session_id] = {
                         "messages": chat_history,
                         "grade": target_grade,
                         "subject": target_subject
                     }
                     _cache_chat_session_context(session_id, grade=update_payload.get("grade") or target_grade, subject=update_payload.get("subject") or target_subject)
+                    print(f"⚡ [Session Cache] Updated in-memory for session {session_id} ({len(chat_history)} messages).")
                 except Exception as session_err:
                     print(f"⚠️ Không thể cập nhật chat_sessions: {session_err}")
+
 
                 model_succeeded = True
                 return
