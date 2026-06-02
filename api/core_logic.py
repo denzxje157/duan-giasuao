@@ -866,30 +866,39 @@ def save_document_to_db(text_content, source_name, doc_id):
 def _document_matches_subject(doc_name, target_subject):
     if not target_subject:
         return True
-    doc_name_lower = (doc_name or "").lower()
-    target_lower = target_subject.lower()
     
-    # Common mappings/aliases to check in file name
-    if target_lower == "toán":
-        return "toán" in doc_name_lower or "toan" in doc_name_lower
-    if target_lower == "ngữ văn" or target_lower == "văn":
-        return "văn" in doc_name_lower or "van" in doc_name_lower or "tiếng việt" in doc_name_lower or "viet" in doc_name_lower
-    if target_lower == "tin học":
-        return "tin" in doc_name_lower
-    if target_lower == "tiếng anh":
-        return "anh" in doc_name_lower or "english" in doc_name_lower
-    if target_lower == "vật lý" or target_lower == "vật lí":
-        return "lý" in doc_name_lower or "li" in doc_name_lower
-    if target_lower == "hóa học" or target_lower == "hóa":
-        return "hóa" in doc_name_lower or "hoa" in doc_name_lower
-    if target_lower == "sinh học" or target_lower == "sinh":
-        return "sinh" in doc_name_lower
-    if target_lower == "lịch sử":
-        return "sử" in doc_name_lower or "su" in doc_name_lower
-    if target_lower == "địa lý" or target_lower == "địa lí":
-        return "địa" in doc_name_lower or "dia" in doc_name_lower
+    import unicodedata
+    def strip_accents(t):
+        return "".join(c for c in unicodedata.normalize('NFD', str(t or "")) if unicodedata.category(c) != 'Mn').lower()
         
-    return target_lower in doc_name_lower
+    doc_clean = strip_accents(doc_name)
+    sub_clean = strip_accents(target_subject)
+    
+    # Check if target subject is in doc_clean
+    if sub_clean in doc_clean:
+        return True
+        
+    # Standard mapping fallbacks
+    if sub_clean == "toan":
+        return "toan" in doc_clean
+    if sub_clean == "van" or sub_clean == "ngu van":
+        return "van" in doc_clean or "tieng viet" in doc_clean
+    if sub_clean == "tin" or sub_clean == "tin hoc":
+        return "tin" in doc_clean
+    if sub_clean == "tieng anh" or sub_clean == "anh":
+        return "anh" in doc_clean or "english" in doc_clean
+    if sub_clean == "vat ly" or sub_clean == "ly" or sub_clean == "vat li":
+        return "ly" in doc_clean or "li" in doc_clean
+    if sub_clean == "hoa" or sub_clean == "hoa hoc":
+        return "hoa" in doc_clean
+    if sub_clean == "sinh" or sub_clean == "sinh hoc":
+        return "sinh" in doc_clean
+    if sub_clean == "lich su" or sub_clean == "su":
+        return "su" in doc_clean
+    if sub_clean == "dia" or sub_clean == "dia ly" or sub_clean == "dia li":
+        return "dia" in doc_clean
+        
+    return False
 
 
 _CHUNKS_CACHE = {}
