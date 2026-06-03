@@ -297,8 +297,8 @@ def _generate_stream(prompt, api_key, model_name="gemini-2.5-flash", image_data=
 
 load_dotenv()
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://ondtrlthellodkhhrmjx.supabase.co")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9uZHRybHRoZWxsb2RraGhybWp4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODQ4NjM0MSwiZXhwIjoyMDk0MDYyMzQxfQ.W67NwYXR_o6lFR3SnNV3b69RT6dMa-vVoQHOSDSwQLc")
 
 print(f"[Supabase] CORE_LOGIC: {SUPABASE_URL}")
 
@@ -326,6 +326,17 @@ def get_all_keys():
     direct_env_key = os.getenv("GEMINI_API_KEY")
     if direct_env_key and direct_env_key.strip() and direct_env_key.strip() not in keys:
         keys.append(direct_env_key.strip())
+
+    try:
+        res = supabase.table("system_configs").select("key_value").execute()
+        if res.data:
+            for row in res.data:
+                val = row.get("key_value")
+                if val and val.strip() and val.strip() not in keys:
+                    keys.append(val.strip())
+    except Exception as e:
+        print(f"⚠️ Warning: could not load API keys from Supabase system_configs: {e}")
+
     return keys
 
 
@@ -490,7 +501,6 @@ def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, fi
         file_context = f"\n\nDựa trên nội dung tài liệu do người dùng tải lên sau:\n{file_content}\n"
     else:
         try:
-            from database.client import supabase
             # Query document metadata/IDs only to avoid loading large content columns over network
             docs_query = supabase.table("documents").select("id,name")
             if grade: docs_query = docs_query.eq("grade", str(grade).strip())
@@ -554,6 +564,12 @@ def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, fi
                     text = text[:-3]
                 text = text.strip()
                 
+                try:
+                    import re
+                    text = re.sub(r'\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})', r'\\\\', text)
+                except Exception as re_err:
+                    print(f"Error escaping LaTeX in JSON: {re_err}")
+                
                 data = json.loads(text)
                 return data
             except Exception as e:
@@ -573,7 +589,6 @@ def generate_flashcards(topic, grade=None, subject=None, file_content=None, user
         file_context = f"\n\nDựa trên nội dung tài liệu do người dùng tải lên sau:\n{file_content}\n"
     else:
         try:
-            from database.client import supabase
             # Query document metadata/IDs only to avoid loading large content columns over network
             docs_query = supabase.table("documents").select("id,name")
             if grade: docs_query = docs_query.eq("grade", str(grade).strip())
@@ -631,6 +646,12 @@ def generate_flashcards(topic, grade=None, subject=None, file_content=None, user
                 if text.endswith("```"):
                     text = text[:-3]
                 text = text.strip()
+                
+                try:
+                    import re
+                    text = re.sub(r'\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})', r'\\\\', text)
+                except Exception as re_err:
+                    print(f"Error escaping LaTeX in JSON: {re_err}")
                 
                 data = json.loads(text)
                 return data
