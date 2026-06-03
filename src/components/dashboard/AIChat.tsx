@@ -420,9 +420,13 @@ export default function AIChat({ user }: AIChatProps) {
   const [speechRate, setSpeechRate] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('giasuao_speech_rate');
-      return saved ? parseFloat(saved) : 1.15;
+      if (!saved || saved === '1.5') {
+        localStorage.setItem('giasuao_speech_rate', '1.2');
+        return 1.2;
+      }
+      return parseFloat(saved);
     }
-    return 1.15;
+    return 1.2;
   });
   const [availableLocalVoices, setAvailableLocalVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedLocalVoiceURI, setSelectedLocalVoiceURI] = useState<string>(() => {
