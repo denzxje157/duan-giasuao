@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { motion } from 'motion/react';
 import { MessageSquare, Sparkles, User, Bot, Send, Plus, Menu, Moon, Sun, Pen, Mic, Volume2, VolumeX } from 'lucide-react';
 import { User as UserType } from '../../types';
-import { fetchChatHistory, fetchChatSessions, deleteChatSession, initSession as initSessionApi, API_BASE_URL, ChatHistoryRow, ChatSessionGroup } from '../../lib/api';
+import { fetchChatHistory, fetchChatSessions, deleteChatSession, initSession as initSessionApi, API_BASE_URL, ChatHistoryRow, ChatSessionGroup, ChatSessionItem } from '../../lib/api';
 import ChatSidebar from './ChatSidebar';
 import DrawingCanvas from './DrawingCanvas';
 import ReactMarkdown from 'react-markdown';
@@ -28,6 +28,86 @@ interface SuggestionItem {
 }
 
 type SubjectCard = { key: string; label: string; icon: string; color: string };
+
+const saveGuestMessageAndSession = (
+  sessionId: string,
+  messages: Message[],
+  grade: string,
+  subject: string,
+  oldSessionId?: string | null
+) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(`ai_chat_guest_messages_${sessionId}`, JSON.stringify(messages));
+  if (oldSessionId && oldSessionId !== sessionId) {
+    localStorage.removeItem(`ai_chat_guest_messages_${oldSessionId}`);
+  }
+
+  const localSessionsStr = localStorage.getItem('ai_chat_guest_sessions');
+  let groups: ChatSessionGroup[] = [];
+  if (localSessionsStr) {
+    try {
+      groups = JSON.parse(localSessionsStr);
+    } catch (e) {}
+  }
+
+  // 1. DEDUPLICATE: Remove any existing session item with either sessionId or oldSessionId from ALL groups/subjects
+  groups.forEach(g => {
+    g.subjects.forEach(s => {
+      s.sessions = s.sessions.filter(sess => 
+        sess.session_id !== sessionId && 
+        sess.session_id !== oldSessionId
+      );
+    });
+  });
+
+  // 2. Clean up empty subject groups & grade groups
+  groups.forEach(g => {
+    g.subjects = g.subjects.filter(s => s.sessions.length > 0);
+  });
+  groups = groups.filter(g => g.subjects.length > 0);
+
+  // 3. Find/create the correct target grade & subject group
+  const gradeLabel = `Lớp ${grade}`;
+  let gradeGroup = groups.find(g => g.grade === gradeLabel);
+  if (!gradeGroup) {
+    gradeGroup = { grade: gradeLabel, subjects: [] };
+    groups.push(gradeGroup);
+  }
+
+  let subjectGroup = gradeGroup.subjects.find(s => s.subject === subject);
+  if (!subjectGroup) {
+    subjectGroup = { subject, sessions: [] };
+    gradeGroup.subjects.push(subjectGroup);
+  }
+
+  // 4. Create/update the session item
+  const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant');
+  const firstUserMsg = messages.find(m => m.role === 'user');
+  
+  let inferredTitle = 'Cuộc trò chuyện mới';
+  if (firstUserMsg) {
+    const text = firstUserMsg.content;
+    if (text.includes("Chào Gia sư, mình muốn học môn")) {
+      const match = text.match(/môn\s+([^\.]+)/);
+      inferredTitle = match ? `Học môn ${match[1].trim()}` : "Học môn mới";
+    } else {
+      inferredTitle = text.slice(0, 30);
+    }
+  }
+
+  const sessionItem: ChatSessionItem = {
+    session_id: sessionId,
+    title: inferredTitle,
+    subject: subject,
+    grade: gradeLabel,
+    updated_at: new Date().toISOString(),
+    last_message: lastAssistantMsg ? lastAssistantMsg.content : ''
+  };
+
+  subjectGroup.sessions.unshift(sessionItem);
+
+  localStorage.setItem('ai_chat_guest_sessions', JSON.stringify(groups));
+};
 type SubjectSection = { title: string; items: SubjectCard[] };
 
 function getSubjectSectionsByGrade(grade: number): SubjectSection[] {
@@ -127,11 +207,11 @@ function getSubjectSectionsByGrade(grade: number): SubjectSection[] {
 
 function inferSubjectFromText(content: string): string {
   const text = (content || '').toLowerCase();
-  if (text.includes('toán') || text.includes('phép cộng') || text.includes('phép trừ')) return 'Môn Toán';
-  if (text.includes('tiếng việt') || text.includes('chính tả') || text.includes('tập đọc')) return 'Môn Tiếng Việt';
-  if (text.includes('tiếng anh') || text.includes('english') || text.includes('alphabet')) return 'Môn Tiếng Anh';
-  if (text.includes('tự nhiên') || text.includes('xã hội') || text.includes('cây') || text.includes('con vật')) return 'Tự nhiên & Xã hội';
-  if (text.includes('ngữ văn') || text.includes('văn học') || text.includes('phân tích')) return 'Ngữ Văn';
+  if (text.includes('toán') || text.includes('phép cộng') || text.includes('phép trừ')) return 'Toán';
+  if (text.includes('tiếng việt') || text.includes('chính tả') || text.includes('tập đọc')) return 'Tiếng Việt';
+  if (text.includes('tiếng anh') || text.includes('english') || text.includes('alphabet')) return 'Tiếng Anh';
+  if (text.includes('tự nhiên') || text.includes('xã hội') || text.includes('cây') || text.includes('con vật')) return 'Tự nhiên và Xã hội';
+  if (text.includes('ngữ văn') || text.includes('văn học') || text.includes('phân tích')) return 'Ngữ văn';
   if (text.includes('lịch sử và địa lý')) return 'Lịch sử và Địa lý';
   if (text.includes('khoa học tự nhiên')) return 'Khoa học tự nhiên';
   if (text.includes('khoa học')) return 'Khoa học';
@@ -141,13 +221,13 @@ function inferSubjectFromText(content: string): string {
   if (text.includes('địa lý')) return 'Địa lý';
   if (text.includes('lịch sử')) return 'Lịch sử';
   if (text.includes('đạo đức')) return 'Đạo đức';
-  if (text.includes('vật lý') || text.includes('điện') || text.includes('lực')) return 'Vật Lý';
-  if (text.includes('hóa học') || text.includes('phản ứng')) return 'Hóa Học';
-  if (text.includes('sinh học') || text.includes('tế bào')) return 'Sinh Học';
+  if (text.includes('vật lý') || text.includes('điện') || text.includes('lực')) return 'Vật lý';
+  if (text.includes('hóa học') || text.includes('phản ứng')) return 'Hóa học';
+  if (text.includes('sinh học') || text.includes('tế bào')) return 'Sinh học';
   return 'Môn học';
 }
 
-const MessageContent = ({ content }: { content: string }) => {
+const MessageContent = ({ content, isStreaming }: { content: string; isStreaming?: boolean }) => {
   return (
     <div className="prose prose-invert max-w-none break-words">
       <ReactMarkdown
@@ -156,6 +236,11 @@ const MessageContent = ({ content }: { content: string }) => {
       >
         {content}
       </ReactMarkdown>
+      {isStreaming && (
+        <span className="inline-flex items-center ml-1">
+          <span className="inline-block w-2 h-4 bg-brand-500 animate-pulse align-middle rounded-sm" />
+        </span>
+      )}
     </div>
   );
 };
@@ -335,9 +420,13 @@ export default function AIChat({ user }: AIChatProps) {
   const [speechRate, setSpeechRate] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('giasuao_speech_rate');
-      return saved ? parseFloat(saved) : 1.15;
+      if (!saved || saved === '1.5') {
+        localStorage.setItem('giasuao_speech_rate', '1.2');
+        return 1.2;
+      }
+      return parseFloat(saved);
     }
-    return 1.15;
+    return 1.2;
   });
   const [availableLocalVoices, setAvailableLocalVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedLocalVoiceURI, setSelectedLocalVoiceURI] = useState<string>(() => {
@@ -679,7 +768,32 @@ export default function AIChat({ user }: AIChatProps) {
     let cancelled = false;
 
     const loadHistory = async () => {
-      if (user.isGuest) return;
+      if (user.isGuest) {
+        const storedSessionId = localStorage.getItem(`ai_chat_session_${user.id || 'guest'}`);
+        if (!storedSessionId) {
+          setMessages([]);
+          return;
+        }
+        const storedMessages = localStorage.getItem(`ai_chat_guest_messages_${storedSessionId}`);
+        if (storedMessages) {
+          try {
+            const parsed = JSON.parse(storedMessages);
+            setMessages(parsed);
+            const firstUserMsg = parsed.find((m: any) => m.role === 'user');
+            if (firstUserMsg) {
+              setSelectedSubject(inferSubjectFromText(firstUserMsg.content));
+            } else {
+              setSelectedSubject('Môn học');
+            }
+            setCurrentView('chat');
+          } catch (e) {
+            setMessages([]);
+          }
+        } else {
+          setMessages([]);
+        }
+        return;
+      }
 
       const storedSessionId = localStorage.getItem(`ai_chat_session_${user.id || user.email}`);
       if (!storedSessionId) {
@@ -733,7 +847,19 @@ export default function AIChat({ user }: AIChatProps) {
     let cancelled = false;
 
     const loadSessions = async () => {
-      if (user.isGuest) return;
+      if (user.isGuest) {
+        const localSessions = localStorage.getItem('ai_chat_guest_sessions');
+        if (localSessions) {
+          try {
+            setSessionGroups(JSON.parse(localSessions));
+          } catch (e) {
+            setSessionGroups([]);
+          }
+        } else {
+          setSessionGroups([]);
+        }
+        return;
+      }
       try {
         const data = await fetchChatSessions();
         if (!cancelled) {
@@ -752,9 +878,9 @@ export default function AIChat({ user }: AIChatProps) {
   }, [user.isGuest, sidebarRefreshTrigger]);
 
   useEffect(() => {
-    if (!historyUserId || !sessionId || user.isGuest) return;
+    if (!historyUserId || !sessionId) return;
     localStorage.setItem(`ai_chat_session_${historyUserId}`, sessionId);
-  }, [historyUserId, sessionId, user.isGuest]);
+  }, [historyUserId, sessionId]);
 
   const toggleSpeechRecognition = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -798,7 +924,7 @@ export default function AIChat({ user }: AIChatProps) {
 
       let newSessionId = sessionId;
       try {
-        const initData = await initSessionApi(sessionId || undefined, String(user.grade || ''), subjectName);
+        const initData = await initSessionApi(undefined, String(user.grade || ''), subjectName);
         if (initData?.new_session_id) {
           newSessionId = initData.new_session_id;
         } else if (!newSessionId && typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -821,8 +947,8 @@ export default function AIChat({ user }: AIChatProps) {
       setCurrentView('chat');
 
       await sendMessage(
-        `Chào Gia sư, mình muốn học môn ${subjectName}. Hãy chào học sinh theo lớp ${user.grade} thật thân thiện và đưa ra 4 lựa chọn học tập ngắn gọn cho môn này.`,
-        { hiddenUserMessage: true, overrideSubject: subjectName }
+        `Chào Gia sư, mình là ${user.name || 'học sinh'}, học sinh lớp ${user.grade}. Mình muốn học môn ${subjectName}. Hãy chào mình thật thân thiện, cá nhân hóa theo tên của mình và đưa ra 4 lựa chọn học tập ngắn gọn cho môn này.`,
+        { hiddenUserMessage: true, overrideSubject: subjectName, sessionIdOverride: newSessionId }
       );
     } finally {
       setSubjectLoadingKey(null);
@@ -849,7 +975,7 @@ export default function AIChat({ user }: AIChatProps) {
 
       let newSessionId = sessionId;
       try {
-        const initData = await initSessionApi(sessionId || undefined, String(user.grade || ''), 'Môn học');
+        const initData = await initSessionApi(undefined, String(user.grade || ''), 'Môn học');
         if (initData?.new_session_id) {
           newSessionId = initData.new_session_id;
         } else if (!newSessionId && typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -871,7 +997,7 @@ export default function AIChat({ user }: AIChatProps) {
       setSidebarOpen(false);
       setCurrentView('chat');
 
-      await sendMessage(msg, { overrideSubject: 'Môn học' });
+      await sendMessage(msg, { overrideSubject: 'Môn học', sessionIdOverride: newSessionId });
     } finally {
       setSubjectLoadingKey(null);
     }
@@ -902,6 +1028,31 @@ export default function AIChat({ user }: AIChatProps) {
   const handleOpenSessionHistory = async (targetSessionId: string) => {
     try {
       setIsHistoryLoading(true);
+      if (user.isGuest) {
+        const storedMessages = localStorage.getItem(`ai_chat_guest_messages_${targetSessionId}`);
+        if (storedMessages) {
+          try {
+            const parsed = JSON.parse(storedMessages);
+            setMessages(parsed);
+            const firstUserMsg = parsed.find((m: any) => m.role === 'user');
+            if (firstUserMsg) {
+              setSelectedSubject(inferSubjectFromText(firstUserMsg.content));
+            } else {
+              setSelectedSubject('Môn học');
+            }
+          } catch (e) {
+            setMessages([]);
+          }
+        } else {
+          setMessages([]);
+        }
+        handleNavigation('chat');
+        setSidebarOpen(false);
+        setSessionId(targetSessionId);
+        resetSuggestionMemory();
+        return;
+      }
+
       const rows = await fetchChatHistory(targetSessionId === 'no-session' ? undefined : targetSessionId);
       console.log('Dữ liệu lịch sử theo session:', rows);
       const mappedMessages: Message[] = (rows || []).map((row: any) => ({
@@ -932,9 +1083,32 @@ export default function AIChat({ user }: AIChatProps) {
       setIsHistoryLoading(false);
     }
   };
-
+ 
   const handleDeleteSession = async (targetSessionId: string) => {
     try {
+      if (user.isGuest) {
+        localStorage.removeItem(`ai_chat_guest_messages_${targetSessionId}`);
+        const localSessionsStr = localStorage.getItem('ai_chat_guest_sessions');
+        if (localSessionsStr) {
+          try {
+            let groups: ChatSessionGroup[] = JSON.parse(localSessionsStr);
+            groups = groups.map((gradeGroup) => ({
+              ...gradeGroup,
+              subjects: gradeGroup.subjects.map((subjectGroup) => ({
+                ...subjectGroup,
+                sessions: subjectGroup.sessions.filter(session => session.session_id !== targetSessionId),
+              })).filter(subjectGroup => subjectGroup.sessions.length > 0),
+            })).filter(gradeGroup => gradeGroup.subjects.length > 0);
+            localStorage.setItem('ai_chat_guest_sessions', JSON.stringify(groups));
+            setSessionGroups(groups);
+          } catch (e) {}
+        }
+        if (sessionId === targetSessionId) {
+          handleNewChat();
+        }
+        return;
+      }
+
       await deleteChatSession(targetSessionId);
       setSessionGroups(prev => prev.map((gradeGroup) => ({
         ...gradeGroup,
@@ -943,7 +1117,7 @@ export default function AIChat({ user }: AIChatProps) {
           sessions: subjectGroup.sessions.filter(session => session.session_id !== targetSessionId),
         })).filter(subjectGroup => subjectGroup.sessions.length > 0),
       })).filter(gradeGroup => gradeGroup.subjects.length > 0));
-
+ 
       if (sessionId === targetSessionId) {
         handleNewChat();
       }
@@ -952,7 +1126,10 @@ export default function AIChat({ user }: AIChatProps) {
     }
   };
 
-  const submitMessage = async (userMsg: string, options?: { hiddenUserMessage?: boolean; overrideSubject?: string }) => {
+  const submitMessage = async (
+    userMsg: string,
+    options?: { hiddenUserMessage?: boolean; overrideSubject?: string; sessionIdOverride?: string | null }
+  ) => {
     if (!userMsg.trim() || isLoading) return;
     
     const activeSubject = options?.overrideSubject || selectedSubject;
@@ -975,6 +1152,7 @@ export default function AIChat({ user }: AIChatProps) {
       const apiKey = localStorage.getItem('admin_gemini_api_key') || process.env.GEMINI_API_KEY;
       
       const chatUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/chat` : '/api/chat';
+      const activeSessionId = options?.sessionIdOverride !== undefined ? options.sessionIdOverride : sessionId;
       const response = await fetch(chatUrl, {
         method: 'POST',
         headers: {
@@ -983,7 +1161,7 @@ export default function AIChat({ user }: AIChatProps) {
         },
         body: JSON.stringify({
           question: userMsg,
-          session_id: sessionId || undefined,
+          session_id: activeSessionId || undefined,
           user_id: historyUserId || undefined,
           grade: String(user.grade || ''),
           subject: activeSubject || undefined,
@@ -1002,6 +1180,7 @@ export default function AIChat({ user }: AIChatProps) {
       setIsLoading(false); 
 
       let fullAssistantText = '';
+      let detectedSessionId = sessionId;
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder('utf-8');
@@ -1017,6 +1196,7 @@ export default function AIChat({ user }: AIChatProps) {
           for (const line of lines) {
             const sessionMatch = line.match(/\[SESSION_ID:([^\]]+)\]/);
             if (sessionMatch) {
+              detectedSessionId = sessionMatch[1];
               setSessionId(sessionMatch[1]);
               continue;
             }
@@ -1061,15 +1241,24 @@ export default function AIChat({ user }: AIChatProps) {
       const fallbackSuggestions = parsedSuggestions.length > 0 ? parsedSuggestions : getDefaultSuggestionsForSubject(selectedSubject || '');
       const finalSuggestions = fallbackSuggestions.length > 0 ? fallbackSuggestions : [];
 
-      setMessages(prev => prev.map(msg => {
-        if (msg.id !== assistantMessageId) return msg;
-        return {
-          ...msg,
-          content: fullAssistantText,
-          status: 'completed',
-          suggestions: finalSuggestions,
-        };
-      }));
+      let updatedMsgs: Message[] = [];
+      setMessages(prev => {
+        const newMsgs: Message[] = prev.map(msg => {
+          if (msg.id !== assistantMessageId) return msg;
+          return {
+            ...msg,
+            content: fullAssistantText,
+            status: 'completed' as const,
+            suggestions: finalSuggestions,
+          };
+        });
+        updatedMsgs = newMsgs;
+        return newMsgs;
+      });
+
+      if (user.isGuest) {
+        saveGuestMessageAndSession(detectedSessionId || 'guest', updatedMsgs, String(user.grade || ''), activeSubject || 'Môn học', activeSessionId);
+      }
 
       if (usedVoiceRef.current) {
         const textToSpeak = extractAnswerFromMarkers(fullAssistantText);
@@ -1087,7 +1276,10 @@ export default function AIChat({ user }: AIChatProps) {
     }
   };
 
-  const sendMessage = async (messageText: string, options?: { hiddenUserMessage?: boolean; overrideSubject?: string }) => {
+  const sendMessage = async (
+    messageText: string,
+    options?: { hiddenUserMessage?: boolean; overrideSubject?: string; sessionIdOverride?: string | null }
+  ) => {
     await submitMessage(messageText, options);
   };
 
@@ -1152,9 +1344,12 @@ export default function AIChat({ user }: AIChatProps) {
   };
 
   const handleSuggestionClick = async (label: string) => {
-    const command = commandFromSuggestion(label, user.grade || 12, selectedSubject);
-    setInput(command);
-    await sendMessage(command);
+    // Always send suggestion as a message in the CURRENT session (no new session, no navigation)
+    // This mirrors Gemini/ChatGPT behavior: clicking a suggestion chip continues the same chat
+    await submitMessage(label, {
+      // Pass current subject so submitMessage doesn't redirect to selection screen
+      overrideSubject: selectedSubject || 'Môn học',
+    });
   };
 
   const handleGoogleAntigravityTest = async () => {
@@ -1248,7 +1443,7 @@ export default function AIChat({ user }: AIChatProps) {
             
             {/* Thanh nhập trò chuyện tự do */}
             <div className="p-4 bg-[var(--bg-primary)]">
-              <form onSubmit={handleGeneralChat} className="mx-auto flex max-w-[800px] gap-2 rounded-2xl border border-white/10 bg-white/5 p-2 shadow-sm focus-within:border-brand-500/50">
+              <form onSubmit={handleGeneralChat} className="mx-auto flex max-w-[1000px] gap-2 rounded-2xl border border-white/10 bg-white/5 p-2 shadow-sm focus-within:border-brand-500/50">
                 <input
                   type="text"
                   value={generalInput}
@@ -1280,7 +1475,7 @@ export default function AIChat({ user }: AIChatProps) {
 
       return (
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 custom-scrollbar md:px-6" style={{ maxWidth: '100%' }}>
-          <div className="mx-auto flex w-full max-w-[800px] flex-col gap-6">
+          <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-6">
             {messages.map((msg) => (
               <motion.div
                 key={msg.id}
@@ -1291,7 +1486,7 @@ export default function AIChat({ user }: AIChatProps) {
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'user' ? 'bg-white text-black' : 'bg-white/5 border border-white/10 text-white'}`}>
                   {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                 </div>
-                <div className={`max-w-[min(780px,100%)] min-w-0 ${msg.role === 'user' ? 'text-white font-medium' : 'text-[var(--text-primary)]'}`}>
+                <div className={`max-w-[min(950px,100%)] min-w-0 ${msg.role === 'user' ? 'text-white font-medium' : 'text-[var(--text-primary)]'}`}>
                   {msg.role === 'user' ? (
                     <div className="flex flex-col gap-2 items-end">
                       {msg.imageUrl && (
@@ -1312,7 +1507,18 @@ export default function AIChat({ user }: AIChatProps) {
                       return (
                         <div className="flex w-full flex-col gap-4">
                           <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                            <MessageContent content={answerPart || ''} />
+                            {msg.status === 'streaming' && !answerPart ? (
+                              <div className="flex items-center gap-2 text-zinc-400 font-normal py-1">
+                                <span className="text-xs uppercase tracking-wider animate-pulse">Gia sư đang soạn câu trả lời</span>
+                                <div className="flex gap-1.5 items-center">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                                </div>
+                              </div>
+                            ) : (
+                              <MessageContent content={answerPart || ''} isStreaming={msg.status === 'streaming'} />
+                            )}
                           </div>
 
                           {/* Nút Đọc To (Speaker) */}
@@ -1611,7 +1817,7 @@ export default function AIChat({ user }: AIChatProps) {
 
         {currentView === 'chat' && (
           <div className="sticky bottom-0 z-10 border-t border-white/10 bg-[color-mix(in_srgb,var(--bg-primary)_94%,transparent)] px-4 py-4 backdrop-blur-md">
-            <form onSubmit={handleSend} className="mx-auto flex w-full max-w-[800px] items-center gap-2 rounded-[24px] border border-white/10 bg-white/5 p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+            <form onSubmit={handleSend} className="mx-auto flex w-full max-w-[1000px] items-center gap-2 rounded-[24px] border border-white/10 bg-white/5 p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
               <input
                 type="text"
                 value={input}

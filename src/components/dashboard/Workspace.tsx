@@ -28,6 +28,46 @@ interface WorkspaceProps {
   } | null;
 }
 
+interface SuggestionItem {
+  type: string;
+  label: string;
+}
+
+function extractAnswerFromMarkers(content: string): string {
+  let answer = content;
+  const match = content.match(/\[ANSWER\]([\s\S]*?)(?:\[END_ANSWER\]|$)/i);
+  if (match && match[1]) {
+    answer = match[1].trim();
+  }
+  // Remove [QUIZ] block from the visible answer
+  answer = answer.replace(/\[QUIZ\][\s\S]*?(?:\[END_QUIZ\]|$)/ig, '').trim();
+  // Remove [SUGGESTIONS] block from the visible answer
+  answer = answer.replace(/\[SUGGESTIONS\][\s\S]*?(?:\[END_SUGGESTIONS\]|$)/ig, '').trim();
+  return answer;
+}
+
+function extractSuggestionsFromMarkers(content: string): SuggestionItem[] {
+  const match = content.match(/\[SUGGESTIONS\]([\s\S]*?)(?:\[END_SUGGESTIONS\]|$)/i);
+  if (!match || !match[1]) {
+    return [];
+  }
+
+  return match[1]
+    .match(/\{[\s\S]*?\}/g)
+    ?.map((entry) => {
+      try {
+        const parsed = JSON.parse(entry);
+        if (parsed && typeof parsed === 'object' && parsed.label) {
+          return { type: String(parsed.type || 'general'), label: String(parsed.label) };
+        }
+      } catch {
+        return null;
+      }
+      return null;
+    })
+    .filter((item): item is SuggestionItem => Boolean(item)) || [];
+}
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -43,8 +83,10 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
 
 
   const [messages, setMessages] = useState<Message[]>([]);
+  const [workspaceSessionId, setWorkspaceSessionId] = useState<string | null>(null);
 
   useEffect(() => {
+    setWorkspaceSessionId(null);
     setMessages([
       { 
         role: 'assistant', 
@@ -222,6 +264,7 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
         body: JSON.stringify({
           question: userMsg,
           user_id: user.id || undefined,
+          session_id: workspaceSessionId || undefined,
           grade: String(displayGrade),
           subject: displayTitle,
           learning_context: learningContext,
@@ -248,6 +291,12 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
           const lines = chunk.split('\n');
           
           for (const line of lines) {
+            const sessionMatch = line.match(/\[SESSION_ID:([^\]]+)\]/);
+            if (sessionMatch) {
+              setWorkspaceSessionId(sessionMatch[1]);
+              continue;
+            }
+
             if (line.trim() === 'data: [DONE]') {
               break;
             }
@@ -427,44 +476,77 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
                 {msg.role === 'user' ? (
                   msg.content
                 ) : (
-                  <div>
-                    <ReactMarkdown 
-                      remarkPlugins={[remarkMath]} 
-                      rehypePlugins={[rehypeKatex]}
-                    >
-                      {msg.content}
-                    </ReactMarkdown>
-                    {/* Knowledge Context Mock */}
-                    {(i === 0) && (
-                      <div className="mt-4 space-y-3">
-                        <button 
-                          className="w-full text-left p-2.5 bg-brand-50/50 hover:bg-brand-50 border border-brand-100 rounded-lg flex items-start gap-2 transition-colors group cursor-default"
-                        >
-                          <BookOpen className="w-4 h-4 text-brand-500 shrink-0 mt-0.5" />
-                          <span className="text-xs font-semibold text-brand-700 leading-tight">
-                            <span className="block mb-0.5">Tài liệu: {displayTitle}</span>
-                            <span className="font-medium text-brand-500 opacity-80">AI đã sẵn sàng phân tích sách giáo khoa này</span>
-                          </span>
-                        </button>
-                        
-                        <div className="flex flex-col gap-1.5">
-                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">Gợi ý tương tác:</span>
-                           <button onClick={() => handleSend(undefined, `Liệt kê các ý chính của sách ${displayTitle}`)} className="text-left text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline bg-white border border-slate-100 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all truncate">Liệt kê các ý chính trong tệp này</button>
-                           <button onClick={() => handleSend(undefined, `Tạo kế hoạch học tập môn ${displayTitle}`)} className="text-left text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline bg-white border border-slate-100 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all truncate">Tạo kế hoạch học tập cho tệp này</button>
-                           <button onClick={() => handleSend(undefined, `Tóm tắt nhanh cuốn ${displayTitle}`)} className="text-left text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline bg-white border border-slate-100 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all truncate">Tóm tắt nội dung sách</button>
+                  (() => {
+                    const answerPart = extractAnswerFromMarkers(msg.content);
+                    const suggestions = extractSuggestionsFromMarkers(msg.content);
+
+                    return (
+                      <div className="flex w-full flex-col gap-4">
+                        <div className="markdown-body overflow-hidden">
+                          <ReactMarkdown 
+                            remarkPlugins={[remarkMath]} 
+                            rehypePlugins={[rehypeKatex]}
+                          >
+                            {answerPart}
+                          </ReactMarkdown>
+                        </div>
+
+                        {suggestions.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-slate-100">
+                            {suggestions.map((sug, idx) => {
+                              let icon = '💡';
+                              if (sug.type === 'exercise') icon = '📝';
+                              if (sug.type === 'theory') icon = '📚';
+                              if (sug.type === 'resource') icon = '🔗';
+                              if (sug.type === 'image') icon = '🖼️';
+                              return (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => handleSend(undefined, sug.label)}
+                                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 px-3 py-1.5 text-xs font-semibold shadow-sm transition-colors text-left"
+                                >
+                                  <span>{icon}</span>
+                                  <span>{sug.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Knowledge Context Mock */}
+                        {(i === 0) && (
+                          <div className="mt-4 space-y-3">
+                            <button 
+                              className="w-full text-left p-2.5 bg-brand-50/50 hover:bg-brand-50 border border-brand-100 rounded-lg flex items-start gap-2 transition-colors group cursor-default"
+                            >
+                              <BookOpen className="w-4 h-4 text-brand-500 shrink-0 mt-0.5" />
+                              <span className="text-xs font-semibold text-brand-700 leading-tight">
+                                <span className="block mb-0.5">Tài liệu: {displayTitle}</span>
+                                <span className="font-medium text-brand-500 opacity-80">AI đã sẵn sàng phân tích sách giáo khoa này</span>
+                              </span>
+                            </button>
+                            
+                            <div className="flex flex-col gap-1.5">
+                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pl-1">Gợi ý tương tác:</span>
+                               <button onClick={() => handleSend(undefined, `Liệt kê các ý chính của sách ${displayTitle}`)} className="text-left text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline bg-white border border-slate-100 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all truncate">Liệt kê các ý chính trong tệp này</button>
+                               <button onClick={() => handleSend(undefined, `Tạo kế hoạch học tập môn ${displayTitle}`)} className="text-left text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline bg-white border border-slate-100 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all truncate">Tạo kế hoạch học tập cho tệp này</button>
+                               <button onClick={() => handleSend(undefined, `Tóm tắt nhanh cuốn ${displayTitle}`)} className="text-left text-xs font-semibold text-brand-600 hover:text-brand-700 hover:underline bg-white border border-slate-100 px-3 py-2 rounded-lg shadow-sm hover:shadow-md transition-all truncate">Tóm tắt nội dung sách</button>
+                            </div>
+                          </div>
+                        )}
+                        {/* TTS & Explain Simpler Actions */}
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
+                           <button onClick={() => handleTTS(answerPart)} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold transition-colors">
+                             <Volume2 className="w-3.5 h-3.5" /> Nghe đọc
+                           </button>
+                           <button onClick={handleExplainSimpler} className={`flex items-center gap-1.5 px-3 py-1.5 ${theme.light} hover:opacity-80 ${theme.text} rounded-lg text-xs font-semibold transition-all`}>
+                             <Wand2 className="w-3.5 h-3.5" /> Giải thích đơn giản hơn
+                           </button>
                         </div>
                       </div>
-                    )}
-                    {/* TTS & Explain Simpler Actions */}
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-2">
-                       <button onClick={() => handleTTS(msg.content)} className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold transition-colors">
-                         <Volume2 className="w-3.5 h-3.5" /> Nghe đọc
-                       </button>
-                       <button onClick={handleExplainSimpler} className={`flex items-center gap-1.5 px-3 py-1.5 ${theme.light} hover:opacity-80 ${theme.text} rounded-lg text-xs font-semibold transition-all`}>
-                         <Wand2 className="w-3.5 h-3.5" /> Giải thích đơn giản hơn
-                       </button>
-                    </div>
-                  </div>
+                    );
+                  })()
                 )}
               </div>
             </div>

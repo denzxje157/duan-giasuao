@@ -234,6 +234,10 @@ class TrackActivityRequest(BaseModel):
     study_minutes: int = 1
 
 
+class AddSPRequest(BaseModel):
+    sp_amount: int
+
+
 class ForgotPasswordRequest(BaseModel):
     email: str
 
@@ -499,6 +503,11 @@ def chat(req: ChatRequest):
             update_payload["subject"] = req.subject
         if force_reset_context:
             update_payload["messages"] = []
+            try:
+                supabase.table("chat_history").delete().eq("session_id", req.session_id).execute()
+                print(f"🧹 [Reset Context] Cleared chat_history for session {req.session_id}")
+            except Exception as history_clear_err:
+                print(f"⚠️ Warning: failed to clear chat_history on reset: {history_clear_err}")
 
         try:
             if update_payload:
@@ -533,7 +542,7 @@ def chat(req: ChatRequest):
             question_for_ai,
             req.session_id,
             req.user_id,
-            req.model_name or "gemini-1.5-flash",
+            req.model_name or "gemini-2.5-flash",
             req.grade,
             req.subject,
             force_reset_context,
@@ -582,7 +591,12 @@ def chat(req: ChatRequest):
         except Exception as e:
             print(f"⚠️ Lỗi khi cố gắng lưu lịch sử trò chuyện: {e}")
 
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
+    headers = {
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no"
+    }
+    return StreamingResponse(event_stream(), media_type="text/event-stream", headers=headers)
 
 
 @app.post("/api/generate-quiz")
@@ -771,6 +785,31 @@ def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizatio
         return {"status": "success", "message": "Activity tracked"}
     except Exception as e:
         # Silently fail for tracker to not crash frontend
+        return {"status": "error", "message": str(e)}
+
+
+@app.post("/api/user/add-sp")
+def add_user_sp(req: AddSPRequest, credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
+    try:
+        user_id = _verify_token_and_get_user(credentials)
+        today_str = date.today().strftime("%Y-%m-%d")
+        
+        stat_res = supabase.table("user_stats").select("*").eq("user_id", user_id).execute()
+        if stat_res.data and len(stat_res.data) > 0:
+            stat = stat_res.data[0]
+            new_sp = stat.get("total_sp", 0) + req.sp_amount
+            supabase.table("user_stats").update({"total_sp": new_sp}).eq("user_id", user_id).execute()
+        else:
+            supabase.table("user_stats").insert({
+                "user_id": user_id,
+                "streak": 0,
+                "max_streak": 0,
+                "total_study_minutes": 0,
+                "total_sp": req.sp_amount,
+                "last_study_date": today_str
+            }).execute()
+        return {"status": "success", "message": f"Added {req.sp_amount} SP"}
+    except Exception as e:
         return {"status": "error", "message": str(e)}
 
 

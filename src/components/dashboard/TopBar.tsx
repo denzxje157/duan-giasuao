@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Bell, Search, Clock, Flame, Timer, CheckCircle } from 'lucide-react';
+import { LogOut, Bell, Search, Clock, Flame, Timer, CheckCircle, Trophy } from 'lucide-react';
 import { User as UserType } from '../../types';
-import { getUserStats } from '../../lib/api';
+import { getUserStats, API_BASE_URL } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 
 interface TopBarProps {
   user: UserType;
@@ -13,15 +14,79 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
   const [pomodoroLeft, setPomodoroLeft] = useState<number | null>(null);
   const [pomodoroActive, setPomodoroActive] = useState(false);
   const [currentStreak, setCurrentStreak] = useState(0);
+  const [totalSP, setTotalSP] = useState(0);
 
   useEffect(() => {
-    if (user && !user.isGuest && user.id) {
-      getUserStats(user.id).then((res) => {
-        if (res && res.data) {
-          setCurrentStreak(res.data.current_streak || 0);
-        }
-      }).catch(console.error);
+    if (user.isGuest) {
+      // 1. Calculate guest SP from completed quests
+      let questSpEarned = 0;
+      const savedQuests = localStorage.getItem(`ai_chat_quests_guest`);
+      if (savedQuests) {
+        try {
+          const parsedQuests = JSON.parse(savedQuests);
+          parsedQuests.forEach((q: any) => {
+            if (q.completed) questSpEarned += q.xp;
+          });
+        } catch (e) {}
+      }
+
+      // 2. Calculate guest SP from messages
+      let guestMsgCount = 0;
+      let uniqueDays = new Set<string>();
+      const localSessionsStr = localStorage.getItem('ai_chat_guest_sessions');
+      if (localSessionsStr) {
+        try {
+          const groups = JSON.parse(localSessionsStr);
+          groups.forEach((g: any) => {
+            g.subjects.forEach((subGroup: any) => {
+              subGroup.sessions.forEach((sess: any) => {
+                const storedMsgsStr = localStorage.getItem(`ai_chat_guest_messages_${sess.session_id}`);
+                if (storedMsgsStr) {
+                  try {
+                    const msgs = JSON.parse(storedMsgsStr);
+                    guestMsgCount += msgs.length;
+                  } catch (e) {}
+                }
+                if (sess.updated_at) {
+                  const d = new Date(sess.updated_at);
+                  const dateKey = d.toISOString().split('T')[0];
+                  uniqueDays.add(dateKey);
+                }
+              });
+            });
+          });
+        } catch (e) {}
+      }
+
+      setTotalSP(guestMsgCount * 15 + questSpEarned);
+      setCurrentStreak(uniqueDays.size || 0);
+      return;
     }
+
+    // If logged in
+    const fetchGamificationStats = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+
+        const url = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/user/gamification-stats` : '/api/user/gamification-stats';
+        const res = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        });
+        const data = await res.json();
+        if (data.status === 'success' && data.data) {
+          setCurrentStreak(data.data.streak || 0);
+          setTotalSP(data.data.total_sp || 0);
+        }
+      } catch (e) {
+        console.error("Failed to fetch gamification stats for TopBar:", e);
+      }
+    };
+
+    fetchGamificationStats();
+    // Refresh stats every 10 seconds to keep TopBar in sync with completed quests/activities
+    const interval = setInterval(fetchGamificationStats, 10000);
+    return () => clearInterval(interval);
   }, [user]);
 
   useEffect(() => {
@@ -101,13 +166,17 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
           />
         </div>
 
+        {/* Gamification Star Points */}
+        <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-full px-3 py-1.5 shadow-sm font-bold text-xs" title="Điểm sao tích lũy">
+          <Trophy className="w-3.5 h-3.5 text-amber-500 fill-amber-500 animate-bounce" />
+          <span>{totalSP.toLocaleString()} SP</span>
+        </div>
+
         {/* Gamification Streak */}
-        {!user.isGuest && (
-          <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 text-orange-600 rounded-full px-3 py-1.5 shadow-sm" title="Streak liên tiếp">
-            <Flame className="w-4 h-4 fill-orange-500 text-orange-500" />
-            <span className="text-sm font-bold">{currentStreak}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 text-orange-700 rounded-full px-3 py-1.5 shadow-sm font-bold text-xs" title="Chuỗi học tập liên tiếp">
+          <Flame className="w-3.5 h-3.5 fill-orange-500 text-orange-500" />
+          <span>{currentStreak} ngày</span>
+        </div>
 
         {/* Pomodoro Focus Mode */}
         <button 

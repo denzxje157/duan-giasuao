@@ -342,6 +342,36 @@ def get_all_keys():
 
 AVAILABLE_KEYS = get_all_keys()
 
+# Pre-load chunks.json into memory at module startup (runs once per Vercel function lifecycle)
+_CHUNKS_CACHE = {}
+_SESSION_CACHE = {}
+_DOCS_CACHE = {}
+
+def _load_local_chunks():
+    """Load all pre-indexed document chunks from local JSON file into memory.
+    Called once at module startup; subsequent calls return the already-loaded data instantly."""
+    paths_to_try = [
+        os.path.join(os.path.dirname(__file__), "chunks_cache.json"),
+        "api/chunks_cache.json",
+        "chunks_cache.json"
+    ]
+    for path in paths_to_try:
+        if os.path.exists(path):
+            try:
+                print(f"⚡ [Local Cache] Loading chunks from {path}...")
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                print(f"⚡ [Local Cache] Successfully loaded {len(data)} chunks into memory!")
+                return data
+            except Exception as e:
+                print(f"⚠️ Failed to load local chunks from {path}: {e}")
+    
+    print("⚠️ [Local Cache] chunks_cache.json not found, falling back to database query.")
+    return []
+
+# Load once at module startup — stored at module level, never re-read from disk per request
+_LOCAL_CHUNKS = _load_local_chunks()
+
 
 def refresh_available_keys():
     global AVAILABLE_KEYS
@@ -471,21 +501,26 @@ def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, fi
         file_context = f"\n\nDựa trên nội dung tài liệu do người dùng tải lên sau:\n{file_content}\n"
     else:
         try:
-            docs_query = supabase.table("documents").select("content")
+            # Query document metadata/IDs only to avoid loading large content columns over network
+            docs_query = supabase.table("documents").select("id,name")
             if grade: docs_query = docs_query.eq("grade", str(grade).strip())
             if subject: docs_query = docs_query.eq("subject", subject)
-            # RAG by fetching top documents
             docs_rows = docs_query.limit(10).execute().data or []
+            
             if docs_rows:
+                doc_ids = [str(r.get("id")).strip() for r in docs_rows if r.get("id")]
+                # Filter chunks matching these document IDs in RAM cache
+                matching_chunks = [c for c in _LOCAL_CHUNKS if str(c.get("document_id")).strip() in doc_ids]
+                
                 # filter matching content keywords to simulate RAG
                 matching_docs = []
                 keywords = [w.lower() for w in topic.split() if len(w) > 2]
-                for r in docs_rows:
-                    content_str = r.get("content", "")
+                for c in matching_chunks:
+                    content_str = c.get("content", "")
                     if content_str and any(kw in content_str.lower() for kw in keywords):
-                        matching_docs.append(content_str[:2000]) # chunk size
+                        matching_docs.append(content_str)
                 if not matching_docs:
-                    matching_docs = [r.get("content", "")[:2000] for r in docs_rows[:3]]
+                    matching_docs = [c.get("content", "") for c in matching_chunks[:3]]
                 combined_docs = "\n\n".join(matching_docs[:3])
                 file_context = f"\n\nKIẾN THỨC TỪ CƠ SỞ DỮ LIỆU RAG (Sách giáo khoa / Tài liệu):\n{combined_docs}\n"
         except Exception as e:
@@ -554,20 +589,25 @@ def generate_flashcards(topic, grade=None, subject=None, file_content=None, user
         file_context = f"\n\nDựa trên nội dung tài liệu do người dùng tải lên sau:\n{file_content}\n"
     else:
         try:
-            docs_query = supabase.table("documents").select("content")
+            # Query document metadata/IDs only to avoid loading large content columns over network
+            docs_query = supabase.table("documents").select("id,name")
             if grade: docs_query = docs_query.eq("grade", str(grade).strip())
             if subject: docs_query = docs_query.eq("subject", subject)
-            # RAG by fetching top documents
             docs_rows = docs_query.limit(10).execute().data or []
+            
             if docs_rows:
+                doc_ids = [str(r.get("id")).strip() for r in docs_rows if r.get("id")]
+                # Filter chunks matching these document IDs in RAM cache
+                matching_chunks = [c for c in _LOCAL_CHUNKS if str(c.get("document_id")).strip() in doc_ids]
+                
                 matching_docs = []
                 keywords = [w.lower() for w in topic.split() if len(w) > 2]
-                for r in docs_rows:
-                    content_str = r.get("content", "")
+                for c in matching_chunks:
+                    content_str = c.get("content", "")
                     if content_str and any(kw in content_str.lower() for kw in keywords):
-                        matching_docs.append(content_str[:2000])
+                        matching_docs.append(content_str)
                 if not matching_docs:
-                    matching_docs = [r.get("content", "")[:2000] for r in docs_rows[:3]]
+                    matching_docs = [c.get("content", "") for c in matching_chunks[:3]]
                 combined_docs = "\n\n".join(matching_docs[:3])
                 file_context = f"\n\nKIẾN THỨC TỪ CƠ SỞ DỮ LIỆU RAG (Sách giáo khoa / Tài liệu):\n{combined_docs}\n"
         except Exception as e:
@@ -887,35 +927,43 @@ def save_document_to_db(text_content, source_name, doc_id):
 def _document_matches_subject(doc_name, target_subject):
     if not target_subject:
         return True
-    doc_name_lower = (doc_name or "").lower()
-    target_lower = target_subject.lower()
     
-    # Common mappings/aliases to check in file name
-    if target_lower == "toán":
-        return "toán" in doc_name_lower or "toan" in doc_name_lower
-    if target_lower == "ngữ văn" or target_lower == "văn":
-        return "văn" in doc_name_lower or "van" in doc_name_lower or "tiếng việt" in doc_name_lower or "viet" in doc_name_lower
-    if target_lower == "tin học":
-        return "tin" in doc_name_lower
-    if target_lower == "tiếng anh":
-        return "anh" in doc_name_lower or "english" in doc_name_lower
-    if target_lower == "vật lý" or target_lower == "vật lí":
-        return "lý" in doc_name_lower or "li" in doc_name_lower
-    if target_lower == "hóa học" or target_lower == "hóa":
-        return "hóa" in doc_name_lower or "hoa" in doc_name_lower
-    if target_lower == "sinh học" or target_lower == "sinh":
-        return "sinh" in doc_name_lower
-    if target_lower == "lịch sử":
-        return "sử" in doc_name_lower or "su" in doc_name_lower
-    if target_lower == "địa lý" or target_lower == "địa lí":
-        return "địa" in doc_name_lower or "dia" in doc_name_lower
+    import unicodedata
+    def strip_accents(t):
+        return "".join(c for c in unicodedata.normalize('NFD', str(t or "")) if unicodedata.category(c) != 'Mn').lower()
         
-    return target_lower in doc_name_lower
+    doc_clean = strip_accents(doc_name)
+    sub_clean = strip_accents(target_subject)
+    
+    # Check if target subject is in doc_clean
+    if sub_clean in doc_clean:
+        return True
+        
+    # Standard mapping fallbacks
+    if sub_clean == "toan":
+        return "toan" in doc_clean
+    if sub_clean == "van" or sub_clean == "ngu van":
+        return "van" in doc_clean or "tieng viet" in doc_clean
+    if sub_clean == "tin" or sub_clean == "tin hoc":
+        return "tin" in doc_clean
+    if sub_clean == "tieng anh" or sub_clean == "anh":
+        return "anh" in doc_clean or "english" in doc_clean
+    if sub_clean == "vat ly" or sub_clean == "ly" or sub_clean == "vat li":
+        return "ly" in doc_clean or "li" in doc_clean
+    if sub_clean == "hoa" or sub_clean == "hoa hoc":
+        return "hoa" in doc_clean
+    if sub_clean == "sinh" or sub_clean == "sinh hoc":
+        return "sinh" in doc_clean
+    if sub_clean == "lich su" or sub_clean == "su":
+        return "su" in doc_clean
+    if sub_clean == "dia" or sub_clean == "dia ly" or sub_clean == "dia li":
+        return "dia" in doc_clean
+        
+    return False
 
 
-_CHUNKS_CACHE = {}
-_SESSION_CACHE = {}
-_DOCS_CACHE = {}
+# Cache structures migrated to top of file
+
 
 
 def get_ai_response_stream_with_history(question, session_id=None, user_id=None, model_name="gemini-2.5-flash", grade=None, subject=None, force_reset_context=False, image_data=None):
@@ -974,6 +1022,9 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                     session_row = res.data[0] or {}
                     if session_row.get("messages"):
                         chat_history = session_row["messages"]
+                    if len(_SESSION_CACHE) > 1000:
+                        for k in list(_SESSION_CACHE.keys())[:100]:
+                            _SESSION_CACHE.pop(k, None)
                     _SESSION_CACHE[session_id] = {
                         "messages": chat_history,
                         "grade": session_row.get("grade") or target_grade,
@@ -988,6 +1039,9 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                         session_row = res.data[0] or {}
                         if session_row.get("messages"):
                             chat_history = session_row["messages"]
+                        if len(_SESSION_CACHE) > 1000:
+                            for k in list(_SESSION_CACHE.keys())[:100]:
+                                _SESSION_CACHE.pop(k, None)
                         _SESSION_CACHE[session_id] = {
                             "messages": chat_history,
                             "grade": target_grade,
@@ -1092,6 +1146,9 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                                     except Exception as fallback_err:
                                         print(f"⚠️ Document fallback query failed: {fallback_err}")
                                 
+                                if len(_DOCS_CACHE) > 500:
+                                    for k in list(_DOCS_CACHE.keys())[:50]:
+                                        _DOCS_CACHE.pop(k, None)
                                 _DOCS_CACHE[docs_cache_key] = docs_rows
                                 print(f"💾 [Docs Cache] Lưu {len(docs_rows)} documents vào bộ nhớ đệm.")
                             except Exception as docs_err:
@@ -1101,6 +1158,9 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                                     if target_grade:
                                         docs_query = docs_query.eq("grade", target_grade)
                                     docs_rows = docs_query.execute().data or []
+                                    if len(_DOCS_CACHE) > 500:
+                                        for k in list(_DOCS_CACHE.keys())[:50]:
+                                            _DOCS_CACHE.pop(k, None)
                                     _DOCS_CACHE[docs_cache_key] = docs_rows
                                 except Exception as docs_fallback_err:
                                     print(f"⚠️ Document fallback query failed: {docs_fallback_err}")
@@ -1132,14 +1192,32 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                             chunks_rows = _CHUNKS_CACHE[cache_key]
                             print(f"⚡ [RAG Cache] Lấy thành công {len(chunks_rows)} chunks từ bộ nhớ đệm (0ms)!")
                         else:
-                            try:
-                                chunks_query = supabase.table("document_chunks").select("content,embedding,document_id").in_("document_id", doc_ids)
-                                chunks_rows = chunks_query.limit(1000).execute().data or []
-                                _CHUNKS_CACHE[cache_key] = chunks_rows
-                                print(f"💾 [RAG Cache] Tải và lưu {len(chunks_rows)} chunks của {len(doc_ids)} tài liệu vào bộ nhớ đệm.")
-                            except Exception as chunks_err:
-                                print(f"⚠️ Failed to fetch chunks from document_chunks: {chunks_err}")
-                                chunks_rows = []
+                            local_chunks = _load_local_chunks()
+                            local_doc_ids = set(c.get("document_id") for c in local_chunks if c.get("document_id"))
+                            
+                            # Filter local chunks for matched doc_ids
+                            cached_doc_chunks = [c for c in local_chunks if str(c.get("document_id") or "").strip() in doc_ids]
+                            chunks_rows.extend(cached_doc_chunks)
+                            
+                            # Find which doc_ids are missing from the local cache
+                            missing_doc_ids = [d for d in doc_ids if d not in local_doc_ids]
+                            
+                            # Query missing doc_ids from Supabase
+                            if missing_doc_ids:
+                                try:
+                                    print(f"🔍 [RAG Database] Tìm thấy {len(missing_doc_ids)} tài liệu mới chưa được cache, đang truy vấn Supabase...")
+                                    chunks_query = supabase.table("document_chunks").select("content,embedding,document_id").in_("document_id", missing_doc_ids)
+                                    db_chunks = chunks_query.limit(1000).execute().data or []
+                                    chunks_rows.extend(db_chunks)
+                                    print(f"💾 [RAG Database] Tải thành công {len(db_chunks)} chunks từ database.")
+                                except Exception as chunks_err:
+                                    print(f"⚠️ Failed to fetch missing chunks from document_chunks: {chunks_err}")
+                            
+                            if len(_CHUNKS_CACHE) > 500:
+                                for k in list(_CHUNKS_CACHE.keys())[:50]:
+                                    _CHUNKS_CACHE.pop(k, None)
+                            _CHUNKS_CACHE[cache_key] = chunks_rows
+                            print(f"⚡ [RAG Cache] Đã chuẩn bị {len(chunks_rows)} chunks từ cache/database.")
 
                     if chunks_rows:
                         # Create embedding vector for the query
@@ -1198,23 +1276,13 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                                 context_parts.append(f"[Nguồn: {doc_name} (Độ tương đồng: {score:.4f})]\n{content_str}")
                             context = "\n\n---\n\n".join(context_parts)
                         else:
-                            # Fallback to first matching document preview content if no good chunk similarity match
-                            fallback_content = ""
-                            fallback_doc_name = "Tài liệu không tên"
-                            for d in docs_rows:
-                                if d.get("id") in doc_ids:
-                                    try:
-                                        preview_res = supabase.table("documents").select("name,content").eq("id", d.get("id")).execute()
-                                        if preview_res.data and preview_res.data[0].get("content"):
-                                            fallback_content = preview_res.data[0].get("content")
-                                            fallback_doc_name = preview_res.data[0].get("name") or "Tài liệu không tên"
-                                            break
-                                    except Exception:
-                                        pass
-                            if fallback_content:
-                                context = f"[Nguồn: {fallback_doc_name} (Xem trước tài liệu)]\n{fallback_content[:4000]}"
+                            # Fallback: Do NOT download the entire content column to prevent Vercel Gateway timeouts!
+                            # Instead, just reference the matching document by name.
+                            if docs_rows:
+                                fallback_doc_name = docs_rows[0].get("name") or "Tài liệu không tên"
+                                context = f"[Nguồn: {fallback_doc_name} (Chưa được chia nhỏ)]\nSách giáo khoa có sẵn nhưng chưa được tạo chỉ mục vector."
                             else:
-                                context = f"Hiện tại thầy chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, thầy có thể giải đáp như sau..."
+                                context = f"Hiện tại cô chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, cô sẽ giải đáp như sau..."
                     else:
                         # Fallback to loading preview content directly from documents if document_chunks table is empty
                         fallback_content = ""
@@ -1247,6 +1315,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                 current_time_guidance = f"Thời gian hiện tại ở Việt Nam: {vn_time_str}. Số câu hỏi học sinh đã gửi trong phiên học này: {user_msg_count} câu."
                 
                 recent_suggestions = _extract_recent_suggestion_labels(chat_history)
+                # Send only last 10 messages to AI prompt for speed — full history is kept in DB
                 recent_history_text = '\n'.join([f"{m['role']}: {m['content']}" for m in chat_history[-10:]])
                 is_image_attached = image_data is not None
                 image_guidance = "Học sinh vừa tải lên một hình ảnh/đề thi mẫu. BẠN PHẢI ĐỌC HÌNH ẢNH ĐÓ. Nếu học sinh yêu cầu, hãy giải thích đề mẫu hoặc hướng dẫn giải chi tiết. ĐẶC BIỆT CHÚ Ý: Bạn PHẢI trả về 3 gợi ý sau trong phần SUGGESTIONS: 1. Giải thích đề mẫu này, 2. Hướng dẫn mình cách giải, 3. Tạo đề thi tương tự đề mẫu." if is_image_attached else ""
@@ -1368,6 +1437,7 @@ PHẦN TRẢ LỜI CỦA BẠN PHẢI TUÂN THEO CẤU TRÚC SAU:
                 chat_history.append(user_msg)
                 
                 chat_history.append({"role": "model", "content": full_answer})
+                # Full history is preserved — do NOT trim. AI prompt only uses last 10 (see above).
                 try:
                     update_payload = {"messages": chat_history}
                     if target_grade:
@@ -1376,14 +1446,20 @@ PHẦN TRẢ LỜI CỦA BẠN PHẢI TUÂN THEO CẤU TRÚC SAU:
                         update_payload["subject"] = target_subject
                     
                     supabase.table("chat_sessions").update(update_payload).eq("id", session_id).execute()
+                    # CRITICAL: update in-memory session cache so next request reads from here (not DB)
+                    if len(_SESSION_CACHE) > 1000:
+                        for k in list(_SESSION_CACHE.keys())[:100]:
+                            _SESSION_CACHE.pop(k, None)
                     _SESSION_CACHE[session_id] = {
                         "messages": chat_history,
                         "grade": target_grade,
                         "subject": target_subject
                     }
                     _cache_chat_session_context(session_id, grade=update_payload.get("grade") or target_grade, subject=update_payload.get("subject") or target_subject)
+                    print(f"⚡ [Session Cache] Updated in-memory for session {session_id} ({len(chat_history)} messages).")
                 except Exception as session_err:
                     print(f"⚠️ Không thể cập nhật chat_sessions: {session_err}")
+
 
                 model_succeeded = True
                 return
