@@ -810,7 +810,8 @@ def add_user_sp(req: AddSPRequest, credentials: HTTPAuthorizationCredentials = D
             }).execute()
         return {"status": "success", "message": f"Added {req.sp_amount} SP"}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        print(f"Error in /api/user/add-sp: {e}")
+        return {"status": "error", "message": "Failed to add SP"}
 
 
 @app.get("/api/chat-history/me")
