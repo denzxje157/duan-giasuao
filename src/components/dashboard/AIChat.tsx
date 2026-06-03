@@ -939,7 +939,7 @@ export default function AIChat({ user }: AIChatProps) {
 
       await sendMessage(
         `Chào Gia sư, mình muốn học môn ${subjectName}. Hãy chào học sinh theo lớp ${user.grade} thật thân thiện và đưa ra 4 lựa chọn học tập ngắn gọn cho môn này.`,
-        { hiddenUserMessage: true, overrideSubject: subjectName }
+        { hiddenUserMessage: true, overrideSubject: subjectName, sessionIdOverride: newSessionId }
       );
     } finally {
       setSubjectLoadingKey(null);
@@ -988,7 +988,7 @@ export default function AIChat({ user }: AIChatProps) {
       setSidebarOpen(false);
       setCurrentView('chat');
 
-      await sendMessage(msg, { overrideSubject: 'Môn học' });
+      await sendMessage(msg, { overrideSubject: 'Môn học', sessionIdOverride: newSessionId });
     } finally {
       setSubjectLoadingKey(null);
     }
@@ -1117,7 +1117,10 @@ export default function AIChat({ user }: AIChatProps) {
     }
   };
 
-  const submitMessage = async (userMsg: string, options?: { hiddenUserMessage?: boolean; overrideSubject?: string }) => {
+  const submitMessage = async (
+    userMsg: string,
+    options?: { hiddenUserMessage?: boolean; overrideSubject?: string; sessionIdOverride?: string | null }
+  ) => {
     if (!userMsg.trim() || isLoading) return;
     
     const activeSubject = options?.overrideSubject || selectedSubject;
@@ -1140,6 +1143,7 @@ export default function AIChat({ user }: AIChatProps) {
       const apiKey = localStorage.getItem('admin_gemini_api_key') || process.env.GEMINI_API_KEY;
       
       const chatUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/chat` : '/api/chat';
+      const activeSessionId = options?.sessionIdOverride !== undefined ? options.sessionIdOverride : sessionId;
       const response = await fetch(chatUrl, {
         method: 'POST',
         headers: {
@@ -1148,7 +1152,7 @@ export default function AIChat({ user }: AIChatProps) {
         },
         body: JSON.stringify({
           question: userMsg,
-          session_id: sessionId || undefined,
+          session_id: activeSessionId || undefined,
           user_id: historyUserId || undefined,
           grade: String(user.grade || ''),
           subject: activeSubject || undefined,
@@ -1244,7 +1248,7 @@ export default function AIChat({ user }: AIChatProps) {
       });
 
       if (user.isGuest) {
-        saveGuestMessageAndSession(detectedSessionId || 'guest', updatedMsgs, String(user.grade || ''), activeSubject || 'Môn học', sessionId);
+        saveGuestMessageAndSession(detectedSessionId || 'guest', updatedMsgs, String(user.grade || ''), activeSubject || 'Môn học', activeSessionId);
       }
 
       if (usedVoiceRef.current) {
@@ -1263,7 +1267,10 @@ export default function AIChat({ user }: AIChatProps) {
     }
   };
 
-  const sendMessage = async (messageText: string, options?: { hiddenUserMessage?: boolean; overrideSubject?: string }) => {
+  const sendMessage = async (
+    messageText: string,
+    options?: { hiddenUserMessage?: boolean; overrideSubject?: string; sessionIdOverride?: string | null }
+  ) => {
     await submitMessage(messageText, options);
   };
 
@@ -1427,7 +1434,7 @@ export default function AIChat({ user }: AIChatProps) {
             
             {/* Thanh nhập trò chuyện tự do */}
             <div className="p-4 bg-[var(--bg-primary)]">
-              <form onSubmit={handleGeneralChat} className="mx-auto flex max-w-[800px] gap-2 rounded-2xl border border-white/10 bg-white/5 p-2 shadow-sm focus-within:border-brand-500/50">
+              <form onSubmit={handleGeneralChat} className="mx-auto flex max-w-[1000px] gap-2 rounded-2xl border border-white/10 bg-white/5 p-2 shadow-sm focus-within:border-brand-500/50">
                 <input
                   type="text"
                   value={generalInput}
@@ -1459,7 +1466,7 @@ export default function AIChat({ user }: AIChatProps) {
 
       return (
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 custom-scrollbar md:px-6" style={{ maxWidth: '100%' }}>
-          <div className="mx-auto flex w-full max-w-[800px] flex-col gap-6">
+          <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-6">
             {messages.map((msg) => (
               <motion.div
                 key={msg.id}
@@ -1470,7 +1477,7 @@ export default function AIChat({ user }: AIChatProps) {
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'user' ? 'bg-white text-black' : 'bg-white/5 border border-white/10 text-white'}`}>
                   {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                 </div>
-                <div className={`max-w-[min(780px,100%)] min-w-0 ${msg.role === 'user' ? 'text-white font-medium' : 'text-[var(--text-primary)]'}`}>
+                <div className={`max-w-[min(950px,100%)] min-w-0 ${msg.role === 'user' ? 'text-white font-medium' : 'text-[var(--text-primary)]'}`}>
                   {msg.role === 'user' ? (
                     <div className="flex flex-col gap-2 items-end">
                       {msg.imageUrl && (
@@ -1790,7 +1797,7 @@ export default function AIChat({ user }: AIChatProps) {
 
         {currentView === 'chat' && (
           <div className="sticky bottom-0 z-10 border-t border-white/10 bg-[color-mix(in_srgb,var(--bg-primary)_94%,transparent)] px-4 py-4 backdrop-blur-md">
-            <form onSubmit={handleSend} className="mx-auto flex w-full max-w-[800px] items-center gap-2 rounded-[24px] border border-white/10 bg-white/5 p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+            <form onSubmit={handleSend} className="mx-auto flex w-full max-w-[1000px] items-center gap-2 rounded-[24px] border border-white/10 bg-white/5 p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
               <input
                 type="text"
                 value={input}
