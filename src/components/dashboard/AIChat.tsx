@@ -33,10 +33,14 @@ const saveGuestMessageAndSession = (
   sessionId: string,
   messages: Message[],
   grade: string,
-  subject: string
+  subject: string,
+  oldSessionId?: string | null
 ) => {
   if (typeof window === 'undefined') return;
   localStorage.setItem(`ai_chat_guest_messages_${sessionId}`, JSON.stringify(messages));
+  if (oldSessionId && oldSessionId !== sessionId) {
+    localStorage.removeItem(`ai_chat_guest_messages_${oldSessionId}`);
+  }
 
   const localSessionsStr = localStorage.getItem('ai_chat_guest_sessions');
   let groups: ChatSessionGroup[] = [];
@@ -57,6 +61,10 @@ const saveGuestMessageAndSession = (
   if (!subjectGroup) {
     subjectGroup = { subject, sessions: [] };
     gradeGroup.subjects.push(subjectGroup);
+  }
+
+  if (oldSessionId && oldSessionId !== sessionId) {
+    subjectGroup.sessions = subjectGroup.sessions.filter(s => s.session_id !== oldSessionId);
   }
 
   let sessionItem = subjectGroup.sessions.find(s => s.session_id === sessionId);
@@ -93,6 +101,10 @@ const saveGuestMessageAndSession = (
       ...subjectGroup.sessions.filter(s => s.session_id !== sessionId)
     ];
   }
+
+  // Remove empty subjects or empty grades if cleanup caused them to be empty
+  gradeGroup.subjects = gradeGroup.subjects.filter(s => s.sessions.length > 0);
+  groups = groups.filter(g => g.subjects.length > 0);
 
   localStorage.setItem('ai_chat_guest_sessions', JSON.stringify(groups));
 };
@@ -1155,6 +1167,7 @@ export default function AIChat({ user }: AIChatProps) {
       setIsLoading(false); 
 
       let fullAssistantText = '';
+      let detectedSessionId = sessionId;
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder('utf-8');
@@ -1170,6 +1183,7 @@ export default function AIChat({ user }: AIChatProps) {
           for (const line of lines) {
             const sessionMatch = line.match(/\[SESSION_ID:([^\]]+)\]/);
             if (sessionMatch) {
+              detectedSessionId = sessionMatch[1];
               setSessionId(sessionMatch[1]);
               continue;
             }
@@ -1230,7 +1244,7 @@ export default function AIChat({ user }: AIChatProps) {
       });
 
       if (user.isGuest) {
-        saveGuestMessageAndSession(sessionId || 'guest', updatedMsgs, String(user.grade || ''), activeSubject || 'Môn học');
+        saveGuestMessageAndSession(detectedSessionId || 'guest', updatedMsgs, String(user.grade || ''), activeSubject || 'Môn học', sessionId);
       }
 
       if (usedVoiceRef.current) {
