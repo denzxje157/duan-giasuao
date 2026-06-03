@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { motion } from 'motion/react';
 import { MessageSquare, Sparkles, User, Bot, Send, Plus, Menu, Moon, Sun, Pen, Mic, Volume2, VolumeX } from 'lucide-react';
 import { User as UserType } from '../../types';
-import { fetchChatHistory, fetchChatSessions, deleteChatSession, initSession as initSessionApi, API_BASE_URL, ChatHistoryRow, ChatSessionGroup } from '../../lib/api';
+import { fetchChatHistory, fetchChatSessions, deleteChatSession, initSession as initSessionApi, API_BASE_URL, ChatHistoryRow, ChatSessionGroup, ChatSessionItem } from '../../lib/api';
 import ChatSidebar from './ChatSidebar';
 import DrawingCanvas from './DrawingCanvas';
 import ReactMarkdown from 'react-markdown';
@@ -50,6 +50,23 @@ const saveGuestMessageAndSession = (
     } catch (e) {}
   }
 
+  // 1. DEDUPLICATE: Remove any existing session item with either sessionId or oldSessionId from ALL groups/subjects
+  groups.forEach(g => {
+    g.subjects.forEach(s => {
+      s.sessions = s.sessions.filter(sess => 
+        sess.session_id !== sessionId && 
+        sess.session_id !== oldSessionId
+      );
+    });
+  });
+
+  // 2. Clean up empty subject groups & grade groups
+  groups.forEach(g => {
+    g.subjects = g.subjects.filter(s => s.sessions.length > 0);
+  });
+  groups = groups.filter(g => g.subjects.length > 0);
+
+  // 3. Find/create the correct target grade & subject group
   const gradeLabel = `Lớp ${grade}`;
   let gradeGroup = groups.find(g => g.grade === gradeLabel);
   if (!gradeGroup) {
@@ -63,12 +80,7 @@ const saveGuestMessageAndSession = (
     gradeGroup.subjects.push(subjectGroup);
   }
 
-  if (oldSessionId && oldSessionId !== sessionId) {
-    subjectGroup.sessions = subjectGroup.sessions.filter(s => s.session_id !== oldSessionId);
-  }
-
-  let sessionItem = subjectGroup.sessions.find(s => s.session_id === sessionId);
-  
+  // 4. Create/update the session item
   const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant');
   const firstUserMsg = messages.find(m => m.role === 'user');
   
@@ -83,28 +95,16 @@ const saveGuestMessageAndSession = (
     }
   }
 
-  if (!sessionItem) {
-    sessionItem = {
-      session_id: sessionId,
-      title: inferredTitle,
-      subject: subject,
-      grade: gradeLabel,
-      updated_at: new Date().toISOString(),
-      last_message: lastAssistantMsg ? lastAssistantMsg.content : ''
-    };
-    subjectGroup.sessions.unshift(sessionItem);
-  } else {
-    sessionItem.updated_at = new Date().toISOString();
-    sessionItem.last_message = lastAssistantMsg ? lastAssistantMsg.content : '';
-    subjectGroup.sessions = [
-      sessionItem,
-      ...subjectGroup.sessions.filter(s => s.session_id !== sessionId)
-    ];
-  }
+  const sessionItem: ChatSessionItem = {
+    session_id: sessionId,
+    title: inferredTitle,
+    subject: subject,
+    grade: gradeLabel,
+    updated_at: new Date().toISOString(),
+    last_message: lastAssistantMsg ? lastAssistantMsg.content : ''
+  };
 
-  // Remove empty subjects or empty grades if cleanup caused them to be empty
-  gradeGroup.subjects = gradeGroup.subjects.filter(s => s.sessions.length > 0);
-  groups = groups.filter(g => g.subjects.length > 0);
+  subjectGroup.sessions.unshift(sessionItem);
 
   localStorage.setItem('ai_chat_guest_sessions', JSON.stringify(groups));
 };
@@ -207,11 +207,11 @@ function getSubjectSectionsByGrade(grade: number): SubjectSection[] {
 
 function inferSubjectFromText(content: string): string {
   const text = (content || '').toLowerCase();
-  if (text.includes('toán') || text.includes('phép cộng') || text.includes('phép trừ')) return 'Môn Toán';
-  if (text.includes('tiếng việt') || text.includes('chính tả') || text.includes('tập đọc')) return 'Môn Tiếng Việt';
-  if (text.includes('tiếng anh') || text.includes('english') || text.includes('alphabet')) return 'Môn Tiếng Anh';
-  if (text.includes('tự nhiên') || text.includes('xã hội') || text.includes('cây') || text.includes('con vật')) return 'Tự nhiên & Xã hội';
-  if (text.includes('ngữ văn') || text.includes('văn học') || text.includes('phân tích')) return 'Ngữ Văn';
+  if (text.includes('toán') || text.includes('phép cộng') || text.includes('phép trừ')) return 'Toán';
+  if (text.includes('tiếng việt') || text.includes('chính tả') || text.includes('tập đọc')) return 'Tiếng Việt';
+  if (text.includes('tiếng anh') || text.includes('english') || text.includes('alphabet')) return 'Tiếng Anh';
+  if (text.includes('tự nhiên') || text.includes('xã hội') || text.includes('cây') || text.includes('con vật')) return 'Tự nhiên và Xã hội';
+  if (text.includes('ngữ văn') || text.includes('văn học') || text.includes('phân tích')) return 'Ngữ văn';
   if (text.includes('lịch sử và địa lý')) return 'Lịch sử và Địa lý';
   if (text.includes('khoa học tự nhiên')) return 'Khoa học tự nhiên';
   if (text.includes('khoa học')) return 'Khoa học';
@@ -221,9 +221,9 @@ function inferSubjectFromText(content: string): string {
   if (text.includes('địa lý')) return 'Địa lý';
   if (text.includes('lịch sử')) return 'Lịch sử';
   if (text.includes('đạo đức')) return 'Đạo đức';
-  if (text.includes('vật lý') || text.includes('điện') || text.includes('lực')) return 'Vật Lý';
-  if (text.includes('hóa học') || text.includes('phản ứng')) return 'Hóa Học';
-  if (text.includes('sinh học') || text.includes('tế bào')) return 'Sinh Học';
+  if (text.includes('vật lý') || text.includes('điện') || text.includes('lực')) return 'Vật lý';
+  if (text.includes('hóa học') || text.includes('phản ứng')) return 'Hóa học';
+  if (text.includes('sinh học') || text.includes('tế bào')) return 'Sinh học';
   return 'Môn học';
 }
 
