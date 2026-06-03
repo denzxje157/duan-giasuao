@@ -943,7 +943,7 @@ export default function AIChat({ user }: AIChatProps) {
       setCurrentView('chat');
 
       await sendMessage(
-        `Chào Gia sư, mình muốn học môn ${subjectName}. Hãy chào học sinh theo lớp ${user.grade} thật thân thiện và đưa ra 4 lựa chọn học tập ngắn gọn cho môn này.`,
+        `Chào Gia sư, mình là ${user.name || 'học sinh'}, học sinh lớp ${user.grade}. Mình muốn học môn ${subjectName}. Hãy chào mình thật thân thiện, cá nhân hóa theo tên của mình và đưa ra 4 lựa chọn học tập ngắn gọn cho môn này.`,
         { hiddenUserMessage: true, overrideSubject: subjectName, sessionIdOverride: newSessionId }
       );
     } finally {

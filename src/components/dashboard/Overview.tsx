@@ -96,10 +96,15 @@ export default function Overview({ user, setActiveTab }: OverviewProps) {
     }, 1500);
   };
 
-  const handleToggleQuest = (id: number) => {
+  const handleToggleQuest = async (id: number) => {
+    let questXp = 0;
+    let isAdding = false;
+
     const updated = quests.map(q => {
       if (q.id === id) {
         const nextState = !q.completed;
+        questXp = q.xp;
+        isAdding = nextState;
         if (nextState) {
           triggerConfetti();
           setStats(prev => ({ ...prev, total_sp: prev.total_sp + q.xp }));
@@ -110,8 +115,29 @@ export default function Overview({ user, setActiveTab }: OverviewProps) {
       }
       return q;
     });
+
     setQuests(updated);
     localStorage.setItem(`ai_chat_quests_${user.id || 'guest'}`, JSON.stringify(updated));
+
+    // Backend sync if logged in
+    if (!user.isGuest && user.id) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          const url = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/user/add-sp` : '/api/user/add-sp';
+          await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: JSON.stringify({ sp_amount: isAdding ? questXp : -questXp })
+          });
+        }
+      } catch (err) {
+        console.error("Failed to sync SP with backend:", err);
+      }
+    }
   };
 
   const completedCount = quests.filter(q => q.completed).length;

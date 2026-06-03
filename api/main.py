@@ -234,6 +234,10 @@ class TrackActivityRequest(BaseModel):
     study_minutes: int = 1
 
 
+class AddSPRequest(BaseModel):
+    sp_amount: int
+
+
 class ForgotPasswordRequest(BaseModel):
     email: str
 
@@ -781,6 +785,31 @@ def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizatio
         return {"status": "success", "message": "Activity tracked"}
     except Exception as e:
         # Silently fail for tracker to not crash frontend
+        return {"status": "error", "message": str(e)}
+
+
+@app.post("/api/user/add-sp")
+def add_user_sp(req: AddSPRequest, credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
+    try:
+        user_id = _verify_token_and_get_user(credentials)
+        today_str = date.today().strftime("%Y-%m-%d")
+        
+        stat_res = supabase.table("user_stats").select("*").eq("user_id", user_id).execute()
+        if stat_res.data and len(stat_res.data) > 0:
+            stat = stat_res.data[0]
+            new_sp = stat.get("total_sp", 0) + req.sp_amount
+            supabase.table("user_stats").update({"total_sp": new_sp}).eq("user_id", user_id).execute()
+        else:
+            supabase.table("user_stats").insert({
+                "user_id": user_id,
+                "streak": 0,
+                "max_streak": 0,
+                "total_study_minutes": 0,
+                "total_sp": req.sp_amount,
+                "last_study_date": today_str
+            }).execute()
+        return {"status": "success", "message": f"Added {req.sp_amount} SP"}
+    except Exception as e:
         return {"status": "error", "message": str(e)}
 
 

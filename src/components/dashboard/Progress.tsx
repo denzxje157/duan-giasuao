@@ -86,9 +86,22 @@ export default function Progress({ user }: ProgressProps) {
             });
           });
 
+          let questSpEarned = 0;
+          const savedQuests = localStorage.getItem(`ai_chat_quests_guest`);
+          if (savedQuests) {
+            try {
+              const parsedQuests = JSON.parse(savedQuests);
+              parsedQuests.forEach((q: any) => {
+                if (q.completed) {
+                  questSpEarned += q.xp;
+                }
+              });
+            } catch (e) {}
+          }
+
           const streak = uniqueDays.size;
           const totalMins = totalMsgs * 3;
-          const totalSp = totalMsgs * 15; // 15 XP per message
+          const totalSp = (totalMsgs * 15) + questSpEarned; // 15 XP per message + Quest SP
 
           setStats({
             streak: streak || 0,
