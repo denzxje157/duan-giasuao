@@ -103,7 +103,7 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
             id: d.id,
             title: d.name ? d.name.replace(/\.pdf$/i, '') : 'Sách giáo khoa',
             subject: d.subject || matchingLocalBook?.subject || 'Khác',
-            grade: Number(d.grade) || matchingLocalBook?.grade || currentGrade,
+            grade: (Number(d.grade) || matchingLocalBook?.grade || currentGrade) as Grade,
             series: matchingLocalBook?.series || 'Kết nối tri thức',
             thumbnail: coverUrl,
             pages: matchingLocalBook?.pages || 100,

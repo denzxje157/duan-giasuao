@@ -20,6 +20,7 @@ export default function Quiz({ user }: QuizProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
   const [score, setScore] = useState(0);
+  const [isFinished, setIsFinished] = useState(false);
   const [difficulty, setDifficulty] = useState('Trung bình');
   const [numQuestions, setNumQuestions] = useState(10);
   const [quizData, setQuizData] = useState<any[]>([]);
@@ -76,6 +77,7 @@ export default function Quiz({ user }: QuizProps) {
           setScore(0);
           setSelectedAnswer(null);
           setShowExplanation(false);
+          setIsFinished(false);
         } else {
           alert("Không thể tạo bài tập lúc này, vui lòng thử lại!");
         }
@@ -156,8 +158,7 @@ export default function Quiz({ user }: QuizProps) {
     if (currentQuestionIndex < quizData.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
     } else {
-      // Show results
-      alert(`Hoàn thành! Bạn đúng ${score}/${quizData.length} câu.`);
+      setIsFinished(true);
       // Có thể gọi API lưu điểm ở đây
     }
   };
@@ -313,6 +314,42 @@ export default function Quiz({ user }: QuizProps) {
                 {/* Quiz Body */}
                 <div className="flex-1 p-6 flex flex-col justify-between">
                   {quizData.length > 0 ? (
+                    isFinished ? (
+                      <div className="flex flex-col items-center justify-center h-full text-center space-y-6 py-10">
+                        <div className="w-24 h-24 bg-brand-100 rounded-full flex items-center justify-center mb-2 shadow-sm">
+                          <CheckCircle className="w-12 h-12 text-brand-600" />
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-bold text-slate-800 mb-3">Hoàn thành bài tập!</h2>
+                          <p className="text-slate-600 text-lg">Bạn trả lời đúng <span className="font-bold text-brand-600 text-xl">{score}/{quizData.length}</span> câu hỏi.</p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-4 mt-6">
+                          <button 
+                            onClick={() => {
+                              setIsFinished(false);
+                              setCurrentQuestionIndex(0);
+                              setScore(0);
+                              setSelectedAnswer(null);
+                              setShowExplanation(false);
+                            }}
+                            className="px-6 py-3 bg-white border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700 font-bold rounded-xl transition-all shadow-sm"
+                          >
+                            Làm lại đề này
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setQuizData([]);
+                              setIsFinished(false);
+                              setTopic('');
+                              setFileContent(null);
+                            }}
+                            className="px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl shadow-md shadow-brand-500/30 transition-all flex items-center gap-2 justify-center"
+                          >
+                            <Sparkles className="w-5 h-5" /> Tạo đề mới
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
                     <>
                       <div>
                         <h2 className="text-xl font-bold text-slate-800 mb-8 leading-relaxed">
@@ -385,6 +422,7 @@ export default function Quiz({ user }: QuizProps) {
                         )}
                       </AnimatePresence>
                     </>
+                    )
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
                       <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center">

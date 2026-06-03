@@ -10,11 +10,13 @@ export interface Chapter {
 export interface Textbook {
   id: string;
   title: string;
+  name?: string;
   subject: string;
   grade: Grade;
   series: 'Kết nối tri thức' | 'Chân trời sáng tạo' | 'Cánh Diều';
   thumbnail?: string;
   pdfUrl?: string;
+  pdf_url?: string;
   description?: string;
   pages?: number;
   size?: string;
