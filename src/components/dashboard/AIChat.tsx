@@ -28,6 +28,74 @@ interface SuggestionItem {
 }
 
 type SubjectCard = { key: string; label: string; icon: string; color: string };
+
+const saveGuestMessageAndSession = (
+  sessionId: string,
+  messages: Message[],
+  grade: string,
+  subject: string
+) => {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(`ai_chat_guest_messages_${sessionId}`, JSON.stringify(messages));
+
+  const localSessionsStr = localStorage.getItem('ai_chat_guest_sessions');
+  let groups: ChatSessionGroup[] = [];
+  if (localSessionsStr) {
+    try {
+      groups = JSON.parse(localSessionsStr);
+    } catch (e) {}
+  }
+
+  const gradeLabel = `Lớp ${grade}`;
+  let gradeGroup = groups.find(g => g.grade === gradeLabel);
+  if (!gradeGroup) {
+    gradeGroup = { grade: gradeLabel, subjects: [] };
+    groups.push(gradeGroup);
+  }
+
+  let subjectGroup = gradeGroup.subjects.find(s => s.subject === subject);
+  if (!subjectGroup) {
+    subjectGroup = { subject, sessions: [] };
+    gradeGroup.subjects.push(subjectGroup);
+  }
+
+  let sessionItem = subjectGroup.sessions.find(s => s.session_id === sessionId);
+  
+  const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant');
+  const firstUserMsg = messages.find(m => m.role === 'user');
+  
+  let inferredTitle = 'Cuộc trò chuyện mới';
+  if (firstUserMsg) {
+    const text = firstUserMsg.content;
+    if (text.includes("Chào Gia sư, mình muốn học môn")) {
+      const match = text.match(/môn\s+([^\.]+)/);
+      inferredTitle = match ? `Học môn ${match[1].trim()}` : "Học môn mới";
+    } else {
+      inferredTitle = text.slice(0, 30);
+    }
+  }
+
+  if (!sessionItem) {
+    sessionItem = {
+      session_id: sessionId,
+      title: inferredTitle,
+      subject: subject,
+      grade: gradeLabel,
+      updated_at: new Date().toISOString(),
+      last_message: lastAssistantMsg ? lastAssistantMsg.content : ''
+    };
+    subjectGroup.sessions.unshift(sessionItem);
+  } else {
+    sessionItem.updated_at = new Date().toISOString();
+    sessionItem.last_message = lastAssistantMsg ? lastAssistantMsg.content : '';
+    subjectGroup.sessions = [
+      sessionItem,
+      ...subjectGroup.sessions.filter(s => s.session_id !== sessionId)
+    ];
+  }
+
+  localStorage.setItem('ai_chat_guest_sessions', JSON.stringify(groups));
+};
 type SubjectSection = { title: string; items: SubjectCard[] };
 
 function getSubjectSectionsByGrade(grade: number): SubjectSection[] {
@@ -679,7 +747,32 @@ export default function AIChat({ user }: AIChatProps) {
     let cancelled = false;
 
     const loadHistory = async () => {
-      if (user.isGuest) return;
+      if (user.isGuest) {
+        const storedSessionId = localStorage.getItem(`ai_chat_session_${user.id || 'guest'}`);
+        if (!storedSessionId) {
+          setMessages([]);
+          return;
+        }
+        const storedMessages = localStorage.getItem(`ai_chat_guest_messages_${storedSessionId}`);
+        if (storedMessages) {
+          try {
+            const parsed = JSON.parse(storedMessages);
+            setMessages(parsed);
+            const firstUserMsg = parsed.find((m: any) => m.role === 'user');
+            if (firstUserMsg) {
+              setSelectedSubject(inferSubjectFromText(firstUserMsg.content));
+            } else {
+              setSelectedSubject('Môn học');
+            }
+            setCurrentView('chat');
+          } catch (e) {
+            setMessages([]);
+          }
+        } else {
+          setMessages([]);
+        }
+        return;
+      }
 
       const storedSessionId = localStorage.getItem(`ai_chat_session_${user.id || user.email}`);
       if (!storedSessionId) {
@@ -733,7 +826,19 @@ export default function AIChat({ user }: AIChatProps) {
     let cancelled = false;
 
     const loadSessions = async () => {
-      if (user.isGuest) return;
+      if (user.isGuest) {
+        const localSessions = localStorage.getItem('ai_chat_guest_sessions');
+        if (localSessions) {
+          try {
+            setSessionGroups(JSON.parse(localSessions));
+          } catch (e) {
+            setSessionGroups([]);
+          }
+        } else {
+          setSessionGroups([]);
+        }
+        return;
+      }
       try {
         const data = await fetchChatSessions();
         if (!cancelled) {
@@ -752,9 +857,9 @@ export default function AIChat({ user }: AIChatProps) {
   }, [user.isGuest, sidebarRefreshTrigger]);
 
   useEffect(() => {
-    if (!historyUserId || !sessionId || user.isGuest) return;
+    if (!historyUserId || !sessionId) return;
     localStorage.setItem(`ai_chat_session_${historyUserId}`, sessionId);
-  }, [historyUserId, sessionId, user.isGuest]);
+  }, [historyUserId, sessionId]);
 
   const toggleSpeechRecognition = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -798,7 +903,7 @@ export default function AIChat({ user }: AIChatProps) {
 
       let newSessionId = sessionId;
       try {
-        const initData = await initSessionApi(sessionId || undefined, String(user.grade || ''), subjectName);
+        const initData = await initSessionApi(undefined, String(user.grade || ''), subjectName);
         if (initData?.new_session_id) {
           newSessionId = initData.new_session_id;
         } else if (!newSessionId && typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -849,7 +954,7 @@ export default function AIChat({ user }: AIChatProps) {
 
       let newSessionId = sessionId;
       try {
-        const initData = await initSessionApi(sessionId || undefined, String(user.grade || ''), 'Môn học');
+        const initData = await initSessionApi(undefined, String(user.grade || ''), 'Môn học');
         if (initData?.new_session_id) {
           newSessionId = initData.new_session_id;
         } else if (!newSessionId && typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -902,6 +1007,31 @@ export default function AIChat({ user }: AIChatProps) {
   const handleOpenSessionHistory = async (targetSessionId: string) => {
     try {
       setIsHistoryLoading(true);
+      if (user.isGuest) {
+        const storedMessages = localStorage.getItem(`ai_chat_guest_messages_${targetSessionId}`);
+        if (storedMessages) {
+          try {
+            const parsed = JSON.parse(storedMessages);
+            setMessages(parsed);
+            const firstUserMsg = parsed.find((m: any) => m.role === 'user');
+            if (firstUserMsg) {
+              setSelectedSubject(inferSubjectFromText(firstUserMsg.content));
+            } else {
+              setSelectedSubject('Môn học');
+            }
+          } catch (e) {
+            setMessages([]);
+          }
+        } else {
+          setMessages([]);
+        }
+        handleNavigation('chat');
+        setSidebarOpen(false);
+        setSessionId(targetSessionId);
+        resetSuggestionMemory();
+        return;
+      }
+
       const rows = await fetchChatHistory(targetSessionId === 'no-session' ? undefined : targetSessionId);
       console.log('Dữ liệu lịch sử theo session:', rows);
       const mappedMessages: Message[] = (rows || []).map((row: any) => ({
@@ -932,9 +1062,32 @@ export default function AIChat({ user }: AIChatProps) {
       setIsHistoryLoading(false);
     }
   };
-
+ 
   const handleDeleteSession = async (targetSessionId: string) => {
     try {
+      if (user.isGuest) {
+        localStorage.removeItem(`ai_chat_guest_messages_${targetSessionId}`);
+        const localSessionsStr = localStorage.getItem('ai_chat_guest_sessions');
+        if (localSessionsStr) {
+          try {
+            let groups: ChatSessionGroup[] = JSON.parse(localSessionsStr);
+            groups = groups.map((gradeGroup) => ({
+              ...gradeGroup,
+              subjects: gradeGroup.subjects.map((subjectGroup) => ({
+                ...subjectGroup,
+                sessions: subjectGroup.sessions.filter(session => session.session_id !== targetSessionId),
+              })).filter(subjectGroup => subjectGroup.sessions.length > 0),
+            })).filter(gradeGroup => gradeGroup.subjects.length > 0);
+            localStorage.setItem('ai_chat_guest_sessions', JSON.stringify(groups));
+            setSessionGroups(groups);
+          } catch (e) {}
+        }
+        if (sessionId === targetSessionId) {
+          handleNewChat();
+        }
+        return;
+      }
+
       await deleteChatSession(targetSessionId);
       setSessionGroups(prev => prev.map((gradeGroup) => ({
         ...gradeGroup,
@@ -943,7 +1096,7 @@ export default function AIChat({ user }: AIChatProps) {
           sessions: subjectGroup.sessions.filter(session => session.session_id !== targetSessionId),
         })).filter(subjectGroup => subjectGroup.sessions.length > 0),
       })).filter(gradeGroup => gradeGroup.subjects.length > 0));
-
+ 
       if (sessionId === targetSessionId) {
         handleNewChat();
       }
@@ -1061,15 +1214,24 @@ export default function AIChat({ user }: AIChatProps) {
       const fallbackSuggestions = parsedSuggestions.length > 0 ? parsedSuggestions : getDefaultSuggestionsForSubject(selectedSubject || '');
       const finalSuggestions = fallbackSuggestions.length > 0 ? fallbackSuggestions : [];
 
-      setMessages(prev => prev.map(msg => {
-        if (msg.id !== assistantMessageId) return msg;
-        return {
-          ...msg,
-          content: fullAssistantText,
-          status: 'completed',
-          suggestions: finalSuggestions,
-        };
-      }));
+      let updatedMsgs: Message[] = [];
+      setMessages(prev => {
+        const newMsgs: Message[] = prev.map(msg => {
+          if (msg.id !== assistantMessageId) return msg;
+          return {
+            ...msg,
+            content: fullAssistantText,
+            status: 'completed' as const,
+            suggestions: finalSuggestions,
+          };
+        });
+        updatedMsgs = newMsgs;
+        return newMsgs;
+      });
+
+      if (user.isGuest) {
+        saveGuestMessageAndSession(sessionId || 'guest', updatedMsgs, String(user.grade || ''), activeSubject || 'Môn học');
+      }
 
       if (usedVoiceRef.current) {
         const textToSpeak = extractAnswerFromMarkers(fullAssistantText);
@@ -1152,9 +1314,12 @@ export default function AIChat({ user }: AIChatProps) {
   };
 
   const handleSuggestionClick = async (label: string) => {
-    const command = commandFromSuggestion(label, user.grade || 12, selectedSubject);
-    setInput(command);
-    await sendMessage(command);
+    // Always send suggestion as a message in the CURRENT session (no new session, no navigation)
+    // This mirrors Gemini/ChatGPT behavior: clicking a suggestion chip continues the same chat
+    await submitMessage(label, {
+      // Pass current subject so submitMessage doesn't redirect to selection screen
+      overrideSubject: selectedSubject || 'Môn học',
+    });
   };
 
   const handleGoogleAntigravityTest = async () => {

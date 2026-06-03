@@ -331,6 +331,36 @@ def get_all_keys():
 
 AVAILABLE_KEYS = get_all_keys()
 
+# Pre-load chunks.json into memory at module startup (runs once per Vercel function lifecycle)
+_CHUNKS_CACHE = {}
+_SESSION_CACHE = {}
+_DOCS_CACHE = {}
+
+def _load_local_chunks():
+    """Load all pre-indexed document chunks from local JSON file into memory.
+    Called once at module startup; subsequent calls return the already-loaded data instantly."""
+    paths_to_try = [
+        os.path.join(os.path.dirname(__file__), "chunks_cache.json"),
+        "api/chunks_cache.json",
+        "chunks_cache.json"
+    ]
+    for path in paths_to_try:
+        if os.path.exists(path):
+            try:
+                print(f"⚡ [Local Cache] Loading chunks from {path}...")
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                print(f"⚡ [Local Cache] Successfully loaded {len(data)} chunks into memory!")
+                return data
+            except Exception as e:
+                print(f"⚠️ Failed to load local chunks from {path}: {e}")
+    
+    print("⚠️ [Local Cache] chunks_cache.json not found, falling back to database query.")
+    return []
+
+# Load once at module startup — stored at module level, never re-read from disk per request
+_LOCAL_CHUNKS = _load_local_chunks()
+
 
 def refresh_available_keys():
     global AVAILABLE_KEYS
@@ -461,21 +491,26 @@ def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, fi
     else:
         try:
             from database.client import supabase
-            docs_query = supabase.table("documents").select("content")
+            # Query document metadata/IDs only to avoid loading large content columns over network
+            docs_query = supabase.table("documents").select("id,name")
             if grade: docs_query = docs_query.eq("grade", str(grade).strip())
             if subject: docs_query = docs_query.eq("subject", subject)
-            # RAG by fetching top documents
             docs_rows = docs_query.limit(10).execute().data or []
+            
             if docs_rows:
+                doc_ids = [str(r.get("id")).strip() for r in docs_rows if r.get("id")]
+                # Filter chunks matching these document IDs in RAM cache
+                matching_chunks = [c for c in _LOCAL_CHUNKS if str(c.get("document_id")).strip() in doc_ids]
+                
                 # filter matching content keywords to simulate RAG
                 matching_docs = []
                 keywords = [w.lower() for w in topic.split() if len(w) > 2]
-                for r in docs_rows:
-                    content_str = r.get("content", "")
+                for c in matching_chunks:
+                    content_str = c.get("content", "")
                     if content_str and any(kw in content_str.lower() for kw in keywords):
-                        matching_docs.append(content_str[:2000]) # chunk size
+                        matching_docs.append(content_str)
                 if not matching_docs:
-                    matching_docs = [r.get("content", "")[:2000] for r in docs_rows[:3]]
+                    matching_docs = [c.get("content", "") for c in matching_chunks[:3]]
                 combined_docs = "\n\n".join(matching_docs[:3])
                 file_context = f"\n\nKIẾN THỨC TỪ CƠ SỞ DỮ LIỆU RAG (Sách giáo khoa / Tài liệu):\n{combined_docs}\n"
         except Exception as e:
@@ -539,20 +574,25 @@ def generate_flashcards(topic, grade=None, subject=None, file_content=None, user
     else:
         try:
             from database.client import supabase
-            docs_query = supabase.table("documents").select("content")
+            # Query document metadata/IDs only to avoid loading large content columns over network
+            docs_query = supabase.table("documents").select("id,name")
             if grade: docs_query = docs_query.eq("grade", str(grade).strip())
             if subject: docs_query = docs_query.eq("subject", subject)
-            # RAG by fetching top documents
             docs_rows = docs_query.limit(10).execute().data or []
+            
             if docs_rows:
+                doc_ids = [str(r.get("id")).strip() for r in docs_rows if r.get("id")]
+                # Filter chunks matching these document IDs in RAM cache
+                matching_chunks = [c for c in _LOCAL_CHUNKS if str(c.get("document_id")).strip() in doc_ids]
+                
                 matching_docs = []
                 keywords = [w.lower() for w in topic.split() if len(w) > 2]
-                for r in docs_rows:
-                    content_str = r.get("content", "")
+                for c in matching_chunks:
+                    content_str = c.get("content", "")
                     if content_str and any(kw in content_str.lower() for kw in keywords):
-                        matching_docs.append(content_str[:2000])
+                        matching_docs.append(content_str)
                 if not matching_docs:
-                    matching_docs = [r.get("content", "")[:2000] for r in docs_rows[:3]]
+                    matching_docs = [c.get("content", "") for c in matching_chunks[:3]]
                 combined_docs = "\n\n".join(matching_docs[:3])
                 file_context = f"\n\nKIẾN THỨC TỪ CƠ SỞ DỮ LIỆU RAG (Sách giáo khoa / Tài liệu):\n{combined_docs}\n"
         except Exception as e:
@@ -901,36 +941,7 @@ def _document_matches_subject(doc_name, target_subject):
     return False
 
 
-# Pre-load chunks.json into memory at module startup (runs once per Vercel function lifecycle)
-_CHUNKS_CACHE = {}
-_SESSION_CACHE = {}
-_DOCS_CACHE = {}
-
-def _load_local_chunks():
-    """Load all pre-indexed document chunks from local JSON file into memory.
-    Called once at module startup; subsequent calls return the already-loaded data instantly."""
-    paths_to_try = [
-        os.path.join(os.path.dirname(__file__), "chunks_cache.json"),
-        "api/chunks_cache.json",
-        "chunks_cache.json"
-    ]
-    for path in paths_to_try:
-        if os.path.exists(path):
-            try:
-                print(f"⚡ [Local Cache] Loading chunks from {path}...")
-                with open(path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                print(f"⚡ [Local Cache] Successfully loaded {len(data)} chunks into memory!")
-                return data
-            except Exception as e:
-                print(f"⚠️ Failed to load local chunks from {path}: {e}")
-    
-    print("⚠️ [Local Cache] chunks_cache.json not found, falling back to database query.")
-    return []
-
-
-# Load once at module startup — stored at module level, never re-read from disk per request
-_LOCAL_CHUNKS = _load_local_chunks()
+# Cache structures migrated to top of file
 
 
 
@@ -990,6 +1001,9 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                     session_row = res.data[0] or {}
                     if session_row.get("messages"):
                         chat_history = session_row["messages"]
+                    if len(_SESSION_CACHE) > 1000:
+                        for k in list(_SESSION_CACHE.keys())[:100]:
+                            _SESSION_CACHE.pop(k, None)
                     _SESSION_CACHE[session_id] = {
                         "messages": chat_history,
                         "grade": session_row.get("grade") or target_grade,
@@ -1004,6 +1018,9 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                         session_row = res.data[0] or {}
                         if session_row.get("messages"):
                             chat_history = session_row["messages"]
+                        if len(_SESSION_CACHE) > 1000:
+                            for k in list(_SESSION_CACHE.keys())[:100]:
+                                _SESSION_CACHE.pop(k, None)
                         _SESSION_CACHE[session_id] = {
                             "messages": chat_history,
                             "grade": target_grade,
@@ -1108,6 +1125,9 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                                     except Exception as fallback_err:
                                         print(f"⚠️ Document fallback query failed: {fallback_err}")
                                 
+                                if len(_DOCS_CACHE) > 500:
+                                    for k in list(_DOCS_CACHE.keys())[:50]:
+                                        _DOCS_CACHE.pop(k, None)
                                 _DOCS_CACHE[docs_cache_key] = docs_rows
                                 print(f"💾 [Docs Cache] Lưu {len(docs_rows)} documents vào bộ nhớ đệm.")
                             except Exception as docs_err:
@@ -1117,6 +1137,9 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                                     if target_grade:
                                         docs_query = docs_query.eq("grade", target_grade)
                                     docs_rows = docs_query.execute().data or []
+                                    if len(_DOCS_CACHE) > 500:
+                                        for k in list(_DOCS_CACHE.keys())[:50]:
+                                            _DOCS_CACHE.pop(k, None)
                                     _DOCS_CACHE[docs_cache_key] = docs_rows
                                 except Exception as docs_fallback_err:
                                     print(f"⚠️ Document fallback query failed: {docs_fallback_err}")
@@ -1169,6 +1192,9 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                                 except Exception as chunks_err:
                                     print(f"⚠️ Failed to fetch missing chunks from document_chunks: {chunks_err}")
                             
+                            if len(_CHUNKS_CACHE) > 500:
+                                for k in list(_CHUNKS_CACHE.keys())[:50]:
+                                    _CHUNKS_CACHE.pop(k, None)
                             _CHUNKS_CACHE[cache_key] = chunks_rows
                             print(f"⚡ [RAG Cache] Đã chuẩn bị {len(chunks_rows)} chunks từ cache/database.")
 
@@ -1400,6 +1426,9 @@ PHẦN TRẢ LỜI CỦA BẠN PHẢI TUÂN THEO CẤU TRÚC SAU:
                     
                     supabase.table("chat_sessions").update(update_payload).eq("id", session_id).execute()
                     # CRITICAL: update in-memory session cache so next request reads from here (not DB)
+                    if len(_SESSION_CACHE) > 1000:
+                        for k in list(_SESSION_CACHE.keys())[:100]:
+                            _SESSION_CACHE.pop(k, None)
                     _SESSION_CACHE[session_id] = {
                         "messages": chat_history,
                         "grade": target_grade,

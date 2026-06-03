@@ -499,6 +499,11 @@ def chat(req: ChatRequest):
             update_payload["subject"] = req.subject
         if force_reset_context:
             update_payload["messages"] = []
+            try:
+                supabase.table("chat_history").delete().eq("session_id", req.session_id).execute()
+                print(f"🧹 [Reset Context] Cleared chat_history for session {req.session_id}")
+            except Exception as history_clear_err:
+                print(f"⚠️ Warning: failed to clear chat_history on reset: {history_clear_err}")
 
         try:
             if update_payload:
@@ -533,7 +538,7 @@ def chat(req: ChatRequest):
             question_for_ai,
             req.session_id,
             req.user_id,
-            req.model_name or "gemini-1.5-flash",
+            req.model_name or "gemini-2.5-flash",
             req.grade,
             req.subject,
             force_reset_context,

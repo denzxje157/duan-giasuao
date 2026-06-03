@@ -16,7 +16,9 @@ interface ChatSidebarProps {
 }
 
 function getSessionDisplayTitle(session: ChatSessionItem): string {
-  return (session.title || '').trim() || (session.last_message || '').trim().slice(0, 30) || 'Cuộc trò chuyện mới';
+  const subject = (session.subject || '').trim();
+  const title = (session.title || '').trim() || (session.last_message || '').trim().slice(0, 30) || 'Cuộc trò chuyện mới';
+  return subject && subject !== 'Môn học' ? `${subject} - ${title}` : title;
 }
 
 function SessionButton({

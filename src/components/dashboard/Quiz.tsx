@@ -23,6 +23,7 @@ export default function Quiz({ user }: QuizProps) {
   const [difficulty, setDifficulty] = useState('Trung bình');
   const [numQuestions, setNumQuestions] = useState(10);
   const [quizData, setQuizData] = useState<any[]>([]);
+  const [quizFinished, setQuizFinished] = useState(false);
 
   // Flashcard states
   const [isFlipped, setIsFlipped] = useState(false);
@@ -76,6 +77,7 @@ export default function Quiz({ user }: QuizProps) {
           setScore(0);
           setSelectedAnswer(null);
           setShowExplanation(false);
+          setQuizFinished(false);
         } else {
           alert("Không thể tạo bài tập lúc này, vui lòng thử lại!");
         }
@@ -156,9 +158,7 @@ export default function Quiz({ user }: QuizProps) {
     if (currentQuestionIndex < quizData.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
     } else {
-      // Show results
-      alert(`Hoàn thành! Bạn đúng ${score}/${quizData.length} câu.`);
-      // Có thể gọi API lưu điểm ở đây
+      setQuizFinished(true);
     }
   };
 
@@ -290,29 +290,84 @@ export default function Quiz({ user }: QuizProps) {
             <div className="lg:col-span-2">
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
                 {/* Quiz Header */}
-                <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center font-black">
-                      {currentQuestionIndex + 1}
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-slate-800 text-sm">Câu hỏi {currentQuestionIndex + 1}/{quizData.length || 1}</h4>
-                      <div className="w-48 h-2 bg-slate-200 rounded-full mt-1.5 overflow-hidden">
-                        <div 
-                          className="h-full bg-brand-500 transition-all duration-500 ease-out"
-                          style={{ width: `${quizData.length ? ((currentQuestionIndex) / quizData.length) * 100 : 0}%` }}
-                        />
+                {!quizFinished && quizData.length > 0 && (
+                  <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-brand-100 text-brand-600 flex items-center justify-center font-black">
+                        {currentQuestionIndex + 1}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-800 text-sm">Câu hỏi {currentQuestionIndex + 1}/{quizData.length || 1}</h4>
+                        <div className="w-48 h-2 bg-slate-200 rounded-full mt-1.5 overflow-hidden">
+                          <div 
+                            className="h-full bg-brand-500 transition-all duration-500 ease-out"
+                            style={{ width: `${quizData.length ? ((currentQuestionIndex) / quizData.length) * 100 : 0}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-2 bg-orange-50 text-orange-600 px-3 py-1.5 rounded-lg font-bold text-sm">
+                      <Star className="w-4 h-4 fill-orange-500" /> Điểm: {score * 10}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 bg-orange-50 text-orange-600 px-3 py-1.5 rounded-lg font-bold text-sm">
-                    <Star className="w-4 h-4 fill-orange-500" /> Điểm: {score * 10}
-                  </div>
-                </div>
+                )}
 
                 {/* Quiz Body */}
                 <div className="flex-1 p-6 flex flex-col justify-between">
-                  {quizData.length > 0 ? (
+                  {quizFinished ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-center space-y-6">
+                      <div className="w-24 h-24 bg-brand-50 rounded-full flex items-center justify-center relative">
+                        <Star className="w-12 h-12 text-orange-500 fill-orange-500" />
+                      </div>
+                      
+                      <div>
+                        <h2 className="text-2xl font-black text-slate-800">Hoàn thành bài luyện tập!</h2>
+                        <p className="text-slate-500 mt-2 font-semibold">Bạn đạt được {score}/{quizData.length} câu đúng ({score * 10} điểm)</p>
+                      </div>
+
+                      <div className="max-w-md bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                        <p className="text-slate-600 font-semibold leading-relaxed">
+                          {score === quizData.length 
+                            ? "🎉 Tuyệt hảo! Bạn đã trả lời đúng tất cả các câu hỏi. Xuất sắc!"
+                            : score >= quizData.length * 0.8
+                            ? "🌟 Tuyệt vời! Bạn nắm rất vững kiến thức chủ đề này."
+                            : score >= quizData.length * 0.5
+                            ? "👍 Khá tốt! Hãy ôn lại các câu trả lời chưa đúng để nắm chắc hơn nhé."
+                            : "💪 Cố gắng lên! Đọc thêm tài liệu và luyện tập lại để cải thiện kết quả."}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-4 w-full max-w-sm">
+                        <button
+                          onClick={() => {
+                            // Làm lại bài này
+                            setCurrentQuestionIndex(0);
+                            setScore(0);
+                            setSelectedAnswer(null);
+                            setShowExplanation(false);
+                            setQuizFinished(false);
+                          }}
+                          className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2"
+                        >
+                          <RefreshCw className="w-4 h-4" /> Làm lại
+                        </button>
+                        <button
+                          onClick={() => {
+                            // Tạo đề khác
+                            setQuizData([]);
+                            setCurrentQuestionIndex(0);
+                            setScore(0);
+                            setSelectedAnswer(null);
+                            setShowExplanation(false);
+                            setQuizFinished(false);
+                          }}
+                          className="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                        >
+                          <Sparkles className="w-4 h-4" /> Làm đề mới
+                        </button>
+                      </div>
+                    </div>
+                  ) : quizData.length > 0 ? (
                     <>
                       <div>
                         <h2 className="text-xl font-bold text-slate-800 mb-8 leading-relaxed">

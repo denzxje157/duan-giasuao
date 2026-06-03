@@ -111,7 +111,7 @@ export async function loginUser(data: LoginRequest) {
 export async function chatWithAI(
   question: string,
   sessionId?: string
-): Promise<ReadableStream<string>> {
+): Promise<ReadableStream<any>> {
   const response = await fetch(`${API_BASE_URL}/api/chat`, {
     method: 'POST',
     headers: {
@@ -429,8 +429,8 @@ export async function forgotPassword(email: string) {
 
 export async function streamChatResponse(
   question: string,
-  sessionId?: string,
-  onChunk: (chunk: string) => void
+  onChunk: (chunk: string) => void,
+  sessionId?: string
 ): Promise<string> {
   const response = await fetch(`${API_BASE_URL}/api/chat`, {
     method: 'POST',
