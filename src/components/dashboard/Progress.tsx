@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { Trophy, Flame, Calendar, Award, TrendingUp, Clock, BookOpen, Star, Sparkles, Target, Settings, ChevronRight } from 'lucide-react';
 import { User } from '../../types';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { API_BASE_URL } from '../../lib/api';
+import { API_BASE_URL, ChatSessionGroup } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 
 interface ProgressProps {
@@ -11,37 +11,25 @@ interface ProgressProps {
 }
 
 const activityDataMock = [
-  { day: 'T2', thu2: 120, time: 120 },
-  { day: 'T3', thu3: 45, time: 45 },
-  { day: 'T4', thu4: 160, time: 160 },
-  { day: 'T5', thu5: 80, time: 80 },
-  { day: 'T6', thu6: 210, time: 210 },
-  { day: 'T7', thu7: 300, time: 300 },
-  { day: 'CN', cn: 150, time: 150 },
+  { day: 'T2', time: 0 },
+  { day: 'T3', time: 0 },
+  { day: 'T4', time: 0 },
+  { day: 'T5', time: 0 },
+  { day: 'T6', time: 0 },
+  { day: 'T7', time: 0 },
+  { day: 'CN', time: 0 },
 ];
 
 const radarDataMock = [
-  { subject: 'Đại số', score: 90, fullMark: 100 },
-  { subject: 'Hình học', score: 30, fullMark: 100 },
-  { subject: 'Lượng giác', score: 75, fullMark: 100 },
-  { subject: 'Giải tích', score: 85, fullMark: 100 },
-  { subject: 'Xác suất', score: 65, fullMark: 100 },
+  { subject: 'Toán', score: 0, fullMark: 100 },
+  { subject: 'Ngữ văn', score: 0, fullMark: 100 },
+  { subject: 'Tiếng Anh', score: 0, fullMark: 100 },
 ];
 
 const subjectData = [
-  { name: 'Toán học', hours: 12, color: '#3b82f6' }, // blue
-  { name: 'Ngữ văn', hours: 5, color: '#f59e0b' },   // amber
-  { name: 'Tiếng Anh', hours: 7, color: '#10b981' }, // emerald
-  { name: 'Khoa học', hours: 3, color: '#8b5cf6' },  // violet
-];
-
-const badges = [
-  { id: 1, title: 'Chiến thần Toán học', desc: 'Giải thành công 100 bài Toán khó', icon: Target, color: 'text-rose-500', bg: 'bg-rose-100', unlocked: true },
-  { id: 2, title: 'Cây bút chăm chỉ', desc: 'Học liên tục trong 7 ngày', icon: Flame, color: 'text-amber-500', bg: 'bg-amber-100', unlocked: true },
-  { id: 3, title: 'Nhà thông thái', desc: 'Trả lời đúng 50 câu trắc nghiệm Văn', icon: Star, color: 'text-brand-500', bg: 'bg-brand-100', unlocked: true },
-  { id: 4, title: 'Cú đêm học tập', desc: 'Hoàn thành bài tập sau 10h tối', icon: Clock, color: 'text-slate-400', bg: 'bg-slate-100', unlocked: false },
-  { id: 5, title: 'Sách là bạn', desc: 'Hoàn thành đọc 5 cuốn SGK trên hệ thống', icon: BookOpen, color: 'text-slate-400', bg: 'bg-slate-100', unlocked: false },
-  { id: 6, title: 'Thủ khoa tương lai', desc: 'Đạt điểm tối đa 5 bài kiểm tra', icon: Trophy, color: 'text-slate-400', bg: 'bg-slate-100', unlocked: false },
+  { name: 'Toán', hours: 0, color: '#3b82f6' }, // blue
+  { name: 'Ngữ văn', hours: 0, color: '#f59e0b' },   // amber
+  { name: 'Tiếng Anh', hours: 0, color: '#10b981' }, // emerald
 ];
 
 export default function Progress({ user }: ProgressProps) {
@@ -50,7 +38,96 @@ export default function Progress({ user }: ProgressProps) {
   const [radarData, setRadarData] = useState(radarDataMock);
 
   useEffect(() => {
-    if (user.isGuest) return;
+    if (user.isGuest) {
+      // Compute stats and charts from local storage guest chats
+      const localSessionsStr = localStorage.getItem('ai_chat_guest_sessions');
+      if (localSessionsStr) {
+        try {
+          const groups = JSON.parse(localSessionsStr) as ChatSessionGroup[];
+          
+          let totalMsgs = 0;
+          const subjectCounts: Record<string, number> = {};
+          const dailyCounts: Record<string, number> = {
+            'T2': 0, 'T3': 0, 'T4': 0, 'T5': 0, 'T6': 0, 'T7': 0, 'CN': 0
+          };
+          
+          const dayMapping: Record<number, string> = {
+            1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7', 0: 'CN'
+          };
+
+          const uniqueDays = new Set<string>();
+
+          groups.forEach(g => {
+            g.subjects.forEach(subGroup => {
+              const subName = subGroup.subject;
+              subGroup.sessions.forEach(sess => {
+                const storedMsgsStr = localStorage.getItem(`ai_chat_guest_messages_${sess.session_id}`);
+                if (storedMsgsStr) {
+                  try {
+                    const msgs = JSON.parse(storedMsgsStr);
+                    const count = msgs.length;
+                    totalMsgs += count;
+                    subjectCounts[subName] = (subjectCounts[subName] || 0) + count;
+                    
+                    // Group activity by day of the week based on updated_at
+                    if (sess.updated_at) {
+                      const d = new Date(sess.updated_at);
+                      const dayLabel = dayMapping[d.getDay()];
+                      if (dayLabel) {
+                        dailyCounts[dayLabel] += count * 3; // 3 minutes per message
+                      }
+                      
+                      const dateKey = d.toISOString().split('T')[0];
+                      uniqueDays.add(dateKey);
+                    }
+                  } catch (e) {}
+                }
+              });
+            });
+          });
+
+          const streak = uniqueDays.size;
+          const totalMins = totalMsgs * 3;
+          const totalSp = totalMsgs * 15; // 15 XP per message
+
+          setStats({
+            streak: streak || 0,
+            max_streak: streak || 0,
+            total_study_minutes: totalMins,
+            total_sp: totalSp
+          });
+
+          // Map activityData
+          const updatedActivityData = Object.keys(dailyCounts).map(day => ({
+            day,
+            time: dailyCounts[day]
+          }));
+          setActivityData(updatedActivityData);
+
+          // Map radarData
+          const updatedRadarData = Object.keys(subjectCounts).map(subj => ({
+            subject: subj,
+            score: Math.min(100, subjectCounts[subj] * 10), // Scale score
+            fullMark: 100
+          }));
+          
+          if (updatedRadarData.length === 0) {
+            setRadarData([
+              { subject: 'Toán', score: 0, fullMark: 100 },
+              { subject: 'Ngữ văn', score: 0, fullMark: 100 },
+              { subject: 'Tiếng Anh', score: 0, fullMark: 100 },
+            ]);
+          } else {
+            setRadarData(updatedRadarData);
+          }
+
+        } catch (e) {
+          console.error("Error parsing guest sessions for progress:", e);
+        }
+      }
+      return;
+    }
+
     const fetchProgress = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -78,6 +155,97 @@ export default function Progress({ user }: ProgressProps) {
     };
     fetchProgress();
   }, [user]);
+
+  const badgesList = useMemo(() => {
+    return [
+      {
+        id: 1,
+        title: 'Chiến thần Học tập',
+        desc: 'Học tập tích cực trên hệ thống',
+        icon: Target,
+        color: 'text-rose-500',
+        bg: 'bg-rose-100',
+        unlocked: stats.total_study_minutes > 0
+      },
+      {
+        id: 2,
+        title: 'Cây bút chăm chỉ',
+        desc: 'Học liên tục trong ít nhất 3 ngày',
+        icon: Flame,
+        color: 'text-amber-500',
+        bg: 'bg-amber-100',
+        unlocked: stats.streak >= 3 || stats.max_streak >= 3
+      },
+      {
+        id: 3,
+        title: 'Nhà thông thái',
+        desc: 'Đạt từ 200 điểm kinh nghiệm (XP) trở lên',
+        icon: Star,
+        color: 'text-brand-500',
+        bg: 'bg-brand-100',
+        unlocked: stats.total_sp >= 200
+      },
+      {
+        id: 4,
+        title: 'Cú đêm học tập',
+        desc: 'Học tập hơn 30 phút trên hệ thống',
+        icon: Clock,
+        color: 'text-slate-500',
+        bg: 'bg-slate-100',
+        unlocked: stats.total_study_minutes >= 30
+      },
+      {
+        id: 5,
+        title: 'Hiếu học',
+        desc: 'Tích lũy hơn 100 phút học tập',
+        icon: BookOpen,
+        color: 'text-sky-500',
+        bg: 'bg-sky-100',
+        unlocked: stats.total_study_minutes >= 100
+      },
+      {
+        id: 6,
+        title: 'Thủ khoa tương lai',
+        desc: 'Đạt cấp độ thám hiểm cấp cao (1,000 XP)',
+        icon: Trophy,
+        color: 'text-yellow-500',
+        bg: 'bg-yellow-100',
+        unlocked: stats.total_sp >= 1000
+      },
+    ];
+  }, [stats]);
+
+  const levelInfo = useMemo(() => {
+    const xp = stats.total_sp || 0;
+    const level = Math.floor(xp / 500) + 1;
+    const currentLevelStart = (level - 1) * 500;
+    const nextLevelTarget = level * 500;
+    const progress = xp - currentLevelStart;
+    const percent = Math.min(100, Math.max(0, (progress / 500) * 100));
+    
+    let levelName = 'Tập sự';
+    if (level >= 2) levelName = 'Nhà thám hiểm';
+    if (level >= 4) levelName = 'Chuyên gia';
+    if (level >= 6) levelName = 'Thầy đội';
+    if (level >= 8) levelName = 'Thủ khoa';
+    
+    return { level, levelName, nextLevelTarget, percent };
+  }, [stats.total_sp]);
+
+  const analysis = useMemo(() => {
+    if (!radarData || radarData.length === 0) {
+      return { strength: null, blindSpot: null };
+    }
+    const sorted = [...radarData].sort((a, b) => b.score - a.score);
+    const hasData = sorted.some(item => item.score > 0);
+    if (!hasData) {
+      return { strength: null, blindSpot: null };
+    }
+    
+    const strength = sorted[0];
+    const blindSpot = sorted[sorted.length - 1];
+    return { strength, blindSpot };
+  }, [radarData]);
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-12">
@@ -136,7 +304,7 @@ export default function Progress({ user }: ProgressProps) {
           </div>
           <div className="mt-4 flex items-end justify-between">
             <div>
-              <span className="text-4xl font-extrabold text-slate-800">18.5</span>
+              <span className="text-4xl font-extrabold text-slate-800">{(stats.total_study_minutes / 60).toFixed(1)}</span>
               <span className="text-lg font-bold text-slate-500 ml-1">giờ</span>
             </div>
             <div className="flex items-center gap-1 text-sm font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
@@ -157,16 +325,16 @@ export default function Progress({ user }: ProgressProps) {
              </div>
              <div>
                 <h3 className="font-bold text-slate-700">Điểm kinh nghiệm (XP)</h3>
-                <p className="text-xs text-slate-500 font-medium">Cấp độ 5 - Nhà thám hiểm</p>
+                <p className="text-xs text-slate-500 font-medium">Cấp độ {levelInfo.level} - {levelInfo.levelName}</p>
              </div>
           </div>
           <div className="mt-4">
              <div className="flex items-end justify-between mb-2">
-                <span className="text-2xl font-bold text-slate-800">2,450 XP</span>
-                <span className="text-xs font-bold text-slate-400">3,000 XP để lên cấp</span>
+                <span className="text-2xl font-bold text-slate-800">{stats.total_sp.toLocaleString()} XP</span>
+                <span className="text-xs font-bold text-slate-400">{levelInfo.nextLevelTarget.toLocaleString()} XP để lên cấp</span>
              </div>
              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-fuchsia-500 rounded-full w-[80%]" />
+                <div className="h-full bg-fuchsia-500 rounded-full" style={{ width: `${levelInfo.percent}%` }} />
              </div>
           </div>
         </motion.div>
@@ -216,10 +384,10 @@ export default function Progress({ user }: ProgressProps) {
                     <Award className="w-5 h-5 text-amber-500" />
                     Bộ sưu tập Huy hiệu
                  </h3>
-                 <span className="text-xs font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-full">3 / 6 Đã mở khóa</span>
+                 <span className="text-xs font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-full">{badgesList.filter(b => b.unlocked).length} / {badgesList.length} Đã mở khóa</span>
               </div>
               <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                 {badges.map((badge, idx) => (
+                 {badgesList.map((badge, idx) => (
                     <motion.div 
                       key={badge.id}
                       initial={{ opacity: 0, scale: 0.95 }}
@@ -266,8 +434,14 @@ export default function Progress({ user }: ProgressProps) {
                 </ResponsiveContainer>
               </div>
               <div className="mt-4 bg-indigo-50 text-indigo-700 p-3 rounded-xl text-sm font-semibold w-full border border-indigo-100">
-                <span className="block mb-1">🔥 Mạnh: <strong>Đại số (90%)</strong></span>
-                <span>⚠️ Điểm mù: <strong>Hình học (30%)</strong></span>
+                {analysis.strength && analysis.blindSpot ? (
+                  <>
+                    <span className="block mb-1">🔥 Mạnh: <strong>{analysis.strength.subject} ({analysis.strength.score}%)</strong></span>
+                    <span>⚠️ Điểm mù: <strong>{analysis.blindSpot.subject} ({analysis.blindSpot.score}%)</strong></span>
+                  </>
+                ) : (
+                  <span>📊 Chưa có đủ dữ liệu học tập để phân tích điểm mù. Hãy trò chuyện với Gia sư AI nhiều hơn!</span>
+                )}
               </div>
            </div>
 
@@ -282,16 +456,24 @@ export default function Progress({ user }: ProgressProps) {
                  </div>
                  
                  <p className="text-sm font-medium text-slate-300 leading-relaxed shadow-sm">
-                   Dựa vào Biểu đồ Mạng nhện, bạn đang làm rất tốt phần <strong>Đại số</strong>. Tuy nhiên, <strong>Hình học</strong> đang là lỗ hổng kiến thức lớn nhất (chỉ đạt 30%). Hãy vá ngay lỗ hổng này!
+                   {analysis.strength && analysis.blindSpot ? (
+                     <>
+                       Dựa vào phân tích, em đang làm rất tốt phần <strong>{analysis.strength.subject}</strong>. Tuy nhiên, <strong>{analysis.blindSpot.subject}</strong> đang là lỗ hổng kiến thức lớn nhất (chỉ đạt {analysis.blindSpot.score}%). Hãy ôn luyện thêm mảng này nhé!
+                     </>
+                   ) : (
+                     "Hãy bắt đầu đặt câu hỏi cho Gia sư ảo ở màn hình chính để chúng mình cùng phân tích lộ trình học tập và chỉ ra các điểm mù kiến thức của bạn nhé!"
+                   )}
                  </p>
                  
-                 <div className="bg-white/10 rounded-2xl p-4 border border-white/5 backdrop-blur-md">
-                   <div className="text-xs font-semibold text-brand-300 uppercase tracking-wider mb-2">Bài tiếp theo</div>
-                   <h4 className="font-bold text-white">Lộ trình vá lỗi: Trắc nghiệm Hình học cơ bản</h4>
-                   <button className="mt-4 w-full bg-brand-500 hover:bg-brand-600 text-white text-sm font-bold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
-                     Bắt đầu ôn tập <ChevronRight className="w-4 h-4" />
-                   </button>
-                 </div>
+                 {analysis.blindSpot && (
+                   <div className="bg-white/10 rounded-2xl p-4 border border-white/5 backdrop-blur-md">
+                     <div className="text-xs font-semibold text-brand-300 uppercase tracking-wider mb-2">Bài tiếp theo</div>
+                     <h4 className="font-bold text-white">Lộ trình vá lỗi: Ôn tập chuyên đề {analysis.blindSpot.subject}</h4>
+                     <button className="mt-4 w-full bg-brand-500 hover:bg-brand-600 text-white text-sm font-bold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
+                       Bắt đầu ôn tập <ChevronRight className="w-4 h-4" />
+                     </button>
+                   </div>
+                 )}
               </div>
            </div>
         </div>
