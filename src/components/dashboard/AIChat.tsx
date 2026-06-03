@@ -227,7 +227,7 @@ function inferSubjectFromText(content: string): string {
   return 'Môn học';
 }
 
-const MessageContent = ({ content }: { content: string }) => {
+const MessageContent = ({ content, isStreaming }: { content: string; isStreaming?: boolean }) => {
   return (
     <div className="prose prose-invert max-w-none break-words">
       <ReactMarkdown
@@ -236,6 +236,11 @@ const MessageContent = ({ content }: { content: string }) => {
       >
         {content}
       </ReactMarkdown>
+      {isStreaming && (
+        <span className="inline-flex items-center ml-1">
+          <span className="inline-block w-2 h-4 bg-brand-500 animate-pulse align-middle rounded-sm" />
+        </span>
+      )}
     </div>
   );
 };
@@ -1498,7 +1503,18 @@ export default function AIChat({ user }: AIChatProps) {
                       return (
                         <div className="flex w-full flex-col gap-4">
                           <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                            <MessageContent content={answerPart || ''} />
+                            {msg.status === 'streaming' && !answerPart ? (
+                              <div className="flex items-center gap-2 text-zinc-400 font-normal py-1">
+                                <span className="text-xs uppercase tracking-wider animate-pulse">Gia sư đang soạn câu trả lời</span>
+                                <div className="flex gap-1.5 items-center">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                                </div>
+                              </div>
+                            ) : (
+                              <MessageContent content={answerPart || ''} isStreaming={msg.status === 'streaming'} />
+                            )}
                           </div>
 
                           {/* Nút Đọc To (Speaker) */}
