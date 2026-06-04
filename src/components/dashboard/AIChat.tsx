@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { motion } from 'motion/react';
 import { MessageSquare, Sparkles, User, Bot, Send, Plus, Menu, Moon, Sun, Pen, Mic, Volume2, VolumeX } from 'lucide-react';
 import { User as UserType } from '../../types';
-import { fetchChatHistory, fetchChatSessions, deleteChatSession, initSession as initSessionApi, API_BASE_URL, ChatHistoryRow, ChatSessionGroup, ChatSessionItem } from '../../lib/api';
+import { fetchChatHistory, fetchChatSessions, deleteChatSession, API_BASE_URL, ChatHistoryRow, ChatSessionGroup, ChatSessionItem } from '../../lib/api';
 import ChatSidebar from './ChatSidebar';
 import DrawingCanvas from './DrawingCanvas';
 import ReactMarkdown from 'react-markdown';
@@ -987,32 +987,39 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
     return `Bối cảnh học tập bắt buộc: Học sinh lớp ${grade}, môn ${subject}. Sử dụng ngôn ngữ phù hợp lứa tuổi lớp ${grade}. Tài liệu mặc định: Bộ sách ${bookSet}.`;
   };
 
+  const findLatestSessionForSubject = (subjName: string): string | null => {
+    const gradeVal = String(user.grade || '').trim();
+    const currentGradeLabel = gradeVal.startsWith('Lớp') ? gradeVal : `Lớp ${gradeVal}`;
+
+    const gradeGroup = sessionGroups.find(g => {
+      const gLabel = String(g.grade || '').trim();
+      return gLabel.toLowerCase() === currentGradeLabel.toLowerCase();
+    });
+    if (!gradeGroup) return null;
+    
+    const subjectGroup = gradeGroup.subjects.find(s => s.subject.toLowerCase() === subjName.toLowerCase());
+    if (!subjectGroup || subjectGroup.sessions.length === 0) return null;
+    
+    return subjectGroup.sessions[0].session_id;
+  };
+
   const handleSelectSubject = async (subjectName: string, subjectKey?: string) => {
     if (subjectLoadingKey) return;
     if (subjectKey) setSubjectLoadingKey(subjectKey);
 
     try {
+      // Reopen existing session if it exists for this subject to prevent duplicates
+      const existingSessionId = findLatestSessionForSubject(subjectName);
+      if (existingSessionId) {
+        await handleOpenSessionHistory(existingSessionId);
+        return;
+      }
+
       setSelectedSubject(subjectName);
       setMessages([]);
       seenSuggestionLabelsRef.current = new Set();
 
-      let newSessionId = sessionId;
-      try {
-        const initData = await initSessionApi(undefined, String(user.grade || ''), subjectName);
-        const returnedSessionId = initData?.new_session_id || (initData as any)?.data?.new_session_id;
-        if (returnedSessionId) {
-          newSessionId = returnedSessionId;
-        } else if (!newSessionId && typeof crypto !== 'undefined' && crypto.randomUUID) {
-          newSessionId = crypto.randomUUID();
-        } else if (!newSessionId) {
-          newSessionId = String(Date.now());
-        }
-      } catch (err) {
-        console.warn("Could not init session on backend, falling back to local session ID", err);
-        if (!newSessionId) {
-          newSessionId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
-        }
-      }
+      const newSessionId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
       setSessionId(newSessionId);
       skipLoadHistoryRef.current = newSessionId;
       if (historyUserId) {
@@ -1045,27 +1052,21 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
     setSubjectLoadingKey('general-chat');
     
     try {
+      // Reopen existing general session if it exists
+      const existingSessionId = findLatestSessionForSubject('Môn học');
+      if (existingSessionId) {
+        setSelectedSubject('Môn học');
+        setSessionId(existingSessionId);
+        setCurrentView('chat');
+        await sendMessage(msg, { overrideSubject: 'Môn học', sessionIdOverride: existingSessionId });
+        return;
+      }
+
       setSelectedSubject('Môn học');
       setMessages([]);
       seenSuggestionLabelsRef.current = new Set();
 
-      let newSessionId = sessionId;
-      try {
-        const initData = await initSessionApi(undefined, String(user.grade || ''), 'Môn học');
-        const returnedSessionId = initData?.new_session_id || (initData as any)?.data?.new_session_id;
-        if (returnedSessionId) {
-          newSessionId = returnedSessionId;
-        } else if (!newSessionId && typeof crypto !== 'undefined' && crypto.randomUUID) {
-          newSessionId = crypto.randomUUID();
-        } else if (!newSessionId) {
-          newSessionId = String(Date.now());
-        }
-      } catch (err) {
-        console.warn("Could not init session on backend, falling back to local session ID", err);
-        if (!newSessionId) {
-          newSessionId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
-        }
-      }
+      const newSessionId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
       setSessionId(newSessionId);
       skipLoadHistoryRef.current = newSessionId;
       if (historyUserId) {
@@ -1347,7 +1348,13 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    const tempId = `upl-temp-${Date.now()}`;
     try {
+      setIsLoading(true);
+      setMessages(prev => [...prev, 
+        { id: tempId, role: 'user', content: `Đang tải lên và phân tích tài liệu: ${f.name}...` }
+      ]);
+
       const form = new FormData();
       form.append('file', f);
       form.append('grade', String(user.grade || '1'));
@@ -1355,6 +1362,10 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
       const uploadUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/upload` : '/api/upload';
       const resp = await fetch(uploadUrl, { method: 'POST', body: form });
       const data = await resp.json();
+      
+      // Remove temporary loading message
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+
       if (data?.status === 'success') {
         const filename = f.name;
         setMessages(prev => [...prev, 
@@ -1377,8 +1388,11 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
       }
     } catch (err) {
       console.error('Upload failed', err);
+      // Ensure temp message is removed on error
+      setMessages(prev => prev.filter(m => m.id !== tempId));
       setMessages(prev => [...prev, { id: `e-${Date.now()}`, role: 'assistant', content: 'Có lỗi khi tải file lên, thử lại sau nhé.' }]);
     } finally {
+      setIsLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };

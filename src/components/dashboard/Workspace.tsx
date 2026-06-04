@@ -216,22 +216,33 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
 
     try {
       setIsUploadingFile(true);
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'user',
+          content: `Đang tải lên và phân tích tài liệu: ${file.name}...`
+        }
+      ]);
       const grade = String(user.grade || 1);
       const result = await uploadDocument(file, grade.toString(), user.id);
+      
+      setMessages(prev => prev.filter(m => !m.content.startsWith('Đang tải lên và phân tích tài liệu:')));
+
       setMessages(prev => [
         ...prev,
         {
           role: 'assistant',
-          content: `Đã tải tệp **${file.name}** lên backend thành công. Trạng thái: ${result?.data?.status || result?.status || 'processing'}.`
+          content: `Đã tải tệp **${file.name}** lên hệ thống thành công. Cô/Thầy đã đọc và ghi nhớ nội dung tài liệu này. Em có câu hỏi nào cần giải đáp không?`
         }
       ]);
     } catch (error: any) {
       console.error('Upload file failed', error);
+      setMessages(prev => prev.filter(m => !m.content.startsWith('Đang tải lên và phân tích tài liệu:')));
       setMessages(prev => [
         ...prev,
         {
           role: 'assistant',
-          content: `Không thể tải tệp lên backend: ${error?.message || 'lỗi không xác định'}`
+          content: `Không thể tải tệp lên: ${error?.message || 'lỗi không xác định'}`
         }
       ]);
     } finally {

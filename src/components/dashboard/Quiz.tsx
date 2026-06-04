@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { BrainCircuit, BookOpen, Layers, Sparkles, CheckCircle, XCircle, ArrowRight, RefreshCw, Star, Upload } from 'lucide-react';
+import { BrainCircuit, BookOpen, Layers, Sparkles, CheckCircle, XCircle, ArrowRight, RefreshCw, Star, Upload, History } from 'lucide-react';
 import { User } from '../../types';
 import { API_BASE_URL } from '../../lib/api';
 import { useStudyTracker } from '../../hooks/useStudyTracker';
 import { supabase } from '../../lib/supabase';
+import { getCachedStale, setCached } from '../../lib/cache';
 
 interface QuizProps {
   user: User;
@@ -12,6 +13,11 @@ interface QuizProps {
 
 export default function Quiz({ user }: QuizProps) {
   const [activeTab, setActiveTab] = useState<'generator' | 'flashcards'>('generator');
+  const [activeMainTab, setActiveMainTab] = useState<'create' | 'history'>('create');
+  const quizHistoryKey = `quiz_history_${user.id || 'guest'}`;
+  const flashcardHistoryKey = `flashcard_history_${user.id || 'guest'}`;
+  const [quizHistory, setQuizHistory] = useState<any[]>(() => getCachedStale<any[]>(quizHistoryKey) || []);
+  const [flashcardHistory, setFlashcardHistory] = useState<any[]>(() => getCachedStale<any[]>(flashcardHistoryKey) || []);
   const [isGenerating, setIsGenerating] = useState(false);
   const [topic, setTopic] = useState('');
   const [fileContent, setFileContent] = useState<string | null>(null);
@@ -68,6 +74,25 @@ export default function Quiz({ user }: QuizProps) {
     { front: 'Định lý Vi-et (Tổng 2 nghiệm)', back: 'x1 + x2 = -b/a' }
   ];
 
+  const loadFromHistory = (item: any) => {
+    if (activeTab === 'generator') {
+      setQuizData(item.questions);
+      setTopic(item.topic);
+      setCurrentQuestionIndex(0);
+      setScore(0);
+      setSelectedAnswer(null);
+      setShowExplanation(false);
+      setQuizFinished(false);
+      setActiveMainTab('create');
+    } else {
+      setFlashcardsData(item.cards);
+      setTopic(item.topic);
+      setCurrentCardIndex(0);
+      setIsFlipped(false);
+      setActiveMainTab('create');
+    }
+  };
+
   const handleGenerate = async () => {
     if (!topic.trim()) return;
     setIsGenerating(true);
@@ -94,6 +119,20 @@ export default function Quiz({ user }: QuizProps) {
           setSelectedAnswer(null);
           setShowExplanation(false);
           setQuizFinished(false);
+          // Save to quiz history
+          const newQuizHistoryItem = {
+            id: Date.now().toString(),
+            topic,
+            difficulty,
+            date: new Date().toLocaleDateString('vi-VN'),
+            questions: data.data,
+            numQuestions: data.data.length
+          };
+          setQuizHistory(prev => {
+            const updated = [newQuizHistoryItem, ...prev].slice(0, 20);
+            setCached(quizHistoryKey, updated);
+            return updated;
+          });
         } else {
           alert("Không thể tạo bài tập lúc này, vui lòng thử lại!");
         }
@@ -113,6 +152,19 @@ export default function Quiz({ user }: QuizProps) {
           setFlashcardsData(data.data);
           setCurrentCardIndex(0);
           setIsFlipped(false);
+          // Save to flashcard history
+          const newFlashcardItem = {
+            id: Date.now().toString(),
+            topic,
+            date: new Date().toLocaleDateString('vi-VN'),
+            cards: data.data,
+            numCards: data.data.length
+          };
+          setFlashcardHistory(prev => {
+            const updated = [newFlashcardItem, ...prev].slice(0, 20);
+            setCached(flashcardHistoryKey, updated);
+            return updated;
+          });
         } else {
           alert("Không thể tạo flashcards lúc này, vui lòng thử lại!");
         }
@@ -250,12 +302,86 @@ export default function Quiz({ user }: QuizProps) {
           >
             <Layers className="w-4 h-4" /> Thẻ học tập Flashcards
           </button>
+          <button 
+            onClick={() => setActiveMainTab(activeMainTab === 'history' ? 'create' : 'history')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-sm transition-all ${activeMainTab === 'history' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <History className="w-4 h-4" /> Lịch sử
+          </button>
         </div>
       </div>
 
       {/* Main Content */}
+      {/* History Panel */}
+      <AnimatePresence>
+        {activeMainTab === 'history' && (
+          <motion.div
+            key="history-panel"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6"
+          >
+            <h3 className="font-bold text-slate-800 text-lg mb-4 flex items-center gap-2">
+              <History className="w-5 h-5 text-slate-500" />
+              {activeTab === 'generator' ? 'Lịch sử đề trắc nghiệm' : 'Lịch sử thẻ Flashcard'}
+            </h3>
+            {activeTab === 'generator' ? (
+              quizHistory.length === 0 ? (
+                <div className="text-center py-12 text-slate-400">
+                  <History className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">Chưa có lịch sử bài test nào</p>
+                  <p className="text-sm mt-1">Tạo một đề trắc nghiệm để bắt đầu!</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {quizHistory.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => loadFromHistory(item)}
+                      className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-brand-300 hover:bg-brand-50 transition-all flex items-center justify-between gap-4 group"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-800 truncate">{item.topic}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{item.date} · {item.difficulty} · {item.numQuestions} câu</p>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-brand-500 shrink-0 transition-colors" />
+                    </button>
+                  ))}
+                </div>
+              )
+            ) : (
+              flashcardHistory.length === 0 ? (
+                <div className="text-center py-12 text-slate-400">
+                  <History className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p className="font-medium">Chưa có lịch sử Flashcard nào</p>
+                  <p className="text-sm mt-1">Tạo một bộ thẻ để bắt đầu!</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {flashcardHistory.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => loadFromHistory(item)}
+                      className="w-full text-left p-4 rounded-xl border border-slate-200 hover:border-purple-300 hover:bg-purple-50 transition-all flex items-center justify-between gap-4 group"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-800 truncate">{item.topic}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{item.date} · {item.numCards} thẻ</p>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-purple-500 shrink-0 transition-colors" />
+                    </button>
+                  ))}
+                </div>
+              )
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Main Content */}
       <AnimatePresence mode="wait">
-        {activeTab === 'generator' && (
+        {activeMainTab === 'create' && activeTab === 'generator' && (
           <motion.div 
             key="generator"
             initial={{ opacity: 0, y: 10 }}
@@ -295,7 +421,12 @@ export default function Quiz({ user }: QuizProps) {
                       </label>
                     </div>
                   </div>
-                  {fileContent && (
+                  {isUploading && (
+                    <div className="mt-2 text-xs text-brand-600 font-semibold flex items-center gap-1.5 animate-pulse">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Đang trích xuất văn bản từ tài liệu...
+                    </div>
+                  )}
+                  {fileContent && !isUploading && (
                     <div className="mt-2 text-xs text-brand-600 font-medium flex items-center gap-1">
                       <CheckCircle className="w-3 h-3" /> Đã nhận diện dữ liệu từ file
                     </div>
@@ -334,7 +465,10 @@ export default function Quiz({ user }: QuizProps) {
                   className="w-full mt-4 bg-brand-600 hover:bg-brand-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group"
                 >
                   {isGenerating ? (
-                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <>
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      <span>Đang biên soạn đề trắc nghiệm AI...</span>
+                    </>
                   ) : (
                     <>
                       <Sparkles className="w-5 h-5 group-hover:scale-110 transition-transform" />
@@ -513,7 +647,7 @@ export default function Quiz({ user }: QuizProps) {
           </motion.div>
         )}
 
-        {activeTab === 'flashcards' && (
+        {activeMainTab === 'create' && activeTab === 'flashcards' && (
           <motion.div 
             key="flashcards"
             initial={{ opacity: 0, y: 10 }}
@@ -556,13 +690,28 @@ export default function Quiz({ user }: QuizProps) {
               <button 
                 onClick={handleGenerate}
                 disabled={isGenerating || !topic.trim()}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-3 rounded-xl transition-all shadow-md flex items-center gap-2 disabled:opacity-50 w-full sm:w-auto justify-center"
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-3 rounded-xl transition-all shadow-md flex items-center gap-2 disabled:opacity-50 w-full sm:w-auto justify-center shrink-0"
               >
-                {isGenerating ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />} Tạo
+                {isGenerating ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <span>Đang biên soạn thẻ...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    <span>Tạo thẻ ngay</span>
+                  </>
+                )}
               </button>
             </div>
-            {fileContent && (
-              <div className="text-xs text-purple-600 font-medium flex items-center gap-1 mb-4">
+            {isUploading && (
+              <div className="w-full text-xs text-purple-600 font-semibold flex items-center gap-1.5 animate-pulse mb-4">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Đang trích xuất văn bản từ tài liệu...
+              </div>
+            )}
+            {fileContent && !isUploading && (
+              <div className="w-full text-xs text-purple-600 font-medium flex items-center gap-1 mb-4">
                 <CheckCircle className="w-3 h-3" /> Đã nhận diện dữ liệu từ file để tạo thẻ
               </div>
             )}

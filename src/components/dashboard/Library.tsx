@@ -6,6 +6,7 @@ import { TEXTBOOKS_DATA } from '../../data/textbooks';
 import { supabase } from '../../lib/supabase';
 import { uploadDocument } from '../../lib/api';
 import { useStudyTracker } from '../../hooks/useStudyTracker';
+import { getCachedStale, setCached, invalidateCache } from '../../lib/cache';
 
 interface LibraryProps {
   currentGrade: Grade;
@@ -33,6 +34,15 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const cacheKey = `personal_docs_${user.id || 'guest'}`;
+
+    // Stale-while-revalidate: show cached data immediately
+    const cachedDocs = getCachedStale<any[]>(cacheKey);
+    if (cachedDocs) {
+      setPersonalDocs(cachedDocs);
+      setIsLoading(false);
+    }
+
     const fetchDocs = async () => {
       const isValidUUID = user.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
 
@@ -96,6 +106,8 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
         ];
 
         setPersonalDocs(finalPersonal);
+        // Save fresh data to cache for next render
+        setCached(cacheKey, finalPersonal);
 
         const mappedSystemDocs = system.map(d => {
           // Normalize names for matching
@@ -198,6 +210,9 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
           parsed.unshift(docItem);
           localStorage.setItem(key, JSON.stringify(parsed));
         }
+
+        // Invalidate cache so next fetch loads the newly uploaded document
+        invalidateCache(`personal_docs_${user.id || 'guest'}`);
 
         setPersonalDocs(prev => [docItem, ...prev]);
         setTimeout(() => setUploadSuccess(false), 3000);

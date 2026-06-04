@@ -5,6 +5,7 @@ import { User } from '../../types';
 import { API_BASE_URL } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { useStudyTracker } from '../../hooks/useStudyTracker';
+import { getCachedStale, setCached } from '../../lib/cache';
 
 interface OverviewProps {
   user: User;
@@ -40,7 +41,11 @@ export default function Overview({ user, setActiveTab }: OverviewProps) {
   const questKey = `ai_chat_quests_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
   const lastQuestDateKey = `ai_chat_last_quest_date_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
 
-  const [stats, setStats] = useState({ streak: 0, total_study_minutes: 0, max_streak: 0, total_sp: 0 });
+  const statsCacheKey = `gamification_stats_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
+
+  const [stats, setStats] = useState(() => {
+    return getCachedStale<any>(statsCacheKey) || { streak: 0, total_study_minutes: 0, max_streak: 0, total_sp: 0 };
+  });
 
   const [particles, setParticles] = useState<ConfettiParticle[]>([]);
 
@@ -74,12 +79,14 @@ export default function Overview({ user, setActiveTab }: OverviewProps) {
         });
         const data = await res.json();
         if (data.status === 'success' && data.data) {
-          setStats(prev => ({
-            ...prev,
-            streak: data.data.streak ?? prev.streak,
-            total_study_minutes: data.data.total_study_minutes ?? prev.total_study_minutes,
-            total_sp: data.data.total_sp ?? prev.total_sp
-          }));
+          const freshStats = {
+            streak: data.data.streak ?? stats.streak,
+            total_study_minutes: data.data.total_study_minutes ?? stats.total_study_minutes,
+            total_sp: data.data.total_sp ?? stats.total_sp,
+            max_streak: data.data.max_streak ?? stats.max_streak
+          };
+          setStats(freshStats);
+          setCached(statsCacheKey, freshStats);
         }
       } catch (err) {
         console.error("Failed to fetch gamification stats:", err);

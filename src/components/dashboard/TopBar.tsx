@@ -3,6 +3,7 @@ import { LogOut, Bell, Search, Clock, Flame, Timer, CheckCircle, Trophy } from '
 import { User as UserType } from '../../types';
 import { getUserStats, API_BASE_URL } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
+import { getCachedStale, setCached } from '../../lib/cache';
 
 interface TopBarProps {
   user: UserType;
@@ -13,8 +14,28 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [pomodoroLeft, setPomodoroLeft] = useState<number | null>(null);
   const [pomodoroActive, setPomodoroActive] = useState(false);
-  const [currentStreak, setCurrentStreak] = useState(0);
-  const [totalSP, setTotalSP] = useState(0);
+  const statsCacheKey = `gamification_stats_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
+
+  const [currentStreak, setCurrentStreak] = useState(() => {
+    try {
+      const cached = localStorage.getItem(statsCacheKey);
+      if (cached) {
+        const item = JSON.parse(cached);
+        return item.data?.streak || 0;
+      }
+    } catch (e) {}
+    return 0;
+  });
+  const [totalSP, setTotalSP] = useState(() => {
+    try {
+      const cached = localStorage.getItem(statsCacheKey);
+      if (cached) {
+        const item = JSON.parse(cached);
+        return item.data?.total_sp || 0;
+      }
+    } catch (e) {}
+    return 0;
+  });
 
   useEffect(() => {
     if (user.isGuest) {
@@ -78,6 +99,7 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
         if (data.status === 'success' && data.data) {
           setCurrentStreak(data.data.streak || 0);
           setTotalSP(data.data.total_sp || 0);
+          setCached(statsCacheKey, data.data);
         }
       } catch (e) {
         console.error("Failed to fetch gamification stats for TopBar:", e);

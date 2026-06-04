@@ -784,7 +784,22 @@ def process_pdf_to_markdown(file_bytes, mime_type="application/pdf"):
 
         text_extracted = ""
 
-        if _MD_AVAILABLE:
+        # 1. Try pypdf first (Extremely fast, < 1 second)
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(temp_pdf_path)
+            pages = []
+            for i, p in enumerate(reader.pages):
+                text = p.extract_text() or ""
+                if text.strip():
+                    pages.append(f"## Page {i+1}\n\n" + text.strip())
+            if pages:
+                text_extracted = "\n\n".join(pages)
+        except Exception as e:
+            print("pypdf extraction failed:", e)
+
+        # 2. Only if pypdf extracts nothing or is extremely short, run MarkItDown (Slow, heavy)
+        if (not text_extracted or len(text_extracted.strip()) < 100) and _MD_AVAILABLE:
             try:
                 res = _MD_TOOL.convert(temp_pdf_path)
                 text = getattr(res, "text_content", None) or getattr(res, "text", None) or ""
@@ -792,20 +807,6 @@ def process_pdf_to_markdown(file_bytes, mime_type="application/pdf"):
                     text_extracted = text.strip()
             except Exception as e:
                 print("MarkItDown conversion failed:", e)
-
-        if not text_extracted:
-            try:
-                from pypdf import PdfReader
-                reader = PdfReader(temp_pdf_path)
-                pages = []
-                for i, p in enumerate(reader.pages):
-                    text = p.extract_text() or ""
-                    if text.strip():
-                        pages.append(f"## Page {i+1}\n\n" + text.strip())
-                if pages:
-                    text_extracted = "\n\n".join(pages)
-            except Exception as e:
-                print("Fallback pypdf extraction failed:", e)
 
         # Fallback to Gemini 1.5 Flash if text extraction is empty or too short (handles scanned PDFs)
         if not text_extracted or len(text_extracted.strip()) < 50:
@@ -915,6 +916,7 @@ def save_document_to_db(text_content, source_name, doc_id):
             print(f"⚠️ Warning: could not delete old chunks for document {doc_id}: {del_err}")
 
         # 3. Create embeddings for each chunk and save to document_chunks
+        chunk_rows = []
         for chunk in chunks:
             chunk = chunk.strip()
             if not chunk:
@@ -926,13 +928,26 @@ def save_document_to_db(text_content, source_name, doc_id):
                         vector = vector[0][:768]
                     else:
                         vector = vector[:768]
-                    supabase.table("document_chunks").insert({
+                    chunk_rows.append({
                         "document_id": doc_id,
                         "content": chunk,
                         "embedding": vector
-                    }).execute()
+                    })
             except Exception as chunk_err:
-                print(f"⚠️ Warning: failed to save chunk for document {doc_id}: {chunk_err}")
+                print(f"⚠️ Warning: failed to generate embedding for chunk in document {doc_id}: {chunk_err}")
+                
+        if chunk_rows:
+            try:
+                supabase.table("document_chunks").insert(chunk_rows).execute()
+                print(f"💾 [Supabase Bulk Insert] Successfully saved {len(chunk_rows)} chunks in bulk.")
+            except Exception as insert_err:
+                print(f"❌ Supabase bulk insert failed, attempting fallback loop insertion: {insert_err}")
+                # Fallback to sequential insert if bulk insert fails for some reason
+                for row in chunk_rows:
+                    try:
+                        supabase.table("document_chunks").insert(row).execute()
+                    except Exception as fallback_row_err:
+                        print(f"⚠️ Warning: fallback loop insert failed for row: {fallback_row_err}")
                 
         # 4. Save first 9,000 characters and its embedding to main documents table for backward compatibility
         safe_content = text_content[:9000]
@@ -1028,67 +1043,59 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
             except Exception:
                 is_valid_uuid = False
 
-        if not is_valid_uuid:
-            try:
-                insert_payload = {"messages": []}
-                if target_grade:
-                    insert_payload["grade"] = target_grade
-                if target_subject:
-                    insert_payload["subject"] = target_subject
-                res = supabase.table("chat_sessions").insert(insert_payload).execute()
-                if res.data and len(res.data) > 0 and 'id' in res.data[0]:
-                    session_id = str(res.data[0]['id'])
-                else:
-                    session_id = str(uuid.uuid4())
-                    fallback_payload = {"id": session_id, "messages": []}
-                    if target_grade:
-                        fallback_payload["grade"] = target_grade
-                    if target_subject:
-                        fallback_payload["subject"] = target_subject
-                    supabase.table("chat_sessions").insert(fallback_payload).execute()
-            except Exception:
-                session_id = str(uuid.uuid4())
-
         session_row = {}
-        if session_id in _SESSION_CACHE:
-            session_row = _SESSION_CACHE[session_id]
-            chat_history = session_row.get("messages") or []
-            print(f"⚡ [Session Cache] Lấy thành công lịch sử session {session_id} từ bộ nhớ đệm (0ms)!")
-        else:
-            try:
-                res = supabase.table("chat_sessions").select("messages,grade,subject").eq("id", session_id).execute()
-                if res.data and len(res.data) > 0:
-                    session_row = res.data[0] or {}
-                    if session_row.get("messages"):
-                        chat_history = session_row["messages"]
-                    if len(_SESSION_CACHE) > 1000:
-                        for k in list(_SESSION_CACHE.keys())[:100]:
-                            _SESSION_CACHE.pop(k, None)
-                    _SESSION_CACHE[session_id] = {
-                        "messages": chat_history,
-                        "grade": session_row.get("grade") or target_grade,
-                        "subject": session_row.get("subject") or target_subject
-                    }
-                    print(f"💾 [Session Cache] Lưu session {session_id} vào bộ nhớ đệm.")
-            except Exception as session_err:
-                print(f"⚠️ Không thể đọc chat_sessions đầy đủ: {session_err}")
+        session_exists = False
+        if is_valid_uuid:
+            if session_id in _SESSION_CACHE:
+                session_row = _SESSION_CACHE[session_id]
+                chat_history = session_row.get("messages") or []
+                session_exists = True
+                print(f"⚡ [Session Cache] Lấy thành công lịch sử session {session_id} từ bộ nhớ đệm (0ms)!")
+            else:
                 try:
-                    res = supabase.table("chat_sessions").select("messages").eq("id", session_id).execute()
+                    res = supabase.table("chat_sessions").select("messages,grade,subject").eq("id", session_id).execute()
                     if res.data and len(res.data) > 0:
                         session_row = res.data[0] or {}
                         if session_row.get("messages"):
                             chat_history = session_row["messages"]
+                        session_exists = True
                         if len(_SESSION_CACHE) > 1000:
                             for k in list(_SESSION_CACHE.keys())[:100]:
                                 _SESSION_CACHE.pop(k, None)
                         _SESSION_CACHE[session_id] = {
                             "messages": chat_history,
-                            "grade": target_grade,
-                            "subject": target_subject
+                            "grade": session_row.get("grade") or target_grade,
+                            "subject": session_row.get("subject") or target_subject
                         }
-                except Exception as narrow_err:
-                    print(f"⚠️ Không thể đọc chat_sessions tối giản: {narrow_err}")
-                    chat_history = []
+                        print(f"💾 [Session Cache] Lưu session {session_id} vào bộ nhớ đệm.")
+                except Exception as session_err:
+                    print(f"⚠️ Không thể đọc chat_sessions đầy đủ: {session_err}")
+
+        # If not a valid UUID, generate one
+        if not is_valid_uuid:
+            session_id = str(uuid.uuid4())
+
+        # If session does not exist in database (new local UUID or freshly generated), insert it!
+        if not session_exists:
+            try:
+                insert_payload = {"id": session_id, "messages": []}
+                if target_grade:
+                    insert_payload["grade"] = target_grade
+                if target_subject:
+                    insert_payload["subject"] = target_subject
+                supabase.table("chat_sessions").insert(insert_payload).execute()
+                print(f"🆕 [Session Init] Khởi tạo session mới {session_id} trong DB.")
+                
+                session_row = {
+                    "messages": [],
+                    "grade": target_grade,
+                    "subject": target_subject
+                }
+                _SESSION_CACHE[session_id] = session_row
+                chat_history = []
+            except Exception as create_err:
+                print(f"⚠️ Warning: không thể khởi tạo session {session_id}: {create_err}")
+                chat_history = []
 
         db_grade = str(session_row.get("grade") or cached_session_context.get("grade") or "").strip()
         db_subject = _normalize_subject_name(session_row.get("subject") or cached_session_context.get("subject"))
