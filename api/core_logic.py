@@ -1391,7 +1391,14 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                 
                 recent_suggestions = _extract_recent_suggestion_labels(chat_history)
                 # Send only last 10 messages to AI prompt for speed — full history is kept in DB
-                recent_history_text = '\n'.join([f"{m['role']}: {m['content']}" for m in chat_history[-10:]])
+                recent_history_text_parts = []
+                for m in chat_history[-10:]:
+                    role_label = "user" if m.get("role") == "user" else "model"
+                    content_str = m.get("content") or ""
+                    if m.get("imageUrl"):
+                        content_str = f"[Hình ảnh học sinh đính kèm: {m['imageUrl']}]\n{content_str}"
+                    recent_history_text_parts.append(f"{role_label}: {content_str}")
+                recent_history_text = '\n'.join(recent_history_text_parts)
                 is_image_attached = image_data is not None
                 image_guidance = "Học sinh vừa tải lên một hình ảnh/đề thi mẫu. BẠN PHẢI ĐỌC HÌNH ẢNH ĐÓ. Nếu học sinh yêu cầu, hãy giải thích đề mẫu hoặc hướng dẫn giải chi tiết. ĐẶC BIỆT CHÚ Ý: Bạn PHẢI trả về 3 gợi ý sau trong phần SUGGESTIONS: 1. Giải thích đề mẫu này, 2. Hướng dẫn mình cách giải, 3. Tạo đề thi tương tự đề mẫu." if is_image_attached else ""
                 default_suggestions = _default_suggestions_for_subject(target_subject or subject or '')
