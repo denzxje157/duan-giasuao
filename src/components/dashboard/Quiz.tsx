@@ -129,9 +129,13 @@ export default function Quiz({ user }: QuizProps) {
       });
       const data = await res.json();
       if (data.status === 'success' && data.data?.content) {
-        setFileContent(data.data.content);
-        if (!topic) setTopic(`Dựa trên file: ${file.name}`);
-        alert(`Tải file thành công! AI sẽ dựa vào nội dung file để tạo câu hỏi.`);
+        if (data.data.content.startsWith('Error:')) {
+          alert(`Không thể đọc được file PDF này: ${data.data.content}\nVui lòng kiểm tra lại file đã tải lên.`);
+        } else {
+          setFileContent(data.data.content);
+          if (!topic) setTopic(`Dựa trên file: ${file.name}`);
+          alert(`Tải file thành công! AI sẽ dựa vào nội dung file để tạo câu hỏi.`);
+        }
       } else {
         alert("Lỗi khi xử lý file!");
       }

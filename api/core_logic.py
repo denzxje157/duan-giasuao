@@ -774,33 +774,72 @@ def _default_suggestions_for_subject(subject_name):
 
 
 def process_pdf_to_markdown(file_bytes, mime_type="application/pdf"):
-    temp_pdf_path = f"temp_{uuid.uuid4()}.pdf"
-    output_dir = f"temp_output_{uuid.uuid4()}"
+    import tempfile
+    temp_dir = tempfile.gettempdir()
+    temp_pdf_path = os.path.join(temp_dir, f"temp_{uuid.uuid4()}.pdf")
+    output_dir = os.path.join(temp_dir, f"temp_output_{uuid.uuid4()}")
     try:
         with open(temp_pdf_path, "wb") as f:
             f.write(file_bytes)
+
+        text_extracted = ""
 
         if _MD_AVAILABLE:
             try:
                 res = _MD_TOOL.convert(temp_pdf_path)
                 text = getattr(res, "text_content", None) or getattr(res, "text", None) or ""
                 if text and text.strip():
-                    return text
+                    text_extracted = text.strip()
             except Exception as e:
                 print("MarkItDown conversion failed:", e)
 
-        try:
-            from pypdf import PdfReader
-            reader = PdfReader(temp_pdf_path)
-            pages = []
-            for i, p in enumerate(reader.pages):
-                text = p.extract_text() or ""
-                if text.strip():
-                    pages.append(f"## Page {i+1}\n\n" + text.strip())
-            if pages:
-                return "\n\n".join(pages)
-        except Exception as e:
-            print("Fallback pypdf extraction failed:", e)
+        if not text_extracted:
+            try:
+                from pypdf import PdfReader
+                reader = PdfReader(temp_pdf_path)
+                pages = []
+                for i, p in enumerate(reader.pages):
+                    text = p.extract_text() or ""
+                    if text.strip():
+                        pages.append(f"## Page {i+1}\n\n" + text.strip())
+                if pages:
+                    text_extracted = "\n\n".join(pages)
+            except Exception as e:
+                print("Fallback pypdf extraction failed:", e)
+
+        # Fallback to Gemini 1.5 Flash if text extraction is empty or too short (handles scanned PDFs)
+        if not text_extracted or len(text_extracted.strip()) < 50:
+            print("PDF extracted text is empty or too short. Trying Gemini 1.5 Flash OCR...")
+            keys = refresh_available_keys()
+            if keys:
+                for api_key in keys:
+                    try:
+                        if genai is not None and hasattr(genai, 'configure'):
+                            genai.configure(api_key=api_key)
+                            model = genai.GenerativeModel("gemini-1.5-flash")
+                            prompt = (
+                                "Bạn là một AI trích xuất tài liệu. Hãy đọc toàn bộ tài liệu PDF này "
+                                "(bao gồm tất cả các trang, chữ viết tay, hình vẽ, công thức toán học) "
+                                "và trích xuất/chuyển đổi nó thành định dạng Markdown chi tiết và đầy đủ nhất. "
+                                "Hãy giữ cấu trúc của các câu hỏi, lời giải, hay bài tập nếu có. Không giải thích thêm."
+                            )
+                            res = model.generate_content([
+                                {
+                                    "mime_type": "application/pdf",
+                                    "data": file_bytes
+                                },
+                                prompt
+                            ])
+                            if res.text and res.text.strip():
+                                text_extracted = res.text.strip()
+                                print("Gemini PDF extraction succeeded!")
+                                break
+                    except Exception as e:
+                        print(f"⚠️ Gemini PDF OCR failed with key {_mask_key(api_key)}: {e}")
+                        continue
+
+        if text_extracted and len(text_extracted.strip()) >= 10:
+            return text_extracted
 
         return "Error: Could not process PDF."
     except Exception as e:

@@ -1,24 +1,22 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { User } from '../types';
 import { API_BASE_URL } from '../lib/api';
 import { supabase } from '../lib/supabase';
 
 export function useStudyTracker(user: User | null, subjectName: string = "Chung") {
-  const isTracking = useRef(false);
-
   useEffect(() => {
     if (!user || user.isGuest) return;
 
-    const trackActivity = async () => {
-      if (isTracking.current) return;
-      isTracking.current = true;
-      
+    // Use a unique key per user to accumulate seconds
+    const storageKey = `study_accumulator_${user.id}`;
+    
+    let localSeconds = parseInt(localStorage.getItem(storageKey) || '0', 10);
+    if (isNaN(localSeconds)) localSeconds = 0;
+
+    const trackActivity = async (minutes: number) => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) {
-          isTracking.current = false;
-          return;
-        }
+        if (!session?.access_token) return;
 
         const url = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/user/track-activity` : '/api/user/track-activity';
         await fetch(url, {
@@ -29,20 +27,31 @@ export function useStudyTracker(user: User | null, subjectName: string = "Chung"
           },
           body: JSON.stringify({
             subject_name: subjectName,
-            study_minutes: 1
+            study_minutes: minutes
           })
         });
       } catch (err) {
         console.error("Failed to track activity:", err);
-      } finally {
-        isTracking.current = false;
       }
     };
 
-    // Ping every 60 seconds
-    const intervalId = setInterval(trackActivity, 60000);
-    
-    // Cleanup
-    return () => clearInterval(intervalId);
+    const intervalId = setInterval(() => {
+      // Only track when tab is active and visible
+      if (document.visibilityState === 'visible') {
+        localSeconds += 1;
+        
+        if (localSeconds >= 60) {
+          const minutesToTrack = Math.floor(localSeconds / 60);
+          localSeconds = localSeconds % 60;
+          trackActivity(minutesToTrack);
+        }
+        
+        localStorage.setItem(storageKey, String(localSeconds));
+      }
+    }, 1000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [user, subjectName]);
 }

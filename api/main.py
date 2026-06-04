@@ -21,7 +21,13 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, Dict, List, Any
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
+
+def get_vietnam_date() -> date:
+    # Vietnam timezone is GMT+7
+    vn_tz = timezone(timedelta(hours=7))
+    return datetime.now(vn_tz).date()
+
 import requests
 import json
 from uuid import uuid4
@@ -693,7 +699,7 @@ def get_user_progress_charts(credentials: HTTPAuthorizationCredentials = Depends
         user_id = _verify_token_and_get_user(credentials)
         
         # Lấy 7 ngày gần nhất
-        today = date.today()
+        today = get_vietnam_date()
         week_data = []
         for i in range(6, -1, -1):
             target_date = today - timedelta(days=i)
@@ -729,7 +735,7 @@ def get_user_progress_charts(credentials: HTTPAuthorizationCredentials = Depends
             ]
 
         # Lấy thống kê hôm qua
-        yesterday = date.today() - timedelta(days=1)
+        yesterday = get_vietnam_date() - timedelta(days=1)
         yesterday_str = yesterday.strftime("%Y-%m-%d")
         
         yesterday_res = supabase.table("user_activities").select("subject_name, study_minutes").eq("user_id", user_id).eq("study_date", yesterday_str).execute()
@@ -755,7 +761,7 @@ def get_user_progress_charts(credentials: HTTPAuthorizationCredentials = Depends
 def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
     try:
         user_id = _verify_token_and_get_user(credentials)
-        today_str = date.today().strftime("%Y-%m-%d")
+        today_str = get_vietnam_date().strftime("%Y-%m-%d")
         
         # Cập nhật user_activities
         act_res = supabase.table("user_activities").select("id, study_minutes").eq("user_id", user_id).eq("study_date", today_str).eq("subject_name", req.subject_name).execute()
@@ -773,7 +779,7 @@ def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizatio
 
         # Cập nhật user_stats (Streak, SP, Total Minutes)
         stat_res = supabase.table("user_stats").select("*").eq("user_id", user_id).execute()
-        sp_earned = 10 if req.study_minutes >= 1 else 0 # 10 điểm mỗi phút
+        sp_earned = 10 * req.study_minutes # 10 điểm mỗi phút
         
         if stat_res.data and len(stat_res.data) > 0:
             stat = stat_res.data[0]
@@ -785,7 +791,7 @@ def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizatio
                 pass
             else:
                 last_date = datetime.strptime(last_date_str, "%Y-%m-%d").date() if last_date_str else None
-                if last_date == date.today() - timedelta(days=1):
+                if last_date == get_vietnam_date() - timedelta(days=1):
                     current_streak += 1
                 else:
                     current_streak = 1
@@ -817,7 +823,7 @@ def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizatio
 def add_user_sp(req: AddSPRequest, credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
     try:
         user_id = _verify_token_and_get_user(credentials)
-        today_str = date.today().strftime("%Y-%m-%d")
+        today_str = get_vietnam_date().strftime("%Y-%m-%d")
         
         stat_res = supabase.table("user_stats").select("*").eq("user_id", user_id).execute()
         if stat_res.data and len(stat_res.data) > 0:
