@@ -776,17 +776,27 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
     }
   }, [messages]);
 
+  // Load active session from localStorage when user session details resolve
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const key = `ai_chat_session_${user.id || user.email}`;
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      setSessionId(stored);
+    }
+  }, [user.id, user.email]);
+
   useEffect(() => {
     let cancelled = false;
 
     const loadHistory = async () => {
+      if (!sessionId) {
+        setMessages([]);
+        return;
+      }
+
       if (user.isGuest) {
-        const storedSessionId = localStorage.getItem(`ai_chat_session_${user.id || 'guest'}`);
-        if (!storedSessionId) {
-          setMessages([]);
-          return;
-        }
-        const storedMessages = localStorage.getItem(`ai_chat_guest_messages_${storedSessionId}`);
+        const storedMessages = localStorage.getItem(`ai_chat_guest_messages_${sessionId}`);
         if (storedMessages) {
           try {
             const parsed = JSON.parse(storedMessages);
@@ -807,16 +817,10 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
         return;
       }
 
-      const storedSessionId = localStorage.getItem(`ai_chat_session_${user.id || user.email}`);
-      if (!storedSessionId) {
-        setMessages([]);
-        return;
-      }
-
       try {
         setIsHistoryLoading(true);
         // Fetch only current active session's messages
-        const data = await fetchChatHistory(storedSessionId);
+        const data = await fetchChatHistory(sessionId);
         console.log('Dữ liệu lịch sử lấy về:', data);
         if (cancelled) return;
 
@@ -840,6 +844,7 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
           setCurrentView('chat');
         } else {
           setMessages([]);
+          setCurrentView('selection');
         }
       } catch (error) {
         console.error('Failed to load chat history', error);
@@ -853,7 +858,7 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
     return () => {
       cancelled = true;
     };
-  }, [user.isGuest]);
+  }, [user.isGuest, sessionId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1038,62 +1043,10 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
   };
 
   const handleOpenSessionHistory = async (targetSessionId: string) => {
-    try {
-      setIsHistoryLoading(true);
-      if (user.isGuest) {
-        const storedMessages = localStorage.getItem(`ai_chat_guest_messages_${targetSessionId}`);
-        if (storedMessages) {
-          try {
-            const parsed = JSON.parse(storedMessages);
-            setMessages(parsed);
-            const firstUserMsg = parsed.find((m: any) => m.role === 'user');
-            if (firstUserMsg) {
-              setSelectedSubject(inferSubjectFromText(firstUserMsg.content));
-            } else {
-              setSelectedSubject('Môn học');
-            }
-          } catch (e) {
-            setMessages([]);
-          }
-        } else {
-          setMessages([]);
-        }
-        handleNavigation('chat');
-        setSidebarOpen(false);
-        setSessionId(targetSessionId);
-        resetSuggestionMemory();
-        return;
-      }
-
-      const rows = await fetchChatHistory(targetSessionId === 'no-session' ? undefined : targetSessionId);
-      console.log('Dữ liệu lịch sử theo session:', rows);
-      const mappedMessages: Message[] = (rows || []).map((row: any) => ({
-        id: row.id || `${row.role}-${Math.random()}`,
-        role: row.role === 'user' ? 'user' : 'assistant',
-        content: row.content,
-        imageUrl: row.imageUrl,
-        status: 'completed',
-      }));
-      if (mappedMessages.length > 0) {
-        setMessages(mappedMessages);
-        const firstUserMsg = mappedMessages.find(m => m.role === 'user');
-        if (firstUserMsg) {
-          setSelectedSubject(inferSubjectFromText(firstUserMsg.content));
-        } else {
-          setSelectedSubject('Môn học');
-        }
-      }
-      handleNavigation('chat');
-      setSidebarOpen(false);
-      if (targetSessionId !== 'no-session') {
-        setSessionId(targetSessionId);
-      }
-      resetSuggestionMemory();
-    } catch (e) {
-      console.error('Không thể mở lịch sử phiên học', e);
-    } finally {
-      setIsHistoryLoading(false);
-    }
+    if (targetSessionId === 'no-session') return;
+    setSessionId(targetSessionId);
+    setSidebarOpen(false);
+    resetSuggestionMemory();
   };
  
   const handleDeleteSession = async (targetSessionId: string) => {
