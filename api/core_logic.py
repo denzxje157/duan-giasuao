@@ -1016,6 +1016,14 @@ def _document_matches_subject(doc_name, target_subject):
     return False
 
 
+def _normalize_grade_value(g):
+    if not g:
+        return ""
+    s = str(g).lower().strip()
+    s = s.replace("lớp", "").replace("lop", "").strip()
+    return s
+
+
 # Cache structures migrated to top of file
 
 
@@ -1102,7 +1110,9 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
         if db_grade or db_subject:
             _cache_chat_session_context(session_id, grade=db_grade or target_grade, subject=db_subject or target_subject)
 
-        if force_reset_context or (target_grade and db_grade and db_grade != target_grade) or (target_subject and db_subject and db_subject != target_subject):
+        norm_db_grade = _normalize_grade_value(db_grade)
+        norm_target_grade = _normalize_grade_value(target_grade)
+        if force_reset_context or (norm_target_grade and norm_db_grade and norm_db_grade != norm_target_grade) or (target_subject and db_subject and db_subject != target_subject):
             chat_history = []
             reset_payload = {"messages": []}
             if target_grade:

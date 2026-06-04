@@ -25,7 +25,7 @@ export interface WorkspaceConfig {
   subject: string;
 }
 
-import { Sparkles, Trophy, Clock, BrainCircuit } from 'lucide-react';
+import { Sparkles, Trophy, Clock, BrainCircuit, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function Dashboard({ user, onLogout, onGradeChange }: DashboardProps) {
   const [activeTab, setActiveTab] = useState('home');
@@ -34,6 +34,7 @@ export default function Dashboard({ user, onLogout, onGradeChange }: DashboardPr
   // States for parallel study tracking UI
   const [activeTimer, setActiveTimer] = useState<{ sessionSeconds: number; minutes: number; seconds: number; subject: string } | null>(null);
   const [xpToast, setXpToast] = useState<{ xp: number; subjectName: string; visible: boolean } | null>(null);
+  const [isTrackerExpanded, setIsTrackerExpanded] = useState(true);
 
   useEffect(() => {
     const handleStudyTick = (e: Event) => {
@@ -138,20 +139,46 @@ export default function Dashboard({ user, onLogout, onGradeChange }: DashboardPr
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.9 }}
             transition={{ type: 'spring', damping: 15 }}
-            className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-white shadow-2xl"
+            className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-white shadow-2xl cursor-pointer select-none"
+            onClick={() => setIsTrackerExpanded(!isTrackerExpanded)}
           >
-            <div className="relative flex h-3 w-3 shrink-0">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgb(16,185,129)]"></span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
-                <BrainCircuit className="w-3 h-3 text-brand-400" /> Hệ thống chạy song song
-              </span>
-              <span className="text-xs font-semibold text-slate-200">
-                Đang học: <strong className="text-white">{activeTimer.subject}</strong> ({activeTimer.minutes.toString().padStart(2, '0')}m {activeTimer.seconds.toString().padStart(2, '0')}s)
-              </span>
-            </div>
+            {isTrackerExpanded ? (
+              <div className="flex items-center gap-3">
+                <div className="relative flex h-3 w-3 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgb(16,185,129)]"></span>
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
+                    <BrainCircuit className="w-3 h-3 text-brand-400" /> Thời gian con đã học
+                  </span>
+                  <span className="text-xs font-semibold text-slate-200">
+                    Đang học: <strong className="text-white">{activeTimer.subject}</strong> ({activeTimer.minutes.toString().padStart(2, '0')}m {activeTimer.seconds.toString().padStart(2, '0')}s)
+                  </span>
+                </div>
+                <div className="text-slate-400 hover:text-white pl-1 shrink-0">
+                  <ChevronRight className="w-4 h-4" />
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2.5" title="Click để mở rộng chi tiết">
+                <div className="relative flex h-2.5 w-2.5 shrink-0">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgb(16,185,129)]"></span>
+                </div>
+                <div className="flex flex-col text-left">
+                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">
+                    Đã học
+                  </span>
+                  <span className="text-xs font-extrabold text-white tracking-wide font-mono">
+                    {activeTimer.minutes.toString().padStart(2, '0')}:{activeTimer.seconds.toString().padStart(2, '0')}
+                  </span>
+                </div>
+                <div className="text-slate-400 hover:text-white pl-1 shrink-0">
+                  <ChevronLeft className="w-4 h-4" />
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
