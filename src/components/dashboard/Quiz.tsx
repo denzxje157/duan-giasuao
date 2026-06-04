@@ -151,24 +151,22 @@ export default function Quiz({ user }: QuizProps) {
           setFileContent(data.data.content);
           if (!topic) setTopic(`Dựa trên file: ${file.name}`);
 
-          // Save to guest docs if guest
-          if (user.isGuest || !user.id) {
-            const key = `virtual_tutor_guest_docs_${user.id || 'guest'}`;
-            const docItem = {
-              id: data.data.id || Math.random().toString(),
-              title: data.data.name || file.name,
-              status: 'ready',
-              date: new Date().toLocaleDateString('en-GB'),
-              subject: 'Khác',
-              pdf_url: data.data.pdf_url || ''
-            };
-            const current = localStorage.getItem(key);
-            const parsed = current ? JSON.parse(current) : [];
-            parsed.unshift(docItem);
-            localStorage.setItem(key, JSON.stringify(parsed));
-          }
+          // Save doc to personal docs (both guest and logged-in users)
+          const docItem = {
+            id: data.data.id || Math.random().toString(),
+            title: data.data.name || file.name,
+            status: 'ready',
+            date: new Date().toLocaleDateString('en-GB'),
+            subject: 'Khác',
+            pdf_url: data.data.pdf_url || ''
+          };
+          const docKey = `virtual_tutor_guest_docs_${user.id || 'guest'}`;
+          const existingDocs = localStorage.getItem(docKey);
+          const parsedDocs = existingDocs ? JSON.parse(existingDocs) : [];
+          parsedDocs.unshift(docItem);
+          localStorage.setItem(docKey, JSON.stringify(parsedDocs));
 
-          alert(`Tải file thành công! AI sẽ dựa vào nội dung file để tạo câu hỏi.`);
+          alert(`Tải file thành công! File đã được lưu vào Tài liệu cá nhân của bạn. AI sẽ dựa vào nội dung file để tạo câu hỏi.`);
         }
       } else {
         alert("Lỗi khi xử lý file!");

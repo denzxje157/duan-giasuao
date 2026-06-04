@@ -890,8 +890,14 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
           }
           setCurrentView('chat');
         } else {
-          setMessages([]);
-          setCurrentView('selection');
+          // Only redirect to selection if there are no messages currently displayed.
+          // This prevents redirecting while a stream is in progress (messages may not be in DB yet).
+          setMessages(prev => {
+            if (prev.length === 0) {
+              setCurrentView('selection');
+            }
+            return prev.length === 0 ? [] : prev;
+          });
         }
       } catch (error) {
         console.error('Failed to load chat history', error);
@@ -1236,6 +1242,9 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
             const sessionMatch = line.match(/\[SESSION_ID:([^\]]+)\]/);
             if (sessionMatch) {
               detectedSessionId = sessionMatch[1];
+              // Mark this session as "skip load history" so the useEffect doesn't
+              // redirect back to selection screen when DB hasn't saved messages yet.
+              skipLoadHistoryRef.current = sessionMatch[1];
               setSessionId(sessionMatch[1]);
               continue;
             }

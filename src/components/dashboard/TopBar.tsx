@@ -87,7 +87,13 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
     fetchGamificationStats();
     // Refresh stats every 10 seconds to keep TopBar in sync with completed quests/activities
     const interval = setInterval(fetchGamificationStats, 10000);
-    return () => clearInterval(interval);
+    // Also refresh immediately when quests are completed (triggered by Overview component)
+    const handleSpUpdated = () => fetchGamificationStats();
+    window.addEventListener('sp-updated', handleSpUpdated);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('sp-updated', handleSpUpdated);
+    };
   }, [user]);
 
   useEffect(() => {

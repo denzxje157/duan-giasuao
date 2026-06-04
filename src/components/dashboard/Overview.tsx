@@ -40,7 +40,8 @@ export default function Overview({ user, setActiveTab }: OverviewProps) {
   const questKey = `ai_chat_quests_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
   const lastQuestDateKey = `ai_chat_last_quest_date_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
 
-  const [stats, setStats] = useState({ streak: 3, total_study_minutes: 25, max_streak: 5, total_sp: 150 });
+  const [stats, setStats] = useState({ streak: 0, total_study_minutes: 0, max_streak: 0, total_sp: 0 });
+
   const [particles, setParticles] = useState<ConfettiParticle[]>([]);
 
   const [quests, setQuests] = useState(() => {
@@ -159,6 +160,8 @@ export default function Overview({ user, setActiveTab }: OverviewProps) {
             },
             body: JSON.stringify({ sp_amount: isAdding ? questXp : -questXp })
           });
+          // Notify TopBar to refresh SP immediately (no need to wait for interval)
+          window.dispatchEvent(new CustomEvent('sp-updated'));
         }
       } catch (err) {
         console.error("Failed to sync SP with backend:", err);
