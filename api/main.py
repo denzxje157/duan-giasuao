@@ -716,6 +716,8 @@ def get_user_gamification_stats(credentials: HTTPAuthorizationCredentials = Depe
             return {"status": "success", "data": res.data[0]}
         else:
             return {"status": "success", "data": {"user_id": user_id, "streak": 0, "max_streak": 0, "total_study_minutes": 0, "total_sp": 0}}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi lấy thống kê gamification: {str(e)}")
 
@@ -737,7 +739,7 @@ def get_user_progress_charts(credentials: HTTPAuthorizationCredentials = Depends
         for row in (act_res.data or []):
             dt_str = row["study_date"]
             if dt_str in activity_dict:
-                activity_dict[dt_str] += row.get("study_minutes", 0)
+                activity_dict[dt_str] += (row.get("study_minutes") or 0)
                 
         for d in week_data:
             d["time"] = activity_dict[d["date"]]
@@ -747,7 +749,7 @@ def get_user_progress_charts(credentials: HTTPAuthorizationCredentials = Depends
         subject_scores = {}
         for row in (subject_res.data or []):
             subj = row.get("subject_name", "Khác")
-            subject_scores[subj] = subject_scores.get(subj, 0) + row.get("study_minutes", 0)
+            subject_scores[subj] = subject_scores.get(subj, 0) + (row.get("study_minutes") or 0)
             
         radar_data = []
         for subj, mins in subject_scores.items():
@@ -769,7 +771,7 @@ def get_user_progress_charts(credentials: HTTPAuthorizationCredentials = Depends
         for row in (yesterday_res.data or []):
             yesterday_data.append({
                 "subject": row.get("subject_name", "Khác"),
-                "minutes": row.get("study_minutes", 0)
+                "minutes": (row.get("study_minutes") or 0)
             })
 
         return {
@@ -780,6 +782,8 @@ def get_user_progress_charts(credentials: HTTPAuthorizationCredentials = Depends
                 "yesterdayData": yesterday_data
             }
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi lấy dữ liệu biểu đồ: {str(e)}")
 
@@ -793,7 +797,7 @@ def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizatio
         act_res = supabase.table("user_activities").select("id, study_minutes").eq("user_id", user_id).eq("study_date", today_str).eq("subject_name", req.subject_name).execute()
         if act_res.data and len(act_res.data) > 0:
             act_id = act_res.data[0]["id"]
-            new_mins = act_res.data[0]["study_minutes"] + req.study_minutes
+            new_mins = (act_res.data[0].get("study_minutes") or 0) + req.study_minutes
             supabase.table("user_activities").update({"study_minutes": new_mins}).eq("id", act_id).execute()
         else:
             supabase.table("user_activities").insert({
@@ -810,7 +814,7 @@ def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizatio
         if stat_res.data and len(stat_res.data) > 0:
             stat = stat_res.data[0]
             last_date_str = stat.get("last_study_date")
-            current_streak = stat.get("streak", 0)
+            current_streak = stat.get("streak") or 0
             
             if last_date_str == today_str:
                 # Đã học hôm nay rồi
@@ -824,9 +828,9 @@ def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizatio
                     
             supabase.table("user_stats").update({
                 "streak": current_streak,
-                "max_streak": max(current_streak, stat.get("max_streak", 0)),
-                "total_study_minutes": stat.get("total_study_minutes", 0) + req.study_minutes,
-                "total_sp": stat.get("total_sp", 0) + sp_earned,
+                "max_streak": max(current_streak, stat.get("max_streak") or 0),
+                "total_study_minutes": (stat.get("total_study_minutes") or 0) + req.study_minutes,
+                "total_sp": (stat.get("total_sp") or 0) + sp_earned,
                 "last_study_date": today_str
             }).eq("user_id", user_id).execute()
         else:
@@ -840,9 +844,11 @@ def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizatio
             }).execute()
 
         return {"status": "success", "message": "Activity tracked"}
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"❌ Error in track_user_activity: {e}")
-        return {"status": "error", "message": str(e)}
+        raise HTTPException(status_code=500, detail=f"Lỗi theo dõi hoạt động: {str(e)}")
 
 
 @app.post("/api/user/add-sp")

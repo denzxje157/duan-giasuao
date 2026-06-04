@@ -14,6 +14,7 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [pomodoroLeft, setPomodoroLeft] = useState<number | null>(null);
   const [pomodoroActive, setPomodoroActive] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const statsCacheKey = `gamification_stats_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
 
   const [currentStreak, setCurrentStreak] = useState(() => {
@@ -38,10 +39,10 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
   });
 
   useEffect(() => {
-    if (user.isGuest) {
+    const loadGuestStats = () => {
       // 1. Calculate guest SP from completed quests
       let questSpEarned = 0;
-      const questKey = `ai_chat_quests_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
+      const questKey = `ai_chat_quests_guest`;
       const savedQuests = localStorage.getItem(questKey);
       if (savedQuests) {
         try {
@@ -80,13 +81,31 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
         } catch (e) {}
       }
 
-      setTotalSP(guestMsgCount * 15 + questSpEarned);
-      setCurrentStreak(uniqueDays.size || 0);
-      return;
-    }
+      let totalMins = guestMsgCount * 3;
+      let totalSp = guestMsgCount * 15 + questSpEarned;
+      let streak = uniqueDays.size || 0;
+
+      // Add tracked time for guests
+      try {
+        const guestStatsCached = localStorage.getItem('gamification_stats_guest');
+        if (guestStatsCached) {
+          const parsedStats = JSON.parse(guestStatsCached);
+          streak = parsedStats.streak || streak;
+          totalSp = parsedStats.total_sp || totalSp;
+          totalSp += questSpEarned; // re-add quest SP to the total SP
+        }
+      } catch (e) {}
+
+      setTotalSP(totalSp);
+      setCurrentStreak(streak);
+    };
 
     // If logged in
     const fetchGamificationStats = async () => {
+      if (user.isGuest) {
+        loadGuestStats();
+        return;
+      }
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.access_token) return;
@@ -107,14 +126,21 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
     };
 
     fetchGamificationStats();
-    // Refresh stats every 10 seconds to keep TopBar in sync with completed quests/activities
+    
+    // Refresh stats when events occur
+    const handleRefresh = () => {
+      fetchGamificationStats();
+    };
+    
+    window.addEventListener('sp-updated', handleRefresh);
+    window.addEventListener('study-activity-tracked', handleRefresh);
+    
     const interval = setInterval(fetchGamificationStats, 10000);
-    // Also refresh immediately when quests are completed (triggered by Overview component)
-    const handleSpUpdated = () => fetchGamificationStats();
-    window.addEventListener('sp-updated', handleSpUpdated);
+    
     return () => {
       clearInterval(interval);
-      window.removeEventListener('sp-updated', handleSpUpdated);
+      window.removeEventListener('sp-updated', handleRefresh);
+      window.removeEventListener('study-activity-tracked', handleRefresh);
     };
   }, [user]);
 
@@ -221,10 +247,45 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
           )}
         </button>
 
-        <button className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-brand-500 hover:border-brand-200 transition-all relative">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
-        </button>
+        <div className="relative">
+          <button 
+            onClick={() => setNotificationsOpen(prev => !prev)}
+            className={`w-10 h-10 rounded-lg bg-slate-50 border flex items-center justify-center text-slate-500 transition-all relative ${notificationsOpen ? 'border-brand-500 text-brand-500 bg-brand-50/50' : 'border-slate-200 hover:text-brand-500 hover:border-brand-200'}`}
+          >
+            <Bell className="w-5 h-5" />
+            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+          </button>
+
+          {notificationsOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)}></div>
+              <div className="absolute right-0 mt-2 z-50 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl text-slate-800 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                  <h4 className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
+                    <Bell className="w-4 h-4 text-brand-500" /> Thông báo học tập
+                  </h4>
+                  <button 
+                    onClick={() => setNotificationsOpen(false)}
+                    className="text-xs font-bold text-brand-600 hover:text-brand-700 bg-brand-50 px-2 py-1 rounded-lg"
+                  >
+                    Đã đọc hết
+                  </button>
+                </div>
+                <div className="mt-3 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                  <div className="p-2.5 bg-brand-50/40 rounded-xl border border-brand-100 text-xs font-semibold text-brand-900 leading-relaxed text-left">
+                    ⏱️ <strong>Theo dõi song song:</strong> Hệ thống tự động ghi nhận thời gian tự học của bạn theo từng phút và tích lũy XP!
+                  </div>
+                  <div className="p-2.5 bg-orange-50/40 rounded-xl border border-orange-100 text-xs font-semibold text-orange-950 leading-relaxed text-left">
+                    🔥 <strong>Chuỗi học tập:</strong> Học mỗi ngày ít nhất 5 phút để duy trì chuỗi liên tục và mở khóa Huy hiệu cực hiếm!
+                  </div>
+                  <div className="p-2.5 bg-indigo-50/40 rounded-xl border border-indigo-100 text-xs font-semibold text-indigo-950 leading-relaxed text-left">
+                    🎯 <strong>Mảnh ghép điểm mù:</strong> Gia sư đang phân tích các kỹ năng của bạn. Hãy xem báo cáo chi tiết ở tab "Huy hiệu & Điểm mù"!
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
 
         <div className="h-8 w-[1px] bg-slate-200 mx-2 hidden sm:block" />
 

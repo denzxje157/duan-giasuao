@@ -38,30 +38,30 @@ export default function Progress({ user }: ProgressProps) {
   const [radarData, setRadarData] = useState(radarDataMock);
   const [yesterdayData, setYesterdayData] = useState<any[]>([]);
 
-  useEffect(() => {
+  const fetchProgress = async () => {
     if (user.isGuest) {
-      // Compute stats and charts from local storage guest chats
+      // Compute stats and charts from local storage guest chats + study tracking logs
       const localSessionsStr = localStorage.getItem('ai_chat_guest_sessions');
-      if (localSessionsStr) {
-        try {
+      
+      try {
+        let totalMsgs = 0;
+        const subjectCounts: Record<string, number> = {};
+        const dailyCounts: Record<string, number> = {
+          'T2': 0, 'T3': 0, 'T4': 0, 'T5': 0, 'T6': 0, 'T7': 0, 'CN': 0
+        };
+        
+        const dayMapping: Record<number, string> = {
+          1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7', 0: 'CN'
+        };
+
+        const uniqueDays = new Set<string>();
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toLocaleDateString('en-CA'); // YYYY-MM-DD
+        const yesterdayCounts: Record<string, number> = {};
+
+        if (localSessionsStr) {
           const groups = JSON.parse(localSessionsStr) as ChatSessionGroup[];
-          
-          let totalMsgs = 0;
-          const subjectCounts: Record<string, number> = {};
-          const dailyCounts: Record<string, number> = {
-            'T2': 0, 'T3': 0, 'T4': 0, 'T5': 0, 'T6': 0, 'T7': 0, 'CN': 0
-          };
-          
-          const dayMapping: Record<number, string> = {
-            1: 'T2', 2: 'T3', 3: 'T4', 4: 'T5', 5: 'T6', 6: 'T7', 0: 'CN'
-          };
-
-          const uniqueDays = new Set<string>();
-          const yesterday = new Date();
-          yesterday.setDate(yesterday.getDate() - 1);
-          const yesterdayStr = yesterday.toLocaleDateString('en-CA'); // YYYY-MM-DD
-          const yesterdayCounts: Record<string, number> = {};
-
           groups.forEach(g => {
             g.subjects.forEach(subGroup => {
               const subName = subGroup.subject;
@@ -94,96 +94,149 @@ export default function Progress({ user }: ProgressProps) {
               });
             });
           });
-
-          const parsedYesterday = Object.keys(yesterdayCounts).map(subj => ({
-            subject: subj,
-            minutes: yesterdayCounts[subj]
-          }));
-          setYesterdayData(parsedYesterday);
-
-          let questSpEarned = 0;
-          const questKey = `ai_chat_quests_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
-          const savedQuests = localStorage.getItem(questKey);
-          if (savedQuests) {
-            try {
-              const parsedQuests = JSON.parse(savedQuests);
-              parsedQuests.forEach((q: any) => {
-                if (q.completed) {
-                  questSpEarned += q.xp;
-                }
-              });
-            } catch (e) {}
-          }
-
-          const streak = uniqueDays.size;
-          const totalMins = totalMsgs * 3;
-          const totalSp = (totalMsgs * 15) + questSpEarned; // 15 XP per message + Quest SP
-
-          setStats({
-            streak: streak || 0,
-            max_streak: streak || 0,
-            total_study_minutes: totalMins,
-            total_sp: totalSp
-          });
-
-          // Map activityData
-          const updatedActivityData = Object.keys(dailyCounts).map(day => ({
-            day,
-            time: dailyCounts[day]
-          }));
-          setActivityData(updatedActivityData);
-
-          // Map radarData
-          const updatedRadarData = Object.keys(subjectCounts).map(subj => ({
-            subject: subj,
-            score: Math.min(100, subjectCounts[subj] * 10), // Scale score
-            fullMark: 100
-          }));
-          
-          if (updatedRadarData.length === 0) {
-            setRadarData([
-              { subject: 'Toán', score: 0, fullMark: 100 },
-              { subject: 'Ngữ văn', score: 0, fullMark: 100 },
-              { subject: 'Tiếng Anh', score: 0, fullMark: 100 },
-            ]);
-          } else {
-            setRadarData(updatedRadarData);
-          }
-
-        } catch (e) {
-          console.error("Error parsing guest sessions for progress:", e);
         }
+
+        // Incorporate Guest tracking logs (accumulated active minutes)
+        try {
+          const guestActStr = localStorage.getItem('guest_activities_list');
+          if (guestActStr) {
+            const actList = JSON.parse(guestActStr);
+            actList.forEach((act: any) => {
+              const mins = act.study_minutes || 0;
+              const sub = act.subject_name || 'Chung';
+              subjectCounts[sub] = (subjectCounts[sub] || 0) + (mins / 3);
+
+              if (act.study_date) {
+                const d = new Date(act.study_date);
+                const dayLabel = dayMapping[d.getDay()];
+                if (dayLabel) {
+                  dailyCounts[dayLabel] += mins;
+                }
+                
+                const dateKey = d.toLocaleDateString('en-CA');
+                uniqueDays.add(dateKey);
+
+                if (dateKey === yesterdayStr) {
+                  yesterdayCounts[sub] = (yesterdayCounts[sub] || 0) + mins;
+                }
+              }
+            });
+          }
+        } catch (e) {}
+
+        const parsedYesterday = Object.keys(yesterdayCounts).map(subj => ({
+          subject: subj,
+          minutes: yesterdayCounts[subj]
+        }));
+        setYesterdayData(parsedYesterday);
+
+        let questSpEarned = 0;
+        const questKey = 'ai_chat_quests_guest';
+        const savedQuests = localStorage.getItem(questKey);
+        if (savedQuests) {
+          try {
+            const parsedQuests = JSON.parse(savedQuests);
+            parsedQuests.forEach((q: any) => {
+              if (q.completed) {
+                questSpEarned += q.xp;
+              }
+            });
+          } catch (e) {}
+        }
+
+        let streak = uniqueDays.size || 1;
+        let maxStreak = streak;
+        let totalMins = totalMsgs * 3;
+        let totalSp = (totalMsgs * 15) + questSpEarned;
+
+        // Retrieve mock stats from useStudyTracker guest statistics
+        try {
+          const guestStatsCached = localStorage.getItem('gamification_stats_guest');
+          if (guestStatsCached) {
+            const parsedStats = JSON.parse(guestStatsCached);
+            streak = parsedStats.streak || streak;
+            maxStreak = parsedStats.max_streak || maxStreak;
+            totalMins = parsedStats.total_study_minutes || totalMins;
+            totalSp = parsedStats.total_sp || totalSp;
+            totalSp += questSpEarned;
+          }
+        } catch (e) {}
+
+        setStats({
+          streak: streak || 0,
+          max_streak: maxStreak || 0,
+          total_study_minutes: totalMins,
+          total_sp: totalSp
+        });
+
+        // Map activityData
+        const updatedActivityData = Object.keys(dailyCounts).map(day => ({
+          day,
+          time: dailyCounts[day]
+        }));
+        setActivityData(updatedActivityData);
+
+        // Map radarData
+        const updatedRadarData = Object.keys(subjectCounts).map(subj => ({
+          subject: subj,
+          score: Math.min(100, Math.round(subjectCounts[subj] * 10)), // Scale score
+          fullMark: 100
+        }));
+        
+        if (updatedRadarData.length === 0) {
+          setRadarData([
+            { subject: 'Toán', score: 0, fullMark: 100 },
+            { subject: 'Ngữ văn', score: 0, fullMark: 100 },
+            { subject: 'Tiếng Anh', score: 0, fullMark: 100 },
+          ]);
+        } else {
+          setRadarData(updatedRadarData);
+        }
+
+      } catch (e) {
+        console.error("Error parsing guest sessions for progress:", e);
       }
       return;
     }
 
-    const fetchProgress = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
 
-        // Fetch overall stats
-        const statsUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/user/gamification-stats` : '/api/user/gamification-stats';
-        const statsRes = await fetch(statsUrl, { headers: { 'Authorization': `Bearer ${session.access_token}` } });
-        const statsData = await statsRes.json();
-        if (statsData.status === 'success' && statsData.data) {
-          setStats(statsData.data);
-        }
-
-        // Fetch charts
-        const chartsUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/user/progress-charts` : '/api/user/progress-charts';
-        const chartsRes = await fetch(chartsUrl, { headers: { 'Authorization': `Bearer ${session.access_token}` } });
-        const chartsData = await chartsRes.json();
-        if (chartsData.status === 'success' && chartsData.data) {
-          setActivityData(chartsData.data.activityData);
-          setRadarData(chartsData.data.radarData);
-          setYesterdayData(chartsData.data.yesterdayData || []);
-        }
-      } catch (err) {
-        console.error("Failed to fetch progress:", err);
+      // Fetch overall stats
+      const statsUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/user/gamification-stats` : '/api/user/gamification-stats';
+      const statsRes = await fetch(statsUrl, { headers: { 'Authorization': `Bearer ${session.access_token}` } });
+      const statsData = await statsRes.json();
+      if (statsData.status === 'success' && statsData.data) {
+        setStats(statsData.data);
       }
-    };
+
+      // Fetch charts
+      const chartsUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/user/progress-charts` : '/api/user/progress-charts';
+      const chartsRes = await fetch(chartsUrl, { headers: { 'Authorization': `Bearer ${session.access_token}` } });
+      const chartsData = await chartsRes.json();
+      if (chartsData.status === 'success' && chartsData.data) {
+        setActivityData(chartsData.data.activityData);
+        setRadarData(chartsData.data.radarData);
+        setYesterdayData(chartsData.data.yesterdayData || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch progress:", err);
+    }
+  };
+
+  useEffect(() => {
     fetchProgress();
+  }, [user]);
+
+  useEffect(() => {
+    const handleActivity = () => {
+      fetchProgress();
+    };
+    window.addEventListener('study-activity-tracked', handleActivity);
+    return () => {
+      window.removeEventListener('study-activity-tracked', handleActivity);
+    };
   }, [user]);
 
   const badgesList = useMemo(() => {

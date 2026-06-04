@@ -66,34 +66,53 @@ export default function Overview({ user, setActiveTab }: OverviewProps) {
     ];
   });
 
-  useEffect(() => {
-    if (user.isGuest) return;
-    const fetchStats = async () => {
+  const fetchStats = async () => {
+    if (user.isGuest) {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) return;
-
-        const url = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/user/gamification-stats` : '/api/user/gamification-stats';
-        const res = await fetch(url, {
-          headers: { 'Authorization': `Bearer ${session.access_token}` }
-        });
-        const data = await res.json();
-        if (data.status === 'success' && data.data) {
-          const freshStats = {
-            streak: data.data.streak ?? stats.streak,
-            total_study_minutes: data.data.total_study_minutes ?? stats.total_study_minutes,
-            total_sp: data.data.total_sp ?? stats.total_sp,
-            max_streak: data.data.max_streak ?? stats.max_streak
-          };
-          setStats(freshStats);
-          setCached(statsCacheKey, freshStats);
+        const cached = localStorage.getItem(statsCacheKey);
+        if (cached) {
+          setStats(JSON.parse(cached));
         }
-      } catch (err) {
-        console.error("Failed to fetch gamification stats:", err);
+      } catch (e) {}
+      return;
+    }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const url = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/user/gamification-stats` : '/api/user/gamification-stats';
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+      const data = await res.json();
+      if (data.status === 'success' && data.data) {
+        const freshStats = {
+          streak: data.data.streak ?? stats.streak,
+          total_study_minutes: data.data.total_study_minutes ?? stats.total_study_minutes,
+          total_sp: data.data.total_sp ?? stats.total_sp,
+          max_streak: data.data.max_streak ?? stats.max_streak
+        };
+        setStats(freshStats);
+        setCached(statsCacheKey, freshStats);
       }
-    };
+    } catch (err) {
+      console.error("Failed to fetch gamification stats:", err);
+    }
+  };
+
+  useEffect(() => {
     fetchStats();
   }, [user]);
+
+  useEffect(() => {
+    const handleActivityTracked = () => {
+      fetchStats();
+    };
+    window.addEventListener('study-activity-tracked', handleActivityTracked);
+    return () => {
+      window.removeEventListener('study-activity-tracked', handleActivityTracked);
+    };
+  }, [user, statsCacheKey]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

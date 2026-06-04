@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { MessageSquare, Sparkles, User, Bot, Send, Plus, Menu, Moon, Sun, Pen, Mic, Volume2, VolumeX } from 'lucide-react';
+import { MessageSquare, Sparkles, User, Bot, Send, Plus, Menu, Moon, Sun, Pen, Mic, Volume2, VolumeX, Settings } from 'lucide-react';
 import { User as UserType } from '../../types';
 import { fetchChatHistory, fetchChatSessions, deleteChatSession, API_BASE_URL, ChatHistoryRow, ChatSessionGroup, ChatSessionItem } from '../../lib/api';
 import ChatSidebar from './ChatSidebar';
@@ -470,6 +470,7 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
   const [generalInput, setGeneralInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [voiceSettingsOpen, setVoiceSettingsOpen] = useState(false);
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
 
@@ -492,6 +493,15 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
       }
     }
   };
+
+  useEffect(() => {
+    const handleTtsFailed = () => {
+      setVoiceEngine('local');
+      console.warn("TTS API failed, falling back to local speech engine.");
+    };
+    window.addEventListener('tts-api-failed', handleTtsFailed);
+    return () => window.removeEventListener('tts-api-failed', handleTtsFailed);
+  }, []);
   const [subjectLoadingKey, setSubjectLoadingKey] = useState<string | null>(null);
   const [autoVoiceEnabled, setAutoVoiceEnabled] = useState(true);
   const [voiceEngine, setVoiceEngine] = useState<'api' | 'local'>('local'); // Default to local (instant) for Hackathon demo!
@@ -659,7 +669,8 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
           } else {
             hasError = true;
             if (index === currentSentence) {
-              console.error(`All retry attempts failed for chunk ${index}. Skipping to next.`);
+              console.error(`All retry attempts failed for chunk ${index}. Switching to quick device speech engine.`);
+              window.dispatchEvent(new CustomEvent('tts-api-failed'));
               currentSentence++;
               playNext();
             }
@@ -1786,154 +1797,195 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
       />
 
       <div className="flex min-w-0 flex-1 flex-col bg-[var(--bg-primary)] text-[var(--text-primary)]">
-        <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setSidebarOpen((prev) => !prev)} className="rounded-xl border border-white/10 p-2 text-[var(--text-primary)]">
+        <div className="relative flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 bg-[var(--panel-primary)]">
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => setSidebarOpen((prev) => !prev)} className="rounded-xl border border-white/10 p-2 text-[var(--text-primary)] hover:bg-white/5 transition-colors">
               <Menu className="h-5 w-5" />
             </button>
             <div className="rounded-xl bg-white/5 p-2 text-[var(--text-primary)]">
               <MessageSquare className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-lg font-bold">Gia sư AI</div>
-              <div className="text-xs text-[var(--muted-primary)]">Canvas tối giản, cá nhân hóa theo lớp học</div>
+              <div className="text-sm font-bold md:text-base">Gia sư AI</div>
+              <div className="hidden xs:block text-[10px] text-[var(--muted-primary)]">Canvas tối giản, cá nhân hóa theo lớp học</div>
+              {/* Pulsing Active indicator */}
+              <div className="flex items-center gap-1 mt-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold w-fit px-2 py-0.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Đang hoạt động</span>
+              </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1">
+            {/* Active Subject Selection Badge */}
+            {selectedSubject && (
               <button
-                onClick={() => {
-                  const newState = !autoVoiceEnabled;
-                  setAutoVoiceEnabled(newState);
-                  
-                  activeAudioSeqRef.current++; // Stop any ongoing sequence
-                  stopAllAudio();
-                  
-                  const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
-                  if (newState && audioElement) {
-                     audioElement.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-                     audioElement.play().catch(()=> {});
-                  }
-                }}
-                className={`flex items-center gap-2 rounded-xl border border-white/10 px-3 py-1.5 text-sm font-medium transition-colors ${autoVoiceEnabled ? 'bg-brand-500/20 text-brand-300' : 'bg-white/5 text-[var(--muted-primary)]'}`}
-                title={autoVoiceEnabled ? 'Đang bật tự động đọc' : 'Đã tắt tự động đọc'}
+                onClick={() => setCurrentView('selection')}
+                className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-brand-500/10 text-brand-300 px-3 py-2 text-xs font-bold transition-all hover:bg-brand-500/20"
+                title="Đổi môn học"
               >
-                {autoVoiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-                {autoVoiceEnabled ? 'Bật giọng nói' : 'Tắt giọng nói'}
+                <span>Môn: {selectedSubject}</span>
+                <Pen className="h-3 w-3" />
               </button>
-              {autoVoiceEnabled && (
-                <>
-                  <div className="flex rounded-xl border border-white/10 bg-white/5 p-0.5" title="Chọn bộ máy phát thanh">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setVoiceEngine('api');
-                        activeAudioSeqRef.current++;
-                        stopAllAudio();
-                      }}
-                      className={`rounded-lg px-2 py-1 text-xs font-bold transition-all ${voiceEngine === 'api' ? 'bg-brand-600 text-white shadow-sm' : 'text-[var(--muted-primary)] hover:text-white'}`}
-                      title="Giọng đọc Zalo/FPT chất lượng cao (Trễ 2-3s)"
-                    >
-                      AI 🌟
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setVoiceEngine('local');
-                        activeAudioSeqRef.current++;
-                        stopAllAudio();
-                      }}
-                      className={`rounded-lg px-2 py-1 text-xs font-bold transition-all ${voiceEngine === 'local' ? 'bg-brand-600 text-white shadow-sm' : 'text-[var(--muted-primary)] hover:text-white'}`}
-                      title="Giọng đọc nhanh của thiết bị (Không trễ)"
-                    >
-                      Nhanh ⚡
-                    </button>
-                  </div>
+            )}
 
-                  <div className="flex rounded-xl border border-white/10 bg-white/5 p-0.5" title="Chọn giới tính giọng đọc">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setVoiceGender('female');
-                        localStorage.setItem('giasuao_voice_gender', 'female');
-                        activeAudioSeqRef.current++;
-                        stopAllAudio();
-                      }}
-                      className={`rounded-lg px-2 py-1 text-xs font-bold transition-all ${voiceGender === 'female' ? 'bg-brand-600 text-white shadow-sm' : 'text-[var(--muted-primary)] hover:text-white'}`}
-                    >
-                      Nữ 👩
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setVoiceGender('male');
-                        localStorage.setItem('giasuao_voice_gender', 'male');
-                        activeAudioSeqRef.current++;
-                        stopAllAudio();
-                      }}
-                      className={`rounded-lg px-2 py-1 text-xs font-bold transition-all ${voiceGender === 'male' ? 'bg-brand-600 text-white shadow-sm' : 'text-[var(--muted-primary)] hover:text-white'}`}
-                    >
-                      Nam 👨
-                    </button>
-                  </div>
+            {/* Voice toggle button */}
+            <button
+              onClick={() => {
+                const newState = !autoVoiceEnabled;
+                setAutoVoiceEnabled(newState);
+                activeAudioSeqRef.current++;
+                stopAllAudio();
+                const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
+                if (newState && audioElement) {
+                   audioElement.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+                   audioElement.play().catch(()=> {});
+                }
+              }}
+              className={`rounded-xl border p-2 transition-all duration-200 ${
+                autoVoiceEnabled 
+                  ? 'bg-brand-600 border-brand-600 text-white shadow-md' 
+                  : 'bg-white/5 border-white/10 text-[var(--muted-primary)] hover:bg-white/10'
+              }`}
+              title={autoVoiceEnabled ? 'Bấm để tắt giọng đọc' : 'Bấm để bật giọng đọc'}
+            >
+              {autoVoiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            </button>
 
-                  <div className="hidden sm:flex rounded-xl border border-white/10 bg-white/5 p-0.5" title="Chọn tốc độ đọc">
-                    {[1.0, 1.2, 1.5].map((rate) => (
+            {/* Settings toggler button */}
+            <button
+              onClick={() => setVoiceSettingsOpen(prev => !prev)}
+              className={`rounded-xl border p-2 transition-all duration-200 ${
+                voiceSettingsOpen 
+                  ? 'bg-white/15 border-white/20 text-white' 
+                  : 'bg-white/5 border-white/10 text-[var(--muted-primary)] hover:bg-white/10'
+              }`}
+              title="Cấu hình giọng đọc & giao diện"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+
+            {/* Premium Settings dropdown menu */}
+            {voiceSettingsOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setVoiceSettingsOpen(false)}></div>
+                <div className="absolute right-4 top-16 z-50 w-72 rounded-2xl border border-white/10 bg-[#1e1e1f]/95 p-4 shadow-2xl backdrop-blur-md text-white animate-in fade-in slide-in-from-top-2 duration-150">
+                  <h4 className="mb-3 text-[11px] font-black uppercase tracking-wider text-zinc-400">Cấu hình Giọng đọc AI</h4>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-300">Đọc tự động:</span>
                       <button
-                        key={rate}
                         type="button"
-                        onClick={() => {
-                          setSpeechRate(rate);
-                          localStorage.setItem('giasuao_speech_rate', String(rate));
-                          if (currentPlayingAudioRef.current) {
-                            currentPlayingAudioRef.current.playbackRate = rate;
-                          }
-                        }}
-                        className={`rounded-lg px-2 py-1 text-xs font-bold transition-all ${speechRate === rate ? 'bg-brand-600 text-white shadow-sm' : 'text-[var(--muted-primary)] hover:text-white'}`}
+                        onClick={() => setAutoVoiceEnabled(!autoVoiceEnabled)}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-all ${autoVoiceEnabled ? 'bg-brand-600 text-white shadow-sm' : 'bg-white/5 text-zinc-400 hover:text-white'}`}
                       >
-                        {rate}x
+                        {autoVoiceEnabled ? "Bật" : "Tắt"}
                       </button>
-                    ))}
-                  </div>
+                    </div>
 
-                  {voiceEngine === 'local' && availableLocalVoices.length > 0 && (
-                    <select
-                      value={selectedLocalVoiceURI}
-                      onChange={(e) => {
-                        setSelectedLocalVoiceURI(e.target.value);
-                        localStorage.setItem('giasuao_local_voice_uri', e.target.value);
-                      }}
-                      className="hidden md:block rounded-xl border border-white/10 bg-[#1e1e1f] px-2 py-1 text-xs font-medium text-[var(--text-primary)] focus:outline-none max-w-[110px] truncate"
-                      title="Chọn giọng đọc thiết bị"
-                    >
-                      {availableLocalVoices.map((voice) => (
-                        <option key={voice.voiceURI} value={voice.voiceURI}>
-                          {voice.name.replace(/Microsoft|Google/g, '').trim()}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </>
-              )}
-            </div>
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-white/10"
-            >
-              {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
-            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5">
-              <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-              <span className="text-sm font-medium text-[var(--text-primary)]">Đang hoạt động</span>
-            </div>
-            <button
-              onClick={() => setCurrentView('selection')}
-              className="rounded-xl border border-white/10 bg-white/5 p-2 text-[var(--text-primary)] transition-colors hover:bg-white/10"
-              title="Đổi môn học"
-            >
-              <Pen className="h-4 w-4" />
-            </button>
+                    {autoVoiceEnabled && (
+                      <>
+                        <div className="flex flex-col gap-1.5">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Bộ máy phát thanh</span>
+                          <div className="flex rounded-xl border border-white/10 bg-white/5 p-0.5">
+                            <button
+                              type="button"
+                              onClick={() => { setVoiceEngine('api'); activeAudioSeqRef.current++; stopAllAudio(); }}
+                              className={`flex-1 rounded-lg py-1.5 text-center text-xs font-bold transition-all ${voiceEngine === 'api' ? 'bg-brand-600 text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                              title="Giọng đọc AI chất lượng cao"
+                            >
+                              Mô hình AI 🌟
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setVoiceEngine('local'); activeAudioSeqRef.current++; stopAllAudio(); }}
+                              className={`flex-1 rounded-lg py-1.5 text-center text-xs font-bold transition-all ${voiceEngine === 'local' ? 'bg-brand-600 text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                              title="Giọng đọc thiết bị không trễ"
+                            >
+                              Giọng nhanh ⚡
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Giọng đọc</span>
+                          <div className="flex rounded-xl border border-white/10 bg-white/5 p-0.5">
+                            <button
+                              type="button"
+                              onClick={() => { setVoiceGender('female'); localStorage.setItem('giasuao_voice_gender', 'female'); activeAudioSeqRef.current++; stopAllAudio(); }}
+                              className={`flex-1 rounded-lg py-1.5 text-center text-xs font-bold transition-all ${voiceGender === 'female' ? 'bg-brand-600 text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                            >
+                              Nữ 👩
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setVoiceGender('male'); localStorage.setItem('giasuao_voice_gender', 'male'); activeAudioSeqRef.current++; stopAllAudio(); }}
+                              className={`flex-1 rounded-lg py-1.5 text-center text-xs font-bold transition-all ${voiceGender === 'male' ? 'bg-brand-600 text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                            >
+                              Nam 👨
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-1.5">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Tốc độ</span>
+                          <div className="flex rounded-xl border border-white/10 bg-white/5 p-0.5">
+                            {[1.0, 1.2, 1.5].map((rate) => (
+                              <button
+                                key={rate}
+                                type="button"
+                                onClick={() => {
+                                  setSpeechRate(rate);
+                                  localStorage.setItem('giasuao_speech_rate', String(rate));
+                                  if (currentPlayingAudioRef.current) {
+                                    currentPlayingAudioRef.current.playbackRate = rate;
+                                  }
+                                }}
+                                className={`flex-1 rounded-lg py-1 text-center text-xs font-bold transition-all ${speechRate === rate ? 'bg-brand-600 text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                              >
+                                {rate}x
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {voiceEngine === 'local' && availableLocalVoices.length > 0 && (
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Thiết bị TTS</span>
+                            <select
+                              value={selectedLocalVoiceURI}
+                              onChange={(e) => {
+                                setSelectedLocalVoiceURI(e.target.value);
+                                localStorage.setItem('giasuao_local_voice_uri', e.target.value);
+                              }}
+                              className="w-full rounded-xl border border-white/10 bg-[#121212] px-2 py-2 text-xs font-bold text-white focus:outline-none"
+                            >
+                              {availableLocalVoices.map((voice) => (
+                                <option key={voice.voiceURI} value={voice.voiceURI}>
+                                  {voice.name.replace(/Microsoft|Google/g, '').trim()}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    <div className="pt-3 border-t border-white/10 flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-300">Giao diện tối:</span>
+                      <button
+                        type="button"
+                        onClick={() => setIsDarkMode(!isDarkMode)}
+                        className="rounded-lg border border-white/10 bg-white/5 p-2 text-white hover:bg-white/10 transition-colors"
+                      >
+                        {isDarkMode ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
