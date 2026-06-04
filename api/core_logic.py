@@ -1067,6 +1067,43 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                         if session_row.get("messages"):
                             chat_history = session_row["messages"]
                         session_exists = True
+                        
+                        # FALLBACK: If chat_sessions.messages is empty/stale but chat_history table may have more messages
+                        # This handles cold-start of serverless where _SESSION_CACHE is cleared
+                        if not chat_history and user_id:
+                            try:
+                                hist_res = supabase.table("chat_history").select("role,content,timestamp").eq("session_id", session_id).order("timestamp").execute()
+                                hist_rows = hist_res.data or []
+                                if hist_rows:
+                                    # Convert chat_history rows to messages format
+                                    rebuilt_messages = []
+                                    for row in hist_rows:
+                                        role = row.get("role")
+                                        content = row.get("content") or ""
+                                        # Detect inline image markers from main.py insertion format
+                                        if role == "user" and content.startswith("![Hình đính kèm]("):
+                                            # Extract URL from markdown
+                                            try:
+                                                url_start = content.index("(") + 1
+                                                url_end = content.index(")")
+                                                img_url = content[url_start:url_end]
+                                                text_part = content[url_end+1:].strip().lstrip("\\n").strip()
+                                                rebuilt_messages.append({"role": "user", "content": text_part, "imageUrl": img_url})
+                                            except Exception:
+                                                rebuilt_messages.append({"role": role, "content": content})
+                                        else:
+                                            rebuilt_messages.append({"role": role, "content": content})
+                                    
+                                    chat_history = rebuilt_messages
+                                    # Sync back to chat_sessions.messages so future cold-starts are fast
+                                    try:
+                                        supabase.table("chat_sessions").update({"messages": chat_history}).eq("id", session_id).execute()
+                                        print(f"🔄 [History Recovery] Khôi phục {len(chat_history)} messages từ chat_history table cho session {session_id}!")
+                                    except Exception as sync_err:
+                                        print(f"⚠️ Không thể sync chat_sessions.messages từ chat_history: {sync_err}")
+                            except Exception as hist_err:
+                                print(f"⚠️ Không thể fallback từ chat_history: {hist_err}")
+                        
                         if len(_SESSION_CACHE) > 1000:
                             for k in list(_SESSION_CACHE.keys())[:100]:
                                 _SESSION_CACHE.pop(k, None)
@@ -1075,9 +1112,10 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                             "grade": session_row.get("grade") or target_grade,
                             "subject": session_row.get("subject") or target_subject
                         }
-                        print(f"💾 [Session Cache] Lưu session {session_id} vào bộ nhớ đệm.")
+                        print(f"💾 [Session Cache] Lưu session {session_id} vào bộ nhớ đệm ({len(chat_history)} messages).")
                 except Exception as session_err:
                     print(f"⚠️ Không thể đọc chat_sessions đầy đủ: {session_err}")
+
 
         # If not a valid UUID, generate one
         if not is_valid_uuid:
@@ -1189,13 +1227,17 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                 context = "Không tìm thấy dữ liệu liên quan trong sách."
                 try:
                     # Check for short or conversational queries to bypass expensive RAG
-                    is_conversational_only = len(question.strip()) < 15 or question.strip().lower() in [
+                    # IMPORTANT: Do NOT skip RAG if there's already active chat history —
+                    # short answers like "20 ạ", "3 ạ" are follow-up responses within an ongoing lesson.
+                    _truly_conversational = question.strip().lower() in [
                         "ok", "chào", "chào cô", "cảm ơn", "cảm ơn cô", "dạ", "dạ vâng", "tiếp đi", "tiếp tục", "hi", "hello"
                     ]
+                    # Only skip RAG if message is very short AND there's NO active chat history context
+                    is_conversational_only = _truly_conversational or (len(question.strip()) < 15 and len(chat_history) == 0)
                     
                     docs_rows = []
                     if is_conversational_only:
-                        print(f"⚡ [RAG Skip] Bỏ qua RAG cho câu hỏi hội thoại ngắn: '{question}'")
+                        print(f"⚡ [RAG Skip] Bỏ qua RAG cho câu hỏi hội thoại thuần: '{question}'")
                     else:
                         # 1. Fetch matching documents by grade and subject (including name) (using in-memory cache)
                         docs_cache_key = (target_grade, target_subject)
@@ -1387,6 +1429,16 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                 vn_time_str = vn_now.strftime("%H:%M:%S ngày %d/%m/%Y")
                 vn_hour = vn_now.hour
                 user_msg_count = sum(1 for m in chat_history if m.get("role") == "user") + 1
+                
+                # Explicit burnout detection — avoids relying solely on natural-language hints
+                is_late_night = vn_hour >= 23 or vn_hour < 5
+                burnout_active = is_late_night and user_msg_count >= 4
+                burnout_signal = (
+                    f"⚠️ BURNOUT_ACTIVE: TRUE — Giờ hiện tại là {vn_time_str.split()[0]} (đêm khuya). "
+                    f"Học sinh đã hỏi {user_msg_count} câu trong phiên này. "
+                    f"BẮT BUỘC: Chỉ nhắc học sinh đi ngủ, từ chối hỗ trợ thêm bài tập hoặc giải thích kiến thức mới trong tối nay."
+                ) if burnout_active else f"BURNOUT_ACTIVE: FALSE (giờ: {vn_time_str.split()[0]}, số câu: {user_msg_count})"
+                
                 current_time_guidance = f"Thời gian hiện tại ở Việt Nam: {vn_time_str}. Số câu hỏi học sinh đã gửi trong phiên học này: {user_msg_count} câu."
                 
                 recent_suggestions = _extract_recent_suggestion_labels(chat_history)
@@ -1402,6 +1454,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                 is_image_attached = image_data is not None
                 image_guidance = "Học sinh vừa tải lên một hình ảnh/đề thi mẫu. BẠN PHẢI ĐỌC HÌNH ẢNH ĐÓ. Nếu học sinh yêu cầu, hãy giải thích đề mẫu hoặc hướng dẫn giải chi tiết. ĐẶC BIỆT CHÚ Ý: Bạn PHẢI trả về 3 gợi ý sau trong phần SUGGESTIONS: 1. Giải thích đề mẫu này, 2. Hướng dẫn mình cách giải, 3. Tạo đề thi tương tự đề mẫu." if is_image_attached else ""
                 default_suggestions = _default_suggestions_for_subject(target_subject or subject or '')
+
                 prompt = f"""
                 Bạn là Gia sư ảo — được định vị là "Trợ lý sư phạm chống gian lận & thấu cảm", TUYỆT ĐỐI KHÔNG nhận mình là "Chatbot trả lời câu hỏi" thông thường.
 
@@ -1417,6 +1470,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
 
                 TÍN HIỆU PHÂN TÍCH VÀ BỐI CẢNH HỆ THỐNG:
                 - {current_time_guidance}
+                - {burnout_signal}
                 - {image_guidance if image_guidance else 'Không có tín hiệu ảnh rõ ràng.'}
 
                 KIẾN THỨC THAM CHIẾU (bao gồm sách, tệp học sinh tải lên hoặc đoạn trích):
@@ -1449,12 +1503,13 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                      * Chỉ khi học sinh yêu cầu "Tạo đề thi tương tự", bạn mới được tạo một đề thi mới kèm theo đáp án chi tiết ở phần dưới cùng của đề thi đó để đối chiếu kết quả sau khi làm.
                      * Nếu học sinh chỉ hỏi công thức lý thuyết thuần túy (ví dụ: "Công thức tính đạo hàm là gì?"), bạn giải thích rõ công thức kèm ví dụ mẫu độc lập, nhưng vẫn không giải hộ bài tập của họ.
 
-                2) TÍNH MỚI 2 - THẤU CẢM CẢM XÚC (PHÁT HIỆN QUÁ TẢI / BURNOUT):
-                   - Nếu thời gian hiện tại là đêm khuya (từ 23:00 - 11:00 PM đến 05:00 AM) VÀ học sinh đã hỏi nhiều câu liên tục (từ 4 câu trở lên trong phiên học này, hiện tại là câu thứ {user_msg_count}), bạn PHẢI nhận diện ngay trạng thái học tập quá tải ("Burnout").
-                   - Khi phát hiện trạng thái Burnout:
-                     a) Phải thể hiện sự thấu cảm sâu sắc đối với sự chăm chỉ nhưng mệt mỏi của học sinh.
-                     b) Khuyên học sinh dừng học, tắt máy và đi ngủ ngay để bảo vệ sức khỏe và có tinh thần tỉnh táo vào ngày mai.
-                     c) TỪ CHỐI hướng dẫn thêm bài tập hay giải thích lý thuyết mới trong tối nay. Thay vào đó, tập trung khuyên học sinh đi ngủ: "Giờ đã rất trễ rồi ({vn_time_str.split()[0]}), em đã học rất chăm chỉ nhưng sức khỏe là quan trọng nhất. Hãy cất sách vở, đi ngủ sớm thôi em nhé! Ngày mai khi tỉnh táo chúng mình lại cùng nhau giải quyết bài này nha."
+                2) TÍNH MỚI 2 - THẤU CẢM CẢM XÚC (PHÁT HIỆN QUÁ TẢI / BURNOUT) — ƯU TIÊN CAO NHẤT:
+                   - Kiểm tra tín hiệu BURNOUT_ACTIVE trong phần TÍN HIỆU PHÂN TÍCH ở trên.
+                   - Nếu BURNOUT_ACTIVE = TRUE: ĐÂY LÀ QUY TẮC TUYỆT ĐỐI VÀ ƯU TIÊN NHẤT, ghi đè mọi quy tắc khác:
+                     a) KHÔNG hỗ trợ thêm bất kỳ câu hỏi, bài tập hay lý thuyết nào trong tối nay.
+                     b) Thể hiện sự thấu cảm sâu sắc và ấm áp.
+                     c) Chỉ khuyên học sinh đi ngủ với giọng điệu thương mến: "Giờ đã rất trễ rồi ({vn_time_str.split()[0]}), em đã học rất chăm chỉ nhưng sức khỏe là quan trọng nhất. Hãy cất sách vở, tắt máy và đi ngủ sớm thôi em nhé! Ngày mai khi tỉnh táo chúng mình lại cùng nhau giải quyết bài này nha! 💤"
+                   - Nếu BURNOUT_ACTIVE = FALSE: Tiếp tục hỗ trợ bình thường theo các quy tắc còn lại.
 
                 QUY TẮC NỘI DUNG CHUNG KHÁC:
                 3) Trả lời ngắn gọn, dễ hiểu, theo trình độ. Phải kết hợp linh hoạt "KIẾN THỨC THAM CHIẾU" và "LỊCH SỬ TRÒ CHUYỆN". Nếu học sinh đưa ra yêu cầu như "cô đọc lại bài thơ đó đi", "giải thích lại đoạn trên", hãy TỰ ĐỘNG hiểu ngữ cảnh từ LỊCH SỬ TRÒ CHUYỆN và thực hiện ngay yêu cầu. Nếu không có dữ liệu, hãy dùng kiến thức phổ thông để đáp lại.
