@@ -614,9 +614,14 @@ def chat(req: ChatRequest):
             user_id_val = req.user_id if getattr(req, 'user_id', None) else None
             sid = detected_session_id or req.session_id
             if user_id_val:
-                user_content = req.question
+                user_content = req.question or ""
                 if req.image_data:
-                    user_content = f"![Hình đính kèm]({req.image_data})\n\n" + req.question
+                    # Store a compact marker so chat_history rows don't bloat with MB-sized base64
+                    # The full image URL is persisted in chat_sessions.messages by core_logic.py
+                    if req.image_data.startswith('http'):
+                        user_content = f"[🖼️ Hình ảnh]({req.image_data})\n{user_content}"
+                    else:
+                        user_content = f"[🖼️ Hình ảnh đính kèm]\n{user_content}"
                 rows = [
                     {"user_id": user_id_val, "role": "user", "content": user_content, "session_id": sid},
                     {"user_id": user_id_val, "role": "assistant", "content": full_answer, "session_id": sid},

@@ -1055,54 +1055,75 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
         session_exists = False
         if is_valid_uuid:
             if session_id in _SESSION_CACHE:
+                # Fast path: in-memory cache (same process/instance)
                 session_row = _SESSION_CACHE[session_id]
                 chat_history = session_row.get("messages") or []
                 session_exists = True
-                print(f"⚡ [Session Cache] Lấy thành công lịch sử session {session_id} từ bộ nhớ đệm (0ms)!")
+                print(f"⚡ [Session Cache] Hit for session {session_id} ({len(chat_history)} messages)")
             else:
+                # Cold start: reload from DB
                 try:
                     res = supabase.table("chat_sessions").select("messages,grade,subject").eq("id", session_id).execute()
                     if res.data and len(res.data) > 0:
                         session_row = res.data[0] or {}
-                        if session_row.get("messages"):
-                            chat_history = session_row["messages"]
                         session_exists = True
                         
-                        # FALLBACK: If chat_sessions.messages is empty/stale but chat_history table may have more messages
-                        # This handles cold-start of serverless where _SESSION_CACHE is cleared
-                        if not chat_history and user_id:
+                        # Primary source: chat_sessions.messages (has correct image URLs, not base64)
+                        db_messages = session_row.get("messages") or []
+                        chat_history = db_messages
+                        
+                        # Secondary source: chat_history table (count only, to detect if more messages exist)
+                        # Only sync if chat_history has significantly more rows than what we have
+                        if user_id:
                             try:
-                                hist_res = supabase.table("chat_history").select("role,content,timestamp").eq("session_id", session_id).order("timestamp").execute()
-                                hist_rows = hist_res.data or []
-                                if hist_rows:
-                                    # Convert chat_history rows to messages format
-                                    rebuilt_messages = []
+                                count_res = (
+                                    supabase.table("chat_history")
+                                    .select("id", count="exact")
+                                    .eq("session_id", session_id)
+                                    .execute()
+                                )
+                                total_in_db = count_res.count or len(count_res.data or [])
+                                current_msg_count = len(db_messages)
+                                
+                                print(f"📊 [Session] chat_sessions.messages={current_msg_count}, chat_history rows={total_in_db}")
+                                
+                                # If chat_sessions.messages is more than 4 messages behind, rebuild
+                                if total_in_db > current_msg_count + 4:
+                                    print(f"🔄 [History Rebuild] chat_sessions.messages ({current_msg_count}) lagging behind chat_history ({total_in_db}). Rebuilding...")
+                                    hist_res = (
+                                        supabase.table("chat_history")
+                                        .select("role,content,timestamp")
+                                        .eq("session_id", session_id)
+                                        .order("timestamp")
+                                        .execute()
+                                    )
+                                    hist_rows = hist_res.data or []
+                                    rebuilt = []
                                     for row in hist_rows:
-                                        role = row.get("role")
+                                        role = row.get("role") or ""
                                         content = row.get("content") or ""
-                                        # Detect inline image markers from main.py insertion format
-                                        if role == "user" and content.startswith("![Hình đính kèm]("):
-                                            # Extract URL from markdown
-                                            try:
-                                                url_start = content.index("(") + 1
-                                                url_end = content.index(")")
-                                                img_url = content[url_start:url_end]
-                                                text_part = content[url_end+1:].strip().lstrip("\\n").strip()
-                                                rebuilt_messages.append({"role": "user", "content": text_part, "imageUrl": img_url})
-                                            except Exception:
-                                                rebuilt_messages.append({"role": role, "content": content})
-                                        else:
-                                            rebuilt_messages.append({"role": role, "content": content})
+                                        # Skip rows with huge base64 content (legacy format before fix)
+                                        if len(content) > 50000:
+                                            # Keep only the text part after the image marker
+                                            if "\n" in content:
+                                                content = content[content.rfind("\n"):].strip()
+                                            else:
+                                                content = "[Hình ảnh đính kèm]"
+                                        # Skip [ANSWER]...[END_ANSWER] markers from assistant — keep raw
+                                        # Map role
+                                        prompt_role = "model" if role == "assistant" else "user"
+                                        rebuilt.append({"role": prompt_role, "content": content})
                                     
-                                    chat_history = rebuilt_messages
-                                    # Sync back to chat_sessions.messages so future cold-starts are fast
-                                    try:
-                                        supabase.table("chat_sessions").update({"messages": chat_history}).eq("id", session_id).execute()
-                                        print(f"🔄 [History Recovery] Khôi phục {len(chat_history)} messages từ chat_history table cho session {session_id}!")
-                                    except Exception as sync_err:
-                                        print(f"⚠️ Không thể sync chat_sessions.messages từ chat_history: {sync_err}")
-                            except Exception as hist_err:
-                                print(f"⚠️ Không thể fallback từ chat_history: {hist_err}")
+                                    if len(rebuilt) > len(db_messages):
+                                        chat_history = rebuilt
+                                        # Sync back to chat_sessions.messages
+                                        try:
+                                            supabase.table("chat_sessions").update({"messages": chat_history}).eq("id", session_id).execute()
+                                            print(f"✅ [History Rebuild] Synced {len(chat_history)} messages back to chat_sessions.messages")
+                                        except Exception as sync_err:
+                                            print(f"⚠️ Sync failed: {sync_err}")
+                            except Exception as count_err:
+                                print(f"⚠️ [History Check] Could not compare message counts: {count_err}")
                         
                         if len(_SESSION_CACHE) > 1000:
                             for k in list(_SESSION_CACHE.keys())[:100]:
@@ -1112,9 +1133,9 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                             "grade": session_row.get("grade") or target_grade,
                             "subject": session_row.get("subject") or target_subject
                         }
-                        print(f"💾 [Session Cache] Lưu session {session_id} vào bộ nhớ đệm ({len(chat_history)} messages).")
+                        print(f"💾 [Session Cache] Cached session {session_id} ({len(chat_history)} messages)")
                 except Exception as session_err:
-                    print(f"⚠️ Không thể đọc chat_sessions đầy đủ: {session_err}")
+                    print(f"⚠️ Không thể đọc chat_sessions: {session_err}")
 
 
         # If not a valid UUID, generate one
