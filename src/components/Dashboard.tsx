@@ -37,7 +37,7 @@ export default function Dashboard({ user, onLogout, onGradeChange }: DashboardPr
       case 'home':
         return <Overview user={user} setActiveTab={setActiveTab} />;
       case 'ai':
-        return <AIChat user={user} />;
+        return <AIChat user={user} onGradeChange={onGradeChange} />;
       case 'library':
         return <Library currentGrade={user.grade} setActiveTab={setActiveTab} user={user} onOpenWorkspace={(cfg) => { setWorkspaceConfig(cfg); setActiveTab('workspace'); }} />;
       case 'workspace':

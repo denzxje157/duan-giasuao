@@ -81,6 +81,26 @@ export default function Overview({ user, setActiveTab }: OverviewProps) {
     fetchStats();
   }, [user]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+    const lastDate = localStorage.getItem(`ai_chat_last_quest_date_${user.id || 'guest'}`);
+    
+    if (lastDate !== todayStr) {
+      // Reset daily quests
+      const resetQuests = [
+        { id: 1, text: "Chào Gia sư & chọn môn học mới", xp: 10, completed: false, tab: 'ai' },
+        { id: 2, text: "Hỏi Gia sư AI một câu hỏi bất kỳ", xp: 15, completed: false, tab: 'ai' },
+        { id: 3, text: "Khám phá sách mới trong Tủ sách", xp: 20, completed: false, tab: 'library' },
+        { id: 4, text: "Thử tài với 1 câu hỏi Trắc nghiệm", xp: 25, completed: false, tab: 'quiz' },
+        { id: 5, text: "Luyện vẽ tranh trên bảng vẽ tự do", xp: 30, completed: false, tab: 'ai' },
+      ];
+      setQuests(resetQuests);
+      localStorage.setItem(`ai_chat_quests_${user.id || 'guest'}`, JSON.stringify(resetQuests));
+      localStorage.setItem(`ai_chat_last_quest_date_${user.id || 'guest'}`, todayStr);
+    }
+  }, [user.id]);
+
   const triggerConfetti = () => {
     const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
     const newParticles = Array.from({ length: 24 }).map((_, i) => ({

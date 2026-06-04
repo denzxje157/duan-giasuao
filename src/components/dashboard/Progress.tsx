@@ -36,6 +36,7 @@ export default function Progress({ user }: ProgressProps) {
   const [stats, setStats] = useState({ streak: 0, total_study_minutes: 0, max_streak: 0, total_sp: 0 });
   const [activityData, setActivityData] = useState(activityDataMock);
   const [radarData, setRadarData] = useState(radarDataMock);
+  const [yesterdayData, setYesterdayData] = useState<any[]>([]);
 
   useEffect(() => {
     if (user.isGuest) {
@@ -56,6 +57,10 @@ export default function Progress({ user }: ProgressProps) {
           };
 
           const uniqueDays = new Set<string>();
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          const yesterdayStr = yesterday.toLocaleDateString('en-CA'); // YYYY-MM-DD
+          const yesterdayCounts: Record<string, number> = {};
 
           groups.forEach(g => {
             g.subjects.forEach(subGroup => {
@@ -77,14 +82,24 @@ export default function Progress({ user }: ProgressProps) {
                         dailyCounts[dayLabel] += count * 3; // 3 minutes per message
                       }
                       
-                      const dateKey = d.toISOString().split('T')[0];
+                      const dateKey = d.toLocaleDateString('en-CA');
                       uniqueDays.add(dateKey);
+
+                      if (dateKey === yesterdayStr) {
+                        yesterdayCounts[subName] = (yesterdayCounts[subName] || 0) + count * 3;
+                      }
                     }
                   } catch (e) {}
                 }
               });
             });
           });
+
+          const parsedYesterday = Object.keys(yesterdayCounts).map(subj => ({
+            subject: subj,
+            minutes: yesterdayCounts[subj]
+          }));
+          setYesterdayData(parsedYesterday);
 
           let questSpEarned = 0;
           const savedQuests = localStorage.getItem(`ai_chat_quests_guest`);
@@ -161,6 +176,7 @@ export default function Progress({ user }: ProgressProps) {
         if (chartsData.status === 'success' && chartsData.data) {
           setActivityData(chartsData.data.activityData);
           setRadarData(chartsData.data.radarData);
+          setYesterdayData(chartsData.data.yesterdayData || []);
         }
       } catch (err) {
         console.error("Failed to fetch progress:", err);
@@ -456,7 +472,27 @@ export default function Progress({ user }: ProgressProps) {
                   <span>📊 Chưa có đủ dữ liệu học tập để phân tích điểm mù. Hãy trò chuyện với Gia sư AI nhiều hơn!</span>
                 )}
               </div>
-           </div>
+
+              <div className="mt-4 pt-4 border-t border-slate-100 w-full">
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" /> Thống kê hôm qua:
+                </h4>
+                {yesterdayData && yesterdayData.length > 0 ? (
+                  <div className="space-y-2">
+                    {yesterdayData.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
+                        <span className="text-xs font-bold text-slate-700">{item.subject}</span>
+                        <span className="text-xs font-black text-brand-600 bg-brand-50 px-2.5 py-1 rounded-full">{item.minutes} phút</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 leading-relaxed font-medium bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    📭 Hôm qua em chưa tham gia học tập. Hãy dành ra 5-10 phút mỗi ngày để ôn tập kiến thức nhé!
+                  </p>
+                )}
+              </div>
+            </div>
 
            <div className="bg-gradient-to-br from-brand-900 to-slate-900 rounded-3xl p-6 text-white border border-brand-800 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 right-0 p-4 opacity-20">

@@ -329,9 +329,15 @@ def _group_sessions_for_user(session_rows: List[Dict[str, Any]], history_rows: L
         title_source_row = real_user_rows[0] if real_user_rows else (user_rows[0] if user_rows else (rows[0] if rows else None))
         first_user_row = user_rows[0] if user_rows else (rows[0] if rows else None)
         
-        subject = _infer_subject_from_text((first_user_row or {}).get('content', ''))
-        grade_label = f"Lớp {current_grade}" if current_grade else 'Lớp học'
         session_meta = sessions_by_id.get(sid, {})
+        grade_from_session = session_meta.get('grade')
+        if grade_from_session:
+            if not str(grade_from_session).startswith('Lớp'):
+                grade_label = f"Lớp {grade_from_session}"
+            else:
+                grade_label = str(grade_from_session)
+        else:
+            grade_label = f"Lớp {current_grade}" if current_grade else 'Lớp học'
         title = _infer_session_title((title_source_row or {}).get('content', ''), session_meta.get('title'))
         updated_at = (rows[-1] or {}).get('timestamp') if rows else session_meta.get('updated_at')
 
@@ -722,7 +728,26 @@ def get_user_progress_charts(credentials: HTTPAuthorizationCredentials = Depends
                 {"subject": "Vật lý", "score": 0, "fullMark": 100},
             ]
 
-        return {"status": "success", "data": {"activityData": week_data, "radarData": radar_data}}
+        # Lấy thống kê hôm qua
+        yesterday = date.today() - timedelta(days=1)
+        yesterday_str = yesterday.strftime("%Y-%m-%d")
+        
+        yesterday_res = supabase.table("user_activities").select("subject_name, study_minutes").eq("user_id", user_id).eq("study_date", yesterday_str).execute()
+        yesterday_data = []
+        for row in (yesterday_res.data or []):
+            yesterday_data.append({
+                "subject": row.get("subject_name", "Khác"),
+                "minutes": row.get("study_minutes", 0)
+            })
+
+        return {
+            "status": "success", 
+            "data": {
+                "activityData": week_data, 
+                "radarData": radar_data,
+                "yesterdayData": yesterday_data
+            }
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi lấy dữ liệu biểu đồ: {str(e)}")
 

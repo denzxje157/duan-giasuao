@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, BookOpen, ChevronRight, Download, Upload, CheckCircle2, File, Library, Trash2, Edit2, Loader2, BookMarked, GraduationCap } from 'lucide-react';
 import { Textbook, Grade, User } from '../../types';
 import { TEXTBOOKS_DATA } from '../../data/textbooks';
 import { supabase } from '../../lib/supabase';
+import { uploadDocument } from '../../lib/api';
 
 interface LibraryProps {
   currentGrade: Grade;
@@ -22,6 +23,7 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
   const [activeSubTab, setActiveSubTab] = useState<'system' | 'personal'>('system');
 
   const [personalDocs, setPersonalDocs] = useState<any[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [systemDocs, setSystemDocs] = useState<Textbook[]>(() => {
     return TEXTBOOKS_DATA;
   });
@@ -144,34 +146,58 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
   });
 
   const handleUploadClick = () => {
-    setIsUploading(true);
-    setUploadProgress(0);
-    setUploadSuccess(false);
-
-    // Simulate upload progress
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsUploading(false);
-          setUploadSuccess(true);
-          setPersonalDocs(prev => [{
-            id: Math.random().toString(),
-            title: `Tài liệu mới ${prev.length + 1}.pdf`,
-            status: 'analyzing', // Initially analyzing
-            date: new Date().toLocaleDateString('en-GB'),
-            subject: 'Khác'
-          }, ...prev]);
-          setTimeout(() => setUploadSuccess(false), 3000); // clear success after 3s
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 300);
+    if (isUploading) return;
+    fileInputRef.current?.click();
   };
 
-  const deleteDoc = (id: string) => {
-    setPersonalDocs(prev => prev.filter(doc => doc.id !== id));
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadProgress(20);
+    setUploadSuccess(false);
+
+    try {
+      setUploadProgress(40);
+      const res = await uploadDocument(file, String(currentGrade), user.id);
+      setUploadProgress(80);
+      
+      if (res && res.status === 'success' && res.data) {
+        setUploadProgress(100);
+        setUploadSuccess(true);
+        setIsUploading(false);
+
+        const docItem = {
+          id: res.data.id || Math.random().toString(),
+          title: res.data.name || file.name,
+          status: 'ready',
+          date: new Date().toLocaleDateString('en-GB'),
+          subject: res.data.subject || 'Khác',
+          pdf_url: res.data.pdf_url
+        };
+        setPersonalDocs(prev => [docItem, ...prev]);
+        setTimeout(() => setUploadSuccess(false), 3000);
+      } else {
+        throw new Error(res?.detail || 'Upload thất bại');
+      }
+    } catch (err: any) {
+      console.error("Lỗi upload file:", err);
+      alert(err.message || "Lỗi tải file lên hệ thống!");
+      setIsUploading(false);
+    }
+  };
+
+  const deleteDoc = async (id: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa tài liệu này không?")) return;
+    try {
+      const { error } = await supabase.from('documents').delete().eq('id', id);
+      if (error) throw error;
+      setPersonalDocs(prev => prev.filter(doc => doc.id !== id));
+    } catch (err) {
+      console.error("Error deleting document:", err);
+      alert("Không thể xóa tài liệu này, vui lòng thử lại!");
+    }
   };
 
   return (
@@ -384,6 +410,13 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
             
             <div className="relative z-10 w-full max-w-[240px]">
               <div className="relative group/upload">
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileChange} 
+                  accept=".pdf,.jpg,.jpeg,.png" 
+                  style={{ display: 'none' }}
+                />
                 <button 
                   onClick={handleUploadClick}
                   disabled={isUploading}

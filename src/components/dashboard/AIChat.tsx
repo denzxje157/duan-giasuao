@@ -11,6 +11,7 @@ import rehypeKatex from 'rehype-katex';
 
 interface AIChatProps {
   user: UserType;
+  onGradeChange?: (grade: any) => void;
 }
 
 interface Message {
@@ -366,7 +367,7 @@ function commandFromSuggestion(label: string, grade: string | number, subject?: 
   return label;
 }
 
-export default function AIChat({ user }: AIChatProps) {
+export default function AIChat({ user, onGradeChange }: AIChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
   const [quizResults, setQuizResults] = useState<Record<string, boolean>>({});
@@ -438,6 +439,17 @@ export default function AIChat({ user }: AIChatProps) {
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>('gemini-2.5-flash');
   const [currentView, setCurrentView] = useState<'selection' | 'chat'>('selection');
+  const [selectedHistoryGrade, setSelectedHistoryGrade] = useState<string | null>(null);
+  const lastGradeRef = useRef(user.grade);
+  useEffect(() => {
+    if (user.grade !== lastGradeRef.current) {
+      lastGradeRef.current = user.grade;
+      setCurrentView('selection');
+      setSessionId(null);
+      setMessages([]);
+      setSelectedHistoryGrade(null);
+    }
+  }, [user.grade]);
   const [generalInput, setGeneralInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -1409,6 +1421,63 @@ export default function AIChat({ user }: AIChatProps) {
         return (
           <div className="flex h-full flex-col">
             <div className="flex-1 overflow-y-auto border-b border-white/10 px-5 py-4 custom-scrollbar">
+              {/* Lịch sử lớp học đã tham gia */}
+              {sessionGroups && sessionGroups.length > 0 && (
+                <div className="mb-6 bg-white/5 rounded-2xl p-5 border border-white/10">
+                  <p className="mb-3 text-sm font-bold text-brand-400 flex items-center gap-2">
+                    🎓 Lớp học đã tham gia của em:
+                  </p>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {sessionGroups.map((g) => {
+                      const isSelected = selectedHistoryGrade === g.grade;
+                      return (
+                        <button
+                          key={g.grade}
+                          type="button"
+                          onClick={() => setSelectedHistoryGrade(isSelected ? null : g.grade)}
+                          className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                            isSelected
+                              ? 'bg-brand-600 text-white border-brand-600'
+                              : 'bg-white/5 border-white/10 text-zinc-300 hover:bg-white/10'
+                          }`}
+                        >
+                          {g.grade}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {selectedHistoryGrade && (
+                    <div className="bg-white/5 rounded-xl p-4 border border-white/5 animate-fadeIn">
+                      <p className="text-xs text-zinc-400 mb-3 font-semibold">Môn học đã chọn học trong {selectedHistoryGrade}:</p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {sessionGroups.find(g => g.grade === selectedHistoryGrade)?.subjects.map((sub) => {
+                          const mostRecentSession = sub.sessions[0];
+                          return (
+                            <button
+                              key={sub.subject}
+                              type="button"
+                              onClick={() => {
+                                const gradeNum = parseInt(selectedHistoryGrade.replace('Lớp', '').trim());
+                                if (onGradeChange && !isNaN(gradeNum)) {
+                                  onGradeChange(gradeNum);
+                                }
+                                if (mostRecentSession) {
+                                  handleOpenSessionHistory(mostRecentSession.session_id);
+                                }
+                              }}
+                              className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white px-3 py-2.5 text-left text-xs font-bold transition-all"
+                            >
+                              <span className="truncate">{sub.subject}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <p className="mb-3 text-sm font-bold">Chọn môn học để bắt đầu phiên mới:</p>
               <div className="space-y-4">
                 {subjectSections.map((section) => (
