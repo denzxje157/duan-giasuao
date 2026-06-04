@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { BrainCircuit, BookOpen, Layers, Sparkles, CheckCircle, XCircle, ArrowRight, RefreshCw, Star, Upload } from 'lucide-react';
 import { User } from '../../types';
 import { API_BASE_URL } from '../../lib/api';
+import { useStudyTracker } from '../../hooks/useStudyTracker';
+import { supabase } from '../../lib/supabase';
 
 interface QuizProps {
   user: User;
@@ -14,6 +16,20 @@ export default function Quiz({ user }: QuizProps) {
   const [topic, setTopic] = useState('');
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  const getInferredSubject = (topicStr: string) => {
+    const t = topicStr.toLowerCase();
+    if (t.includes('toán') || t.includes('đạo hàm') || t.includes('hình học') || t.includes('tích phân') || t.includes('số học') || t.includes('phương trình')) return 'Toán';
+    if (t.includes('tiếng việt') || t.includes('văn học') || t.includes('tác phẩm') || t.includes('bài thơ')) return 'Tiếng Việt';
+    if (t.includes('anh') || t.includes('english') || t.includes('grammar') || t.includes('vocabulary')) return 'Tiếng Anh';
+    if (t.includes('lý') || t.includes('vật lý') || t.includes('lực') || t.includes('quang học')) return 'Khoa học';
+    if (t.includes('tin học') || t.includes('máy tính') || t.includes('programming') || t.includes('code')) return 'Tin học';
+    if (t.includes('đạo đức') || t.includes('gdcd')) return 'Đạo đức';
+    if (t.includes('lịch sử') || t.includes('địa lý')) return 'Lịch sử và Địa lý';
+    return 'Luyện tập';
+  };
+
+  useStudyTracker(user, topic ? getInferredSubject(topic) : 'Luyện tập');
   
   // Quiz states
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -117,7 +133,7 @@ export default function Quiz({ user }: QuizProps) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('grade', String(user.grade));
-    if (user.id) {
+    if (user.id && !user.isGuest) {
       formData.append('user_id', user.id);
     }
 
@@ -134,6 +150,24 @@ export default function Quiz({ user }: QuizProps) {
         } else {
           setFileContent(data.data.content);
           if (!topic) setTopic(`Dựa trên file: ${file.name}`);
+
+          // Save to guest docs if guest
+          if (user.isGuest || !user.id) {
+            const key = `virtual_tutor_guest_docs_${user.id || 'guest'}`;
+            const docItem = {
+              id: data.data.id || Math.random().toString(),
+              title: data.data.name || file.name,
+              status: 'ready',
+              date: new Date().toLocaleDateString('en-GB'),
+              subject: 'Khác',
+              pdf_url: data.data.pdf_url || ''
+            };
+            const current = localStorage.getItem(key);
+            const parsed = current ? JSON.parse(current) : [];
+            parsed.unshift(docItem);
+            localStorage.setItem(key, JSON.stringify(parsed));
+          }
+
           alert(`Tải file thành công! AI sẽ dựa vào nội dung file để tạo câu hỏi.`);
         }
       } else {
@@ -156,6 +190,28 @@ export default function Quiz({ user }: QuizProps) {
     }
   };
 
+  const saveQuizScore = async (finalScore: number) => {
+    if (user.isGuest || !user.id) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const url = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/user/add-sp` : '/api/user/add-sp';
+      const spEarned = finalScore * 10;
+      await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ sp_amount: spEarned })
+      });
+      console.log(`Successfully synced ${spEarned} SP to backend database.`);
+    } catch (err) {
+      console.error("Failed to sync quiz SP to backend database:", err);
+    }
+  };
+
   const handleNextQuestion = () => {
     setSelectedAnswer(null);
     setShowExplanation(false);
@@ -163,6 +219,7 @@ export default function Quiz({ user }: QuizProps) {
       setCurrentQuestionIndex(prev => prev + 1);
     } else {
       setQuizFinished(true);
+      saveQuizScore(score);
     }
   };
 

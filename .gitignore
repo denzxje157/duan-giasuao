@@ -7,7 +7,8 @@ __pycache__/
 *.lib
 
 # Cấu hình dự án
-.env
+.env*
+.env.local
 .vercel
 node_modules/
 build/

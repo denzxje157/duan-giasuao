@@ -86,11 +86,19 @@ export default function App() {
     setShowLogin(true);
   };
 
-  const handleGradeChange = (grade: Grade) => {
+  const handleGradeChange = async (grade: Grade) => {
     if (user) {
       const updatedUser = { ...user, grade };
       setUser(updatedUser);
       localStorage.setItem('virtual_tutor_user', JSON.stringify(updatedUser));
+
+      if (!user.isGuest && user.id) {
+        try {
+          await supabase.from('profiles').update({ grade }).eq('id', user.id);
+        } catch (e) {
+          console.error("Failed to update profile grade in db:", e);
+        }
+      }
     }
   };
 

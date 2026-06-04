@@ -55,8 +55,22 @@ export default function Login({ onLogin, onGradeSelect }: LoginProps) {
             return; // stop here, do not navigate
           }
 
-          // Successful login -> proceed to onLogin/navigation
-          onLogin({ id: data.user.id, name: role === 'admin' ? 'Administrator' : 'Học sinh', email, grade, role });
+          // Successful login -> query profile for actual name & grade
+          let profileGrade = grade;
+          let profileName = role === 'admin' ? 'Administrator' : 'Học sinh';
+
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('full_name, grade')
+            .eq('id', data.user.id)
+            .single();
+
+          if (!profileError && profileData) {
+            if (profileData.grade) profileGrade = Number(profileData.grade) as Grade;
+            if (profileData.full_name) profileName = profileData.full_name;
+          }
+
+          onLogin({ id: data.user.id, name: profileName, email, grade: profileGrade, role });
         } else {
           if (!name.trim() && !isExpectedAdmin) {
             throw new Error("Vui lòng nhập họ và tên");

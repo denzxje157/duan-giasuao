@@ -442,7 +442,16 @@ async def upload_document(file: UploadFile = File(...), grade: str = Form("1"), 
         res = supabase.table("documents").insert(doc_data).execute()
     except Exception as e:
         print(f"⚠️ Warning: failed to insert document row: {e}")
-        res = None
+        if "user_id" in doc_data:
+            print("Fallback: inserting document with user_id = None")
+            doc_data["user_id"] = None
+            try:
+                res = supabase.table("documents").insert(doc_data).execute()
+            except Exception as fallback_err:
+                print(f"❌ Fallback insert failed: {fallback_err}")
+                res = None
+        else:
+            res = None
 
     doc_id = res.data[0]['id'] if getattr(res, 'data', None) and len(res.data) > 0 and 'id' in res.data[0] else safe_id
     try:
@@ -483,6 +492,28 @@ async def upload_document(file: UploadFile = File(...), grade: str = Form("1"), 
         return {"status": "success", "data": doc_data, "warning": str(e)}
 
 
+def _award_sp_to_user(user_id: str, amount: int):
+    try:
+        today_str = get_vietnam_date().strftime("%Y-%m-%d")
+        stat_res = supabase.table("user_stats").select("*").eq("user_id", user_id).execute()
+        if stat_res.data and len(stat_res.data) > 0:
+            stat = stat_res.data[0]
+            new_sp = stat.get("total_sp", 0) + amount
+            supabase.table("user_stats").update({"total_sp": new_sp}).eq("user_id", user_id).execute()
+        else:
+            supabase.table("user_stats").insert({
+                "user_id": user_id,
+                "streak": 0,
+                "max_streak": 0,
+                "total_study_minutes": 0,
+                "total_sp": amount,
+                "last_study_date": today_str
+            }).execute()
+        print(f"🏆 Successfully awarded {amount} SP to user {user_id}")
+    except Exception as e:
+        print(f"⚠️ Không thể cộng SP cho user {user_id}: {e}")
+
+
 @app.post("/api/chat")
 def chat(req: ChatRequest):
     def _normalize_subject(subject: Optional[str]) -> str:
@@ -507,20 +538,13 @@ def chat(req: ChatRequest):
 
         grade_changed = bool(new_grade and old_grade and new_grade != old_grade)
         subject_changed = bool(new_subject and old_subject and new_subject != old_subject)
-        force_reset_context = grade_changed or subject_changed
+        force_reset_context = False
 
         update_payload = {}
         if new_grade:
             update_payload["grade"] = new_grade
         if req.subject:
             update_payload["subject"] = req.subject
-        if force_reset_context:
-            update_payload["messages"] = []
-            try:
-                supabase.table("chat_history").delete().eq("session_id", req.session_id).execute()
-                print(f"🧹 [Reset Context] Cleared chat_history for session {req.session_id}")
-            except Exception as history_clear_err:
-                print(f"⚠️ Warning: failed to clear chat_history on reset: {history_clear_err}")
 
         try:
             if update_payload:
@@ -599,6 +623,7 @@ def chat(req: ChatRequest):
                 ]
                 try:
                     supabase.table("chat_history").insert(rows).execute()
+                    _award_sp_to_user(user_id_val, 15)
                 except Exception as e:
                     print(f"⚠️ Không thể lưu chat_history: {e}")
         except Exception as e:
@@ -816,7 +841,7 @@ def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizatio
 
         return {"status": "success", "message": "Activity tracked"}
     except Exception as e:
-        # Silently fail for tracker to not crash frontend
+        print(f"❌ Error in track_user_activity: {e}")
         return {"status": "error", "message": str(e)}
 
 

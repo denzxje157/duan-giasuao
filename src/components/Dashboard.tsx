@@ -11,7 +11,6 @@ import Profile from './dashboard/Profile.tsx';
 import Quiz from './dashboard/Quiz.tsx';
 import Workspace from './dashboard/Workspace.tsx';
 import { User, Grade } from '../types';
-import { useStudyTracker } from '../hooks/useStudyTracker.ts';
 
 interface DashboardProps {
   user: User;
@@ -29,8 +28,6 @@ export interface WorkspaceConfig {
 export default function Dashboard({ user, onLogout, onGradeChange }: DashboardProps) {
   const [activeTab, setActiveTab] = useState('home');
   const [workspaceConfig, setWorkspaceConfig] = useState<WorkspaceConfig | null>(null);
-  
-  useStudyTracker(user, activeTab === 'ai' ? 'Trò chuyện AI' : activeTab === 'quiz' ? 'Luyện tập' : 'Chung');
 
   const renderContent = () => {
     switch (activeTab) {

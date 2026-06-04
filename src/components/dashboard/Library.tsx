@@ -5,6 +5,7 @@ import { Textbook, Grade, User } from '../../types';
 import { TEXTBOOKS_DATA } from '../../data/textbooks';
 import { supabase } from '../../lib/supabase';
 import { uploadDocument } from '../../lib/api';
+import { useStudyTracker } from '../../hooks/useStudyTracker';
 
 interface LibraryProps {
   currentGrade: Grade;
@@ -14,6 +15,8 @@ interface LibraryProps {
 }
 
 export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWorkspace, user }: LibraryProps) {
+
+  useStudyTracker(user, 'Tủ sách');
 
   const [selectedSubject, setSelectedSubject] = useState<string>('Tất cả');
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,8 +36,18 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
     const fetchDocs = async () => {
       const isValidUUID = user.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
 
-      if (!isValidUUID) {
-        setPersonalDocs([]);
+      let localDocs: any[] = [];
+      try {
+        const storedLocalDocs = localStorage.getItem(`virtual_tutor_guest_docs_${user.id || 'guest'}`);
+        if (storedLocalDocs) {
+          localDocs = JSON.parse(storedLocalDocs);
+        }
+      } catch (e) {
+        console.error("Failed to parse guest docs:", e);
+      }
+
+      if (!isValidUUID || user.isGuest) {
+        setPersonalDocs(localDocs);
         const system = [...TEXTBOOKS_DATA];
         setSystemDocs(system);
         setIsLoading(false);
@@ -78,7 +91,8 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
             subject: d.subject || 'Khác',
             pdf_url: d.pdf_url
           })),
-          ...chatImages
+          ...chatImages,
+          ...localDocs
         ];
 
         setPersonalDocs(finalPersonal);
@@ -160,7 +174,7 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
 
     try {
       setUploadProgress(40);
-      const res = await uploadDocument(file, String(currentGrade), user.id);
+      const res = await uploadDocument(file, String(currentGrade), user.isGuest ? undefined : user.id);
       setUploadProgress(80);
       
       if (res && res.status === 'success' && res.data) {
@@ -176,6 +190,15 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
           subject: res.data.subject || 'Khác',
           pdf_url: res.data.pdf_url
         };
+
+        if (user.isGuest) {
+          const key = `virtual_tutor_guest_docs_${user.id || 'guest'}`;
+          const current = localStorage.getItem(key);
+          const parsed = current ? JSON.parse(current) : [];
+          parsed.unshift(docItem);
+          localStorage.setItem(key, JSON.stringify(parsed));
+        }
+
         setPersonalDocs(prev => [docItem, ...prev]);
         setTimeout(() => setUploadSuccess(false), 3000);
       } else {

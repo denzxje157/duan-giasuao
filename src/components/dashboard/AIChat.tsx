@@ -8,6 +8,7 @@ import DrawingCanvas from './DrawingCanvas';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { useStudyTracker } from '../../hooks/useStudyTracker';
 
 interface AIChatProps {
   user: UserType;
@@ -442,6 +443,11 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
   const [selectedHistoryGrade, setSelectedHistoryGrade] = useState<string | null>(null);
   const lastGradeRef = useRef(user.grade);
   const restoreSessionGradeRef = useRef<number | null>(null);
+  const skipLoadHistoryRef = useRef<string | null>(null);
+  const sessionGroupsRef = useRef<ChatSessionGroup[]>([]);
+  useEffect(() => {
+    sessionGroupsRef.current = sessionGroups;
+  }, [sessionGroups]);
   useEffect(() => {
     if (user.grade !== lastGradeRef.current) {
       lastGradeRef.current = user.grade;
@@ -454,10 +460,13 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
       
       setCurrentView('selection');
       setSessionId(null);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(`ai_chat_session_${user.id || user.email}`);
+      }
       setMessages([]);
       setSelectedHistoryGrade(null);
     }
-  }, [user.grade]);
+  }, [user.grade, user.id, user.email]);
   const [generalInput, setGeneralInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -729,6 +738,8 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
   const historyUserId = user.id || user.email;
   const subjectSections = useMemo(() => getSubjectSectionsByGrade(Number(user.grade || 1)), [user.grade]);
 
+  useStudyTracker(user, selectedSubject || 'Trò chuyện AI');
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const savedTheme = window.localStorage.getItem('giasuao_theme');
@@ -784,13 +795,20 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
     }
   }, [messages]);
 
+  const lastUserIdRef = useRef<string | null>(null);
   // Load active session from localStorage when user session details resolve
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const key = `ai_chat_session_${user.id || user.email}`;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      setSessionId(stored);
+    const currentUserId = user.id || user.email;
+    if (currentUserId !== lastUserIdRef.current) {
+      lastUserIdRef.current = currentUserId;
+      const key = `ai_chat_session_${currentUserId}`;
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        setSessionId(stored);
+      } else {
+        setSessionId(null);
+      }
     }
   }, [user.id, user.email]);
 
@@ -803,17 +821,31 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
         return;
       }
 
+      if (skipLoadHistoryRef.current === sessionId) {
+        // Skip loading history for newly created local session to avoid resetting the stream
+        skipLoadHistoryRef.current = null;
+        return;
+      }
+
       if (user.isGuest) {
         const storedMessages = localStorage.getItem(`ai_chat_guest_messages_${sessionId}`);
         if (storedMessages) {
           try {
             const parsed = JSON.parse(storedMessages);
             setMessages(parsed);
-            const firstUserMsg = parsed.find((m: any) => m.role === 'user');
-            if (firstUserMsg) {
-              setSelectedSubject(inferSubjectFromText(firstUserMsg.content));
+            
+            // Prefer session subject from sessionGroupsRef
+            const allSessions = sessionGroupsRef.current.flatMap(g => g.subjects.flatMap(s => s.sessions));
+            const targetSession = allSessions.find(s => s.session_id === sessionId);
+            if (targetSession && targetSession.subject && targetSession.subject !== 'Môn học') {
+              setSelectedSubject(targetSession.subject);
             } else {
-              setSelectedSubject('Môn học');
+              const firstUserMsg = parsed.find((m: any) => m.role === 'user');
+              if (firstUserMsg) {
+                setSelectedSubject(inferSubjectFromText(firstUserMsg.content));
+              } else {
+                setSelectedSubject('Môn học');
+              }
             }
             setCurrentView('chat');
           } catch (e) {
@@ -843,11 +875,18 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
           }));
           setMessages(mappedMessages);
 
-          const firstUserMsg = mappedMessages.find(m => m.role === 'user');
-          if (firstUserMsg) {
-            setSelectedSubject(inferSubjectFromText(firstUserMsg.content));
+          // Prefer session subject from sessionGroupsRef
+          const allSessions = sessionGroupsRef.current.flatMap(g => g.subjects.flatMap(s => s.sessions));
+          const targetSession = allSessions.find(s => s.session_id === sessionId);
+          if (targetSession && targetSession.subject && targetSession.subject !== 'Môn học') {
+            setSelectedSubject(targetSession.subject);
           } else {
-            setSelectedSubject('Môn học');
+            const firstUserMsg = mappedMessages.find(m => m.role === 'user');
+            if (firstUserMsg) {
+              setSelectedSubject(inferSubjectFromText(firstUserMsg.content));
+            } else {
+              setSelectedSubject('Môn học');
+            }
           }
           setCurrentView('chat');
         } else {
@@ -903,8 +942,12 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
   }, [user.isGuest, sidebarRefreshTrigger]);
 
   useEffect(() => {
-    if (!historyUserId || !sessionId) return;
-    localStorage.setItem(`ai_chat_session_${historyUserId}`, sessionId);
+    if (!historyUserId) return;
+    if (sessionId) {
+      localStorage.setItem(`ai_chat_session_${historyUserId}`, sessionId);
+    } else {
+      localStorage.removeItem(`ai_chat_session_${historyUserId}`);
+    }
   }, [historyUserId, sessionId]);
 
   const toggleSpeechRecognition = () => {
@@ -965,6 +1008,7 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
         }
       }
       setSessionId(newSessionId);
+      skipLoadHistoryRef.current = newSessionId;
       if (historyUserId) {
         localStorage.setItem(`ai_chat_session_${historyUserId}`, newSessionId);
       }
@@ -1017,6 +1061,7 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
         }
       }
       setSessionId(newSessionId);
+      skipLoadHistoryRef.current = newSessionId;
       if (historyUserId) {
         localStorage.setItem(`ai_chat_session_${historyUserId}`, newSessionId);
       }
@@ -1037,6 +1082,7 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
   const handleNewChat = () => {
     const newSession = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
     setSessionId(newSession);
+    skipLoadHistoryRef.current = newSession;
     setSelectedSubject(null);
     setMessages([]);
     setInput('');
@@ -1066,6 +1112,10 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
           onGradeChange(gradeNum);
         }
       }
+    }
+
+    if (targetSession && targetSession.subject) {
+      setSelectedSubject(targetSession.subject);
     }
 
     setSessionId(targetSessionId);

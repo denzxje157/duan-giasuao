@@ -4,6 +4,7 @@ import { Sparkles, ArrowRight, Zap, Target, BookOpen, Clock, Award, Star, Trophy
 import { User } from '../../types';
 import { API_BASE_URL } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
+import { useStudyTracker } from '../../hooks/useStudyTracker';
 
 interface OverviewProps {
   user: User;
@@ -34,6 +35,8 @@ const StatCard = ({ icon: Icon, label, value, subtext }: any) => (
 );
 
 export default function Overview({ user, setActiveTab }: OverviewProps) {
+  useStudyTracker(user, 'Chung');
+
   const questKey = `ai_chat_quests_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
   const lastQuestDateKey = `ai_chat_last_quest_date_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
 
