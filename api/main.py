@@ -346,6 +346,7 @@ def _group_sessions_for_user(session_rows: List[Dict[str, Any]], history_rows: L
             grade_label = f"Lớp {current_grade}" if current_grade else 'Lớp học'
         title = _infer_session_title((title_source_row or {}).get('content', ''), session_meta.get('title'))
         updated_at = (rows[-1] or {}).get('timestamp') if rows else session_meta.get('updated_at')
+        subject = session_meta.get('subject') or _infer_subject_from_text((first_user_row or {}).get('content', ''))
 
         grouped.setdefault(grade_label, {}).setdefault(subject, []).append({
             'session_id': sid,
