@@ -1112,7 +1112,8 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
 
         norm_db_grade = _normalize_grade_value(db_grade)
         norm_target_grade = _normalize_grade_value(target_grade)
-        if force_reset_context or (norm_target_grade and norm_db_grade and norm_db_grade != norm_target_grade) or (target_subject and db_subject and db_subject != target_subject):
+        
+        if force_reset_context:
             chat_history = []
             reset_payload = {"messages": []}
             if target_grade:
@@ -1121,9 +1122,33 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                 reset_payload["subject"] = target_subject
             try:
                 supabase.table("chat_sessions").update(reset_payload).eq("id", session_id).execute()
+                if session_id in _SESSION_CACHE:
+                    _SESSION_CACHE[session_id]["messages"] = []
+                    if target_grade:
+                        _SESSION_CACHE[session_id]["grade"] = target_grade
+                    if target_subject:
+                        _SESSION_CACHE[session_id]["subject"] = target_subject
             except Exception as reset_err:
                 print(f"⚠️ Không thể reset session context: {reset_err}")
                 _cache_chat_session_context(session_id, grade=reset_payload.get("grade") or db_grade, subject=reset_payload.get("subject") or db_subject)
+        else:
+            # Update metadata in DB and Cache if changed, but do NOT wipe messages!
+            update_payload = {}
+            if norm_target_grade and norm_db_grade and norm_db_grade != norm_target_grade:
+                update_payload["grade"] = target_grade
+            if target_subject and db_subject and db_subject != target_subject:
+                update_payload["subject"] = target_subject
+            if update_payload:
+                try:
+                    supabase.table("chat_sessions").update(update_payload).eq("id", session_id).execute()
+                    if session_id in _SESSION_CACHE:
+                        if "grade" in update_payload:
+                            _SESSION_CACHE[session_id]["grade"] = target_grade
+                        if "subject" in update_payload:
+                            _SESSION_CACHE[session_id]["subject"] = target_subject
+                    print(f"🔄 [Session Update] Updated grade/subject metadata without resetting history: {update_payload}")
+                except Exception as update_err:
+                    print(f"⚠️ Không thể cập nhật session metadata: {update_err}")
     except Exception:
         if not session_id:
             session_id = str(uuid.uuid4())
