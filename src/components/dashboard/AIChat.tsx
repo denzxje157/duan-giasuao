@@ -441,9 +441,17 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
   const [currentView, setCurrentView] = useState<'selection' | 'chat'>('selection');
   const [selectedHistoryGrade, setSelectedHistoryGrade] = useState<string | null>(null);
   const lastGradeRef = useRef(user.grade);
+  const restoreSessionGradeRef = useRef<number | null>(null);
   useEffect(() => {
     if (user.grade !== lastGradeRef.current) {
       lastGradeRef.current = user.grade;
+      
+      if (restoreSessionGradeRef.current === Number(user.grade)) {
+        // Skip resetting session because we are deliberately restoring a session from this grade
+        restoreSessionGradeRef.current = null;
+        return;
+      }
+      
       setCurrentView('selection');
       setSessionId(null);
       setMessages([]);
@@ -942,8 +950,9 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
       let newSessionId = sessionId;
       try {
         const initData = await initSessionApi(undefined, String(user.grade || ''), subjectName);
-        if (initData?.new_session_id) {
-          newSessionId = initData.new_session_id;
+        const returnedSessionId = initData?.new_session_id || (initData as any)?.data?.new_session_id;
+        if (returnedSessionId) {
+          newSessionId = returnedSessionId;
         } else if (!newSessionId && typeof crypto !== 'undefined' && crypto.randomUUID) {
           newSessionId = crypto.randomUUID();
         } else if (!newSessionId) {
@@ -993,8 +1002,9 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
       let newSessionId = sessionId;
       try {
         const initData = await initSessionApi(undefined, String(user.grade || ''), 'Môn học');
-        if (initData?.new_session_id) {
-          newSessionId = initData.new_session_id;
+        const returnedSessionId = initData?.new_session_id || (initData as any)?.data?.new_session_id;
+        if (returnedSessionId) {
+          newSessionId = returnedSessionId;
         } else if (!newSessionId && typeof crypto !== 'undefined' && crypto.randomUUID) {
           newSessionId = crypto.randomUUID();
         } else if (!newSessionId) {
@@ -1044,6 +1054,20 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
 
   const handleOpenSessionHistory = async (targetSessionId: string) => {
     if (targetSessionId === 'no-session') return;
+    
+    // Find session in sessionGroups to see its grade
+    const allSessions = sessionGroups.flatMap(g => g.subjects.flatMap(s => s.sessions));
+    const targetSession = allSessions.find(s => s.session_id === targetSessionId);
+    if (targetSession && targetSession.grade) {
+      const gradeNum = parseInt(targetSession.grade.replace('Lớp', '').trim());
+      if (!isNaN(gradeNum) && gradeNum !== Number(user.grade)) {
+        restoreSessionGradeRef.current = gradeNum;
+        if (onGradeChange) {
+          onGradeChange(gradeNum);
+        }
+      }
+    }
+
     setSessionId(targetSessionId);
     setSidebarOpen(false);
     resetSuggestionMemory();
@@ -1176,13 +1200,15 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
                   setMessages(prev => {
                     const newMessages = [...prev];
                     const lastIndex = newMessages.length - 1;
-                    const existingSuggestions = newMessages[lastIndex]?.suggestions;
-                    newMessages[lastIndex] = {
-                      ...newMessages[lastIndex],
-                      content: newMessages[lastIndex].content + textChunk
-                    };
-                    if (existingSuggestions) {
-                      newMessages[lastIndex].suggestions = existingSuggestions;
+                    if (lastIndex >= 0 && newMessages[lastIndex]) {
+                      const existingSuggestions = newMessages[lastIndex].suggestions;
+                      newMessages[lastIndex] = {
+                        ...newMessages[lastIndex],
+                        content: (newMessages[lastIndex].content || '') + textChunk
+                      };
+                      if (existingSuggestions) {
+                        newMessages[lastIndex].suggestions = existingSuggestions;
+                      }
                     }
                     return newMessages;
                   });
@@ -1412,8 +1438,11 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
                               type="button"
                               onClick={() => {
                                 const gradeNum = parseInt(selectedHistoryGrade.replace('Lớp', '').trim());
-                                if (onGradeChange && !isNaN(gradeNum)) {
-                                  onGradeChange(gradeNum);
+                                if (!isNaN(gradeNum)) {
+                                  restoreSessionGradeRef.current = gradeNum;
+                                  if (onGradeChange) {
+                                    onGradeChange(gradeNum);
+                                  }
                                 }
                                 if (mostRecentSession) {
                                   handleOpenSessionHistory(mostRecentSession.session_id);

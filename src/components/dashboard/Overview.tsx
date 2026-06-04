@@ -34,12 +34,15 @@ const StatCard = ({ icon: Icon, label, value, subtext }: any) => (
 );
 
 export default function Overview({ user, setActiveTab }: OverviewProps) {
+  const questKey = `ai_chat_quests_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
+  const lastQuestDateKey = `ai_chat_last_quest_date_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
+
   const [stats, setStats] = useState({ streak: 3, total_study_minutes: 25, max_streak: 5, total_sp: 150 });
   const [particles, setParticles] = useState<ConfettiParticle[]>([]);
 
   const [quests, setQuests] = useState(() => {
     if (typeof window === 'undefined') return [];
-    const saved = localStorage.getItem(`ai_chat_quests_${user.id || 'guest'}`);
+    const saved = localStorage.getItem(questKey);
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -84,7 +87,7 @@ export default function Overview({ user, setActiveTab }: OverviewProps) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
-    const lastDate = localStorage.getItem(`ai_chat_last_quest_date_${user.id || 'guest'}`);
+    const lastDate = localStorage.getItem(lastQuestDateKey);
     
     if (lastDate !== todayStr) {
       // Reset daily quests
@@ -96,10 +99,10 @@ export default function Overview({ user, setActiveTab }: OverviewProps) {
         { id: 5, text: "Luyện vẽ tranh trên bảng vẽ tự do", xp: 30, completed: false, tab: 'ai' },
       ];
       setQuests(resetQuests);
-      localStorage.setItem(`ai_chat_quests_${user.id || 'guest'}`, JSON.stringify(resetQuests));
-      localStorage.setItem(`ai_chat_last_quest_date_${user.id || 'guest'}`, todayStr);
+      localStorage.setItem(questKey, JSON.stringify(resetQuests));
+      localStorage.setItem(lastQuestDateKey, todayStr);
     }
-  }, [user.id]);
+  }, [user.id, questKey, lastQuestDateKey]);
 
   const triggerConfetti = () => {
     const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
@@ -137,7 +140,7 @@ export default function Overview({ user, setActiveTab }: OverviewProps) {
     });
 
     setQuests(updated);
-    localStorage.setItem(`ai_chat_quests_${user.id || 'guest'}`, JSON.stringify(updated));
+    localStorage.setItem(questKey, JSON.stringify(updated));
 
     // Backend sync if logged in
     if (!user.isGuest && user.id) {

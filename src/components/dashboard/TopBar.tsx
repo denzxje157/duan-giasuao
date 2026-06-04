@@ -20,7 +20,8 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
     if (user.isGuest) {
       // 1. Calculate guest SP from completed quests
       let questSpEarned = 0;
-      const savedQuests = localStorage.getItem(`ai_chat_quests_guest`);
+      const questKey = `ai_chat_quests_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
+      const savedQuests = localStorage.getItem(questKey);
       if (savedQuests) {
         try {
           const parsedQuests = JSON.parse(savedQuests);

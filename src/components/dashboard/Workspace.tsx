@@ -308,10 +308,12 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
                   setMessages(prev => {
                     const newMessages = [...prev];
                     const lastIndex = newMessages.length - 1;
-                    newMessages[lastIndex] = {
-                      ...newMessages[lastIndex],
-                      content: newMessages[lastIndex].content + textChunk
-                    };
+                    if (lastIndex >= 0 && newMessages[lastIndex]) {
+                      newMessages[lastIndex] = {
+                        ...newMessages[lastIndex],
+                        content: (newMessages[lastIndex].content || '') + textChunk
+                      };
+                    }
                     return newMessages;
                   });
                 }

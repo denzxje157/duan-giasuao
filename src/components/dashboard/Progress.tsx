@@ -102,7 +102,8 @@ export default function Progress({ user }: ProgressProps) {
           setYesterdayData(parsedYesterday);
 
           let questSpEarned = 0;
-          const savedQuests = localStorage.getItem(`ai_chat_quests_guest`);
+          const questKey = `ai_chat_quests_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
+          const savedQuests = localStorage.getItem(questKey);
           if (savedQuests) {
             try {
               const parsedQuests = JSON.parse(savedQuests);
