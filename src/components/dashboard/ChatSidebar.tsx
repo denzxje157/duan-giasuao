@@ -98,7 +98,7 @@ export default function ChatSidebar({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+            className="fixed inset-0 z-[100] bg-black/40 lg:hidden"
             onClick={onClose}
           />
         )}
@@ -108,7 +108,7 @@ export default function ChatSidebar({
         initial={false}
         animate={{ x: open ? 0 : -280 }}
         transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-        className={`max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-50 lg:relative lg:z-auto lg:block flex flex-col overflow-hidden ${theme === 'dark' ? 'bg-[#1e1e1f] text-white border-white/10' : 'bg-zinc-50 text-zinc-900 border-black/10'} border-r`}
+        className={`max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-[110] lg:relative lg:z-auto lg:block flex flex-col overflow-hidden ${theme === 'dark' ? 'bg-[#1e1e1f] text-white border-white/10' : 'bg-zinc-50 text-zinc-900 border-black/10'} border-r`}
         style={{ width: open ? 280 : 0, minWidth: open ? 280 : 0, flexShrink: 0 }}
       >
         <div className="flex h-14 items-center justify-between px-3 py-2">

@@ -28,7 +28,7 @@ export interface WorkspaceConfig {
   subject: string;
 }
 
-import { Sparkles, Trophy, Clock, BrainCircuit, ChevronLeft, ChevronRight, Target, Library as LibraryIcon, MessageSquare, Edit3, User as UserIcon, Lock } from 'lucide-react';
+import { Sparkles, Trophy, Clock, BrainCircuit, ChevronLeft, ChevronRight, Target, Library as LibraryIcon, MessageSquare, Edit3, User as UserIcon, Lock, X } from 'lucide-react';
 
 export default function Dashboard({ user, onLogout, onGradeChange, onUserUpdate }: DashboardProps) {
   const [activeTab, setActiveTab] = useState('home');
@@ -67,9 +67,17 @@ export default function Dashboard({ user, onLogout, onGradeChange, onUserUpdate 
 
   // States for parallel study tracking UI
   const [activeTimer, setActiveTimer] = useState<{ sessionSeconds: number; minutes: number; seconds: number; subject: string } | null>(null);
-  const [xpToast, setXpToast] = useState<{ xp: number; subjectName: string; visible: boolean } | null>(null);
   const [isTrackerExpanded, setIsTrackerExpanded] = useState(true);
   const [activeSubject, setActiveSubject] = useState('Chung');
+  const [showTrackerMobile, setShowTrackerMobile] = useState(() => localStorage.getItem('study_tracker_enabled_mobile') === 'true');
+
+  useEffect(() => {
+    const handleToggle = () => {
+      setShowTrackerMobile(localStorage.getItem('study_tracker_enabled_mobile') === 'true');
+    };
+    window.addEventListener('study-tracker-widget-toggle', handleToggle);
+    return () => window.removeEventListener('study-tracker-widget-toggle', handleToggle);
+  }, []);
 
   // Dynamically determine default subject based on activeTab
   useEffect(() => {
@@ -94,28 +102,10 @@ export default function Dashboard({ user, onLogout, onGradeChange, onUserUpdate 
       });
     };
 
-    const handleXpEarned = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      setXpToast({
-        xp: detail.xp,
-        subjectName: detail.subjectName,
-        visible: true
-      });
-      
-      // Auto hide toast after 4 seconds
-      const timeout = setTimeout(() => {
-        setXpToast(prev => prev ? { ...prev, visible: false } : null);
-      }, 4000);
-
-      return () => clearTimeout(timeout);
-    };
-
     window.addEventListener('study-tick', handleStudyTick);
-    window.addEventListener('study-xp-earned', handleXpEarned);
 
     return () => {
       window.removeEventListener('study-tick', handleStudyTick);
-      window.removeEventListener('study-xp-earned', handleXpEarned);
     };
   }, []);
 
@@ -208,70 +198,61 @@ export default function Dashboard({ user, onLogout, onGradeChange, onUserUpdate 
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 30, scale: 0.9 }}
             transition={{ type: 'spring', damping: 15 }}
-            className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-3 text-white shadow-2xl cursor-pointer select-none"
+            className={`fixed top-28 right-4 md:top-auto md:bottom-6 md:right-6 z-40 md:flex ${showTrackerMobile ? 'flex' : 'hidden md:flex'} items-center gap-2 md:gap-3 rounded-2xl border border-slate-700 bg-slate-900 px-3 py-2 md:px-4 md:py-3 text-white shadow-2xl cursor-pointer select-none max-w-[calc(100vw-32px)]`}
             onClick={() => setIsTrackerExpanded(!isTrackerExpanded)}
           >
             {isTrackerExpanded ? (
-              <div className="flex items-center gap-3">
-                <div className="relative flex h-3 w-3 shrink-0">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="relative flex h-2.5 w-2.5 md:h-3 md:w-3 shrink-0">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex h-3 w-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgb(16,185,129)]"></span>
+                  <span className="relative inline-flex h-2.5 w-2.5 md:h-3 md:w-3 rounded-full bg-emerald-500 shadow-[0_0_8px_rgb(16,185,129)]"></span>
                 </div>
                 <div className="flex flex-col text-left">
-                  <span className="text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
-                    <BrainCircuit className="w-3 h-3 text-brand-400" /> Thời gian con đã học
+                  <span className="text-[9px] md:text-[10px] uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1">
+                    <BrainCircuit className="w-2.5 h-2.5 md:w-3 md:h-3 text-brand-400" /> Thời gian con đã học
                   </span>
-                  <span className="text-xs font-semibold text-slate-200">
+                  <span className="text-[11px] md:text-xs font-semibold text-slate-200">
                     Đang học: <strong className="text-white">{activeTimer.subject}</strong> ({activeTimer.minutes.toString().padStart(2, '0')}m {activeTimer.seconds.toString().padStart(2, '0')}s)
                   </span>
                 </div>
-                <div className="text-slate-400 hover:text-white pl-1 shrink-0">
-                  <ChevronRight className="w-4 h-4" />
+                <div className="text-slate-400 hover:text-white pl-0.5 md:pl-1 shrink-0">
+                  <ChevronRight className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2.5" title="Click để mở rộng chi tiết">
-                <div className="relative flex h-2.5 w-2.5 shrink-0">
+              <div className="flex items-center gap-2 md:gap-2.5" title="Click để mở rộng chi tiết">
+                <div className="relative flex h-2 w-2 md:h-2.5 md:w-2.5 shrink-0">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgb(16,185,129)]"></span>
+                  <span className="relative inline-flex h-2 w-2 md:h-2.5 md:w-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgb(16,185,129)]"></span>
                 </div>
                 <div className="flex flex-col text-left">
-                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">
+                  <span className="text-[8px] md:text-[9px] uppercase tracking-wider text-slate-400 font-bold">
                     Đã học
                   </span>
-                  <span className="text-xs font-extrabold text-white tracking-wide font-mono">
+                  <span className="text-[11px] md:text-xs font-extrabold text-white tracking-wide font-mono">
                     {activeTimer.minutes.toString().padStart(2, '0')}:{activeTimer.seconds.toString().padStart(2, '0')}
                   </span>
                 </div>
-                <div className="text-slate-400 hover:text-white pl-1 shrink-0">
-                  <ChevronLeft className="w-4 h-4" />
+                <div className="text-slate-400 hover:text-white pl-0.5 md:pl-1 shrink-0">
+                  <ChevronLeft className="w-3.5 h-3.5 md:w-4 md:h-4" />
                 </div>
               </div>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
 
-      {/* Animated XP Toast Notification popup */}
-      <AnimatePresence>
-        {xpToast && xpToast.visible && (
-          <motion.div
-            initial={{ opacity: 0, y: -100, x: '-50%' }}
-            animate={{ opacity: 1, y: 24, x: '-50%' }}
-            exit={{ opacity: 0, y: -50, x: '-50%' }}
-            className="fixed left-1/2 top-0 z-[100] transform flex items-center gap-4 bg-gradient-to-r from-brand-600 to-indigo-600 text-white px-6 py-4.5 rounded-2xl border border-brand-400/20 shadow-2xl shadow-brand-500/20"
-          >
-            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-              <Trophy className="w-6 h-6 text-yellow-300 animate-bounce" />
-            </div>
-            <div>
-              <h4 className="text-sm font-bold flex items-center gap-1.5">
-                +{xpToast.xp} XP Thưởng! <Sparkles className="w-4 h-4 text-yellow-300 fill-yellow-300" />
-              </h4>
-              <p className="text-xs font-semibold text-brand-100 mt-0.5">
-                Đã ghi nhận 1 phút tự học môn {xpToast.subjectName}. Hệ thống đang liên tục phân tích Điểm mù.
-              </p>
-            </div>
+            {/* Mobile close button to hide tracker widget */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowTrackerMobile(false);
+                localStorage.setItem('study_tracker_enabled_mobile', 'false');
+                window.dispatchEvent(new Event('study-tracker-widget-toggle'));
+              }}
+              className="block md:hidden text-slate-400 hover:text-white p-1 hover:bg-white/10 rounded shrink-0 ml-1"
+              title="Tắt widget"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </motion.div>
         )}
       </AnimatePresence>

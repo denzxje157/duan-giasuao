@@ -201,117 +201,176 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
   };
 
   return (
-    <header className="flex items-center justify-between py-4 px-6 bg-white border-b border-slate-100">
-      <div className="flex items-center gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-800 leading-tight">
+    <header className="flex flex-col md:flex-row md:items-center justify-between py-3 md:py-4 px-4 md:px-6 bg-white border-b border-slate-100 gap-3 md:gap-4 shrink-0">
+      {/* Top Row on Mobile: Greeting on left, Notifications + Avatar + Logout on right */}
+      <div className="flex items-center justify-between w-full md:w-auto">
+        <div className="min-w-0 pr-2">
+          <h2 className="text-base md:text-xl font-bold text-slate-800 leading-tight truncate">
             Xin chào, {user.name} 👋
           </h2>
-          <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
-            {user.grade <= 5 ? "Hôm nay em muốn mình cùng học gì nào?" : user.grade >= 10 ? "Hôm nay bạn muốn học môn nào?" : "Hôm nay bạn muốn học gì nào?"}
+          <p className="text-xs md:text-sm font-medium text-slate-500 flex items-center gap-1.5 mt-0.5 md:mt-0">
+            <span className="truncate">
+              {user.grade <= 5 ? "Hôm nay em muốn mình cùng học gì nào?" : user.grade >= 10 ? "Hôm nay bạn muốn học môn nào?" : "Hôm nay bạn muốn học gì nào?"}
+            </span>
             {user.isGuest && (
-               <span className="inline-flex items-center gap-1 text-[11px] bg-red-50 text-red-600 px-2.5 py-0.5 rounded-full font-bold ml-2">
-                 <Clock className="w-3 h-3" />
+               <span className="inline-flex items-center gap-1 text-[10px] md:text-[11px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-bold ml-1.5 shrink-0">
+                 <Clock className="w-2.5 h-2.5" />
                  Còn {formatTime(timeLeft)}
                </span>
             )}
           </p>
         </div>
+
+        {/* Mobile profile actions (Bell, Avatar, Logout) - hidden on desktop */}
+        <div className="flex md:hidden items-center gap-2 shrink-0">
+          <div className="relative">
+            <button 
+              onClick={() => setNotificationsOpen(prev => !prev)}
+              className={`w-9 h-9 rounded-lg bg-slate-50 border flex items-center justify-center text-slate-500 transition-all relative ${notificationsOpen ? 'border-brand-500 text-brand-500 bg-brand-50/50' : 'border-slate-200 hover:text-brand-500 hover:border-brand-200'}`}
+            >
+              <Bell className="w-4.5 h-4.5" />
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full border border-white animate-pulse" />
+            </button>
+
+            {notificationsOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)}></div>
+                <div className="absolute right-0 mt-2 z-50 w-72 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl text-slate-800 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <h4 className="text-xs font-extrabold text-slate-800 flex items-center gap-1">
+                      <Bell className="w-3.5 h-3.5 text-brand-500" /> Thông báo học tập
+                    </h4>
+                    <button 
+                      onClick={() => setNotificationsOpen(false)}
+                      className="text-[10px] font-bold text-brand-600 hover:text-brand-700 bg-brand-50 px-2 py-0.5 rounded-md"
+                    >
+                      Đã đọc
+                    </button>
+                  </div>
+                  <div className="mt-2 space-y-1.5 max-h-52 overflow-y-auto custom-scrollbar">
+                    <div className="p-2 bg-brand-50/40 rounded-xl border border-brand-100 text-[11px] font-semibold text-brand-900 leading-relaxed text-left">
+                      ⏱️ <strong>Theo dõi song song:</strong> Hệ thống tự động ghi nhận thời gian tự học của bạn theo từng phút và tích lũy XP!
+                    </div>
+                    <div className="p-2 bg-orange-50/40 rounded-xl border border-orange-100 text-[11px] font-semibold text-orange-950 leading-relaxed text-left">
+                      🔥 <strong>Chuỗi học tập:</strong> Học mỗi ngày ít nhất 5 phút để duy trì chuỗi liên tục và mở khóa Huy hiệu cực hiếm!
+                    </div>
+                    <div className="p-2 bg-indigo-50/40 rounded-xl border border-indigo-100 text-[11px] font-semibold text-indigo-950 leading-relaxed text-left">
+                      🎯 <strong>Mảnh ghép điểm mù:</strong> Gia sư đang phân tích các kỹ năng của bạn. Hãy xem báo cáo chi tiết ở tab "Huy hiệu & Điểm mù"!
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center overflow-hidden border border-slate-200">
+            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} alt="Avatar" className="w-full h-full object-cover" />
+          </div>
+
+          <button
+            onClick={onLogout}
+            className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all"
+          >
+            <LogOut className="w-4.5 h-4.5" />
+          </button>
+        </div>
       </div>
       
-      <div className="flex items-center gap-4">
-        <div className="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-brand-500/20 focus-within:border-brand-500 transition-all">
+      {/* Bottom Row on Mobile / Right side on Desktop: Search + Stats Badges + Desktop Actions */}
+      <div className="flex items-center justify-between md:justify-end gap-2.5 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+        <div className="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 focus-within:ring-2 focus-within:ring-brand-500/20 focus-within:border-brand-500 transition-all">
           <Search className="w-4 h-4 text-slate-400" />
           <input 
             type="text" 
             placeholder="Tìm kiếm bài học..." 
-            className="text-sm font-medium outline-none bg-transparent w-48 text-slate-700"
+            className="text-sm font-medium outline-none bg-transparent w-40 text-slate-700"
           />
         </div>
 
         {/* Gamification Star Points */}
-        <div className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-full px-3 py-1.5 shadow-sm font-bold text-xs" title="Điểm sao tích lũy">
-          <Trophy className="w-3.5 h-3.5 text-amber-500 fill-amber-500 animate-bounce" />
+        <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-full px-2.5 py-1 md:px-3 md:py-1.5 shadow-sm font-bold text-[10px] md:text-xs shrink-0" title="Điểm sao tích lũy">
+          <Trophy className="w-3 h-3 md:w-3.5 md:h-3.5 text-amber-500 fill-amber-500 animate-bounce" />
           <span>{totalSP.toLocaleString()} SP</span>
         </div>
 
         {/* Gamification Streak */}
-        <div className="flex items-center gap-1.5 bg-orange-50 border border-orange-200 text-orange-700 rounded-full px-3 py-1.5 shadow-sm font-bold text-xs" title="Chuỗi học tập liên tiếp">
-          <Flame className="w-3.5 h-3.5 fill-orange-500 text-orange-500" />
+        <div className="flex items-center gap-1 bg-orange-50 border border-orange-200 text-orange-700 rounded-full px-2.5 py-1 md:px-3 md:py-1.5 shadow-sm font-bold text-[10px] md:text-xs shrink-0" title="Chuỗi học tập liên tiếp">
+          <Flame className="w-3 h-3 md:w-3.5 md:h-3.5 fill-orange-500 text-orange-500" />
           <span>{currentStreak} ngày</span>
         </div>
 
         {/* Pomodoro Focus Mode */}
         <button 
           onClick={togglePomodoro}
-          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 font-bold text-sm shadow-sm transition-all border ${pomodoroActive ? 'bg-red-500 text-white border-red-600' : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'}`}
+          className={`flex items-center gap-1 rounded-full px-2.5 py-1 md:px-3 md:py-1.5 font-bold text-[10px] md:text-sm shadow-sm transition-all border shrink-0 ${pomodoroActive ? 'bg-red-500 text-white border-red-600' : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'}`}
           title="Focus Mode (Pomodoro)"
         >
           <span>🍅</span>
           {pomodoroActive && pomodoroLeft !== null ? (
-            <span className="w-10 text-center font-mono">{formatTime(pomodoroLeft)}</span>
+            <span className="w-9 md:w-10 text-center font-mono">{formatTime(pomodoroLeft)}</span>
           ) : (
-            <span className="hidden sm:inline">Tập trung</span>
+            <span className="hidden xs:inline">Tập trung</span>
           )}
         </button>
 
-        <div className="relative">
-          <button 
-            onClick={() => setNotificationsOpen(prev => !prev)}
-            className={`w-10 h-10 rounded-lg bg-slate-50 border flex items-center justify-center text-slate-500 transition-all relative ${notificationsOpen ? 'border-brand-500 text-brand-500 bg-brand-50/50' : 'border-slate-200 hover:text-brand-500 hover:border-brand-200'}`}
+        {/* Desktop actions (Bell dropdown, Divider, Class badge, Logout) - hidden on mobile */}
+        <div className="hidden md:flex items-center gap-3 shrink-0">
+          <div className="relative">
+            <button 
+              onClick={() => setNotificationsOpen(prev => !prev)}
+              className={`w-10 h-10 rounded-lg bg-slate-50 border flex items-center justify-center text-slate-500 transition-all relative ${notificationsOpen ? 'border-brand-500 text-brand-500 bg-brand-50/50' : 'border-slate-200 hover:text-brand-500 hover:border-brand-200'}`}
+            >
+              <Bell className="w-5 h-5" />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+            </button>
+
+            {notificationsOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)}></div>
+                <div className="absolute right-0 mt-2 z-50 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl text-slate-800 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                    <h4 className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
+                      <Bell className="w-4 h-4 text-brand-500" /> Thông báo học tập
+                    </h4>
+                    <button 
+                      onClick={() => setNotificationsOpen(false)}
+                      className="text-xs font-bold text-brand-600 hover:text-brand-700 bg-brand-50 px-2 py-1 rounded-lg"
+                    >
+                      Đã đọc hết
+                    </button>
+                  </div>
+                  <div className="mt-3 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                    <div className="p-2.5 bg-brand-50/40 rounded-xl border border-brand-100 text-xs font-semibold text-brand-900 leading-relaxed text-left">
+                      ⏱️ <strong>Theo dõi song song:</strong> Hệ thống tự động ghi nhận thời gian tự học của bạn theo từng phút và tích lũy XP!
+                    </div>
+                    <div className="p-2.5 bg-orange-50/40 rounded-xl border border-orange-100 text-xs font-semibold text-orange-950 leading-relaxed text-left">
+                      🔥 <strong>Chuỗi học tập:</strong> Học mỗi ngày ít nhất 5 phút để duy trì chuỗi liên tục và mở khóa Huy hiệu cực hiếm!
+                    </div>
+                    <div className="p-2.5 bg-indigo-50/40 rounded-xl border border-indigo-100 text-xs font-semibold text-indigo-950 leading-relaxed text-left">
+                      🎯 <strong>Mảnh ghép điểm mù:</strong> Gia sư đang phân tích các kỹ năng của bạn. Hãy xem báo cáo chi tiết ở tab "Huy hiệu & Điểm mù"!
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="h-8 w-[1px] bg-slate-200 mx-1" />
+
+          <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 py-1.5 pl-1.5 pr-4.5 rounded-full cursor-pointer hover:bg-slate-100 transition-colors">
+            <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center overflow-hidden">
+              <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} alt="Avatar" className="w-full h-full object-cover" />
+            </div>
+            <p className="text-xs font-bold text-slate-700">Lớp {user.grade}</p>
+          </div>
+
+          <button
+            onClick={onLogout}
+            className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all"
           >
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+            <LogOut className="w-5 h-5" />
           </button>
-
-          {notificationsOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setNotificationsOpen(false)}></div>
-              <div className="absolute right-0 mt-2 z-50 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl text-slate-800 animate-in fade-in slide-in-from-top-2 duration-150">
-                <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
-                  <h4 className="text-sm font-extrabold text-slate-800 flex items-center gap-1.5">
-                    <Bell className="w-4 h-4 text-brand-500" /> Thông báo học tập
-                  </h4>
-                  <button 
-                    onClick={() => setNotificationsOpen(false)}
-                    className="text-xs font-bold text-brand-600 hover:text-brand-700 bg-brand-50 px-2 py-1 rounded-lg"
-                  >
-                    Đã đọc hết
-                  </button>
-                </div>
-                <div className="mt-3 space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                  <div className="p-2.5 bg-brand-50/40 rounded-xl border border-brand-100 text-xs font-semibold text-brand-900 leading-relaxed text-left">
-                    ⏱️ <strong>Theo dõi song song:</strong> Hệ thống tự động ghi nhận thời gian tự học của bạn theo từng phút và tích lũy XP!
-                  </div>
-                  <div className="p-2.5 bg-orange-50/40 rounded-xl border border-orange-100 text-xs font-semibold text-orange-950 leading-relaxed text-left">
-                    🔥 <strong>Chuỗi học tập:</strong> Học mỗi ngày ít nhất 5 phút để duy trì chuỗi liên tục và mở khóa Huy hiệu cực hiếm!
-                  </div>
-                  <div className="p-2.5 bg-indigo-50/40 rounded-xl border border-indigo-100 text-xs font-semibold text-indigo-950 leading-relaxed text-left">
-                    🎯 <strong>Mảnh ghép điểm mù:</strong> Gia sư đang phân tích các kỹ năng của bạn. Hãy xem báo cáo chi tiết ở tab "Huy hiệu & Điểm mù"!
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
         </div>
-
-        <div className="h-8 w-[1px] bg-slate-200 mx-2 hidden sm:block" />
-
-        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 py-1.5 pl-1.5 pr-4 rounded-full cursor-pointer hover:bg-slate-100 transition-colors">
-          <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center overflow-hidden">
-            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} alt="Avatar" className="w-full h-full object-cover" />
-          </div>
-          <div className="hidden sm:block">
-            <p className="text-sm font-bold text-slate-700">Lớp {user.grade}</p>
-          </div>
-        </div>
-
-        <button
-          onClick={onLogout}
-          className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-500 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all"
-        >
-          <LogOut className="w-5 h-5" />
-        </button>
       </div>
     </header>
   );

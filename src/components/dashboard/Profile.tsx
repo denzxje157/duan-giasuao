@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Camera, Mail, User as UserIcon, Lock, KeyRound, Save, Activity, UploadCloud, MessageSquare, BookOpen, Key, Bell, Shield, Eye, EyeOff, Settings } from 'lucide-react';
+import { Camera, Mail, User as UserIcon, Lock, KeyRound, Save, Activity, UploadCloud, MessageSquare, BookOpen, Key, Bell, Shield, Eye, EyeOff, Settings, BrainCircuit } from 'lucide-react';
 import { User } from '../../types';
 import { supabase } from '../../lib/supabase';
 
@@ -33,6 +33,15 @@ export default function Profile({ user, onLogout, onUserUpdate }: ProfileProps) 
   const [dailyGoal, setDailyGoal] = useState(initialGoal);
   const [learningStyle, setLearningStyle] = useState(initialStyle);
   const [notifications, setNotifications] = useState(initialNotif);
+  const [showTrackerWidget, setShowTrackerWidget] = useState(() => localStorage.getItem('study_tracker_enabled_mobile') === 'true');
+
+  useEffect(() => {
+    const handleToggle = () => {
+      setShowTrackerWidget(localStorage.getItem('study_tracker_enabled_mobile') === 'true');
+    };
+    window.addEventListener('study-tracker-widget-toggle', handleToggle);
+    return () => window.removeEventListener('study-tracker-widget-toggle', handleToggle);
+  }, []);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -236,7 +245,7 @@ export default function Profile({ user, onLogout, onUserUpdate }: ProfileProps) 
                    <Settings className="w-5 h-5 text-slate-400" /> Cá nhân hóa học tập
                 </h3>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                   {/* Daily Goal */}
                   <div className="space-y-3">
                     <label className="text-sm font-semibold text-slate-700 block">Mục tiêu học tập hàng ngày</label>
@@ -272,6 +281,28 @@ export default function Profile({ user, onLogout, onUserUpdate }: ProfileProps) 
                     >
                       <span>{notifications ? 'Bật nhắc nhở học tập hàng ngày' : 'Tắt nhắc nhở'}</span>
                       <Bell className={`w-4 h-4 ${notifications ? 'text-emerald-600 fill-emerald-600/10' : 'text-slate-400'}`} />
+                    </button>
+                  </div>
+
+                  {/* Study Tracker Widget Toggle */}
+                  <div className="space-y-3">
+                    <label className="text-sm font-semibold text-slate-700 block">Bảng "Đã học" di động</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextVal = !showTrackerWidget;
+                        setShowTrackerWidget(nextVal);
+                        localStorage.setItem('study_tracker_enabled_mobile', String(nextVal));
+                        window.dispatchEvent(new Event('study-tracker-widget-toggle'));
+                      }}
+                      className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold border transition-all flex items-center justify-between ${
+                        showTrackerWidget 
+                          ? 'bg-brand-50 text-brand-700 border-brand-200' 
+                          : 'bg-slate-50 text-slate-500 border-slate-200'
+                      }`}
+                    >
+                      <span>{showTrackerWidget ? 'Đang hiện Widget Theo dõi' : 'Đang ẩn Widget Theo dõi'}</span>
+                      <BrainCircuit className={`w-4 h-4 ${showTrackerWidget ? 'text-brand-600' : 'text-slate-400'}`} />
                     </button>
                   </div>
                 </div>

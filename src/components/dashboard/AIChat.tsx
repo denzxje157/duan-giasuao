@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { MessageSquare, Sparkles, User, Bot, Send, Plus, Menu, Moon, Sun, Pen, Mic, Volume2, VolumeX, Settings } from 'lucide-react';
+import { MessageSquare, Sparkles, User, Bot, Send, Plus, Menu, Moon, Sun, Pen, Mic, Volume2, VolumeX, Settings, ArrowLeft } from 'lucide-react';
 import { User as UserType } from '../../types';
 import { fetchChatHistory, fetchChatSessions, deleteChatSession, API_BASE_URL, ChatHistoryRow, ChatSessionGroup, ChatSessionItem } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
@@ -1937,9 +1937,20 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
             <button type="button" onClick={() => setSidebarOpen((prev) => !prev)} className="rounded-xl border border-white/10 p-2 text-[var(--text-primary)] hover:bg-white/5 transition-colors">
               <Menu className="h-5 w-5" />
             </button>
-            <div className="rounded-xl bg-white/5 p-2 text-[var(--text-primary)]">
-              <MessageSquare className="h-5 w-5" />
-            </div>
+            {currentView === 'chat' ? (
+              <button
+                type="button"
+                onClick={() => setCurrentView('selection')}
+                className="rounded-xl border border-brand-500/30 bg-brand-500/15 p-2 text-brand-400 hover:bg-brand-500/25 transition-all flex items-center justify-center shrink-0"
+                title="Thoát Chat / Quay lại chọn môn học"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+            ) : (
+              <div className="rounded-xl bg-white/5 p-2 text-[var(--text-primary)] shrink-0">
+                <MessageSquare className="h-5 w-5" />
+              </div>
+            )}
             <div>
               <div className="text-sm font-bold md:text-base">Gia sư AI</div>
               <div className="hidden xs:block text-[10px] text-[var(--muted-primary)]">Canvas tối giản, cá nhân hóa theo lớp học</div>
