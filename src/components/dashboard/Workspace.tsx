@@ -69,6 +69,22 @@ function extractSuggestionsFromMarkers(content: string): SuggestionItem[] {
     .filter((item): item is SuggestionItem => Boolean(item)) || [];
 }
 
+function getEmbeddablePdfUrl(url: string): string {
+  if (!url) return '';
+  if (url.includes('drive.google.com')) {
+    if (url.includes('/preview')) return url;
+    const fileDMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (fileDMatch && fileDMatch[1]) {
+      return `https://drive.google.com/file/d/${fileDMatch[1]}/preview`;
+    }
+    const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (idMatch && idMatch[1]) {
+      return `https://drive.google.com/file/d/${idMatch[1]}/preview`;
+    }
+  }
+  return url;
+}
+
 interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -497,7 +513,7 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
           {pdfUrl && pdfUrl.trim() !== "" ? (
             pdfUrl.includes("drive.google.com") ? (
               <iframe 
-                src={pdfUrl} 
+                src={getEmbeddablePdfUrl(pdfUrl)} 
                 className="w-full h-full border-0" 
                 allow="autoplay"
                 title={displayTitle}

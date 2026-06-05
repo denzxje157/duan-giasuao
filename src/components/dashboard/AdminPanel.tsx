@@ -1,8 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Key, UploadCloud, Save, CheckCircle2, ShieldAlert, FileText, X, Activity, AlertTriangle, Settings2, Users, Database, LayoutDashboard, Search, Lock, Unlock, KeyRound, Shield, Edit2, Trash2, Bot } from 'lucide-react';
+import { Key, UploadCloud, Save, CheckCircle2, ShieldAlert, FileText, X, Activity, AlertTriangle, Settings2, Users, Database, LayoutDashboard, Search, Lock, Unlock, KeyRound, Shield, Edit2, Trash2, Bot, Loader2 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '../../lib/supabase';
+import { uploadDocument } from '../../lib/api';
 
 interface BookUpload {
   id: string;
@@ -24,70 +25,293 @@ const usageData = [
 export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState<'overview' | 'aiConfig' | 'rag' | 'users'>('overview');
 
-  const [apiKey, setApiKey] = useState(localStorage.getItem('admin_gemini_api_key') || '');
+  // AI Config State
+  const [apiKey, setApiKey] = useState('');
+  const [systemPrompt, setSystemPrompt] = useState('Bạn là một Gia sư ảo thông minh, thân thiện dành cho học sinh Việt Nam. Hãy xưng là "Cô" và gọi học sinh là "em/con".');
+  const [temperature, setTemperature] = useState(0.7);
+  const [maxTokens, setMaxTokens] = useState(2048);
   const [isSaved, setIsSaved] = useState(false);
-  const [systemPrompt, setSystemPrompt] = useState('Bạn là một Gia sư ảo thông minh, thân thiện dành cho học sinh Việt Nam. Hãy xưng là "Thầy/Cô" tuỳ chỉnh theo người dùng.');
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
   
+  // RAG Upload State
   const [dragActive, setDragActive] = useState(false);
   const [uploads, setUploads] = useState<BookUpload[]>([]);
   const [uploadGrade, setUploadGrade] = useState<number>(10);
   const [uploadSubject, setUploadSubject] = useState('Toán học');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // RAG Data State
-  const [extractedData, setExtractedData] = useState([
-    { id: '1', file: 'Toan10_KNTT.pdf', page: 12, content: 'Cho hàm số bậc hai y = ax^2 + bx + c (a ≠ 0). Đồ thị của hàm số là một đường parabol...', subject: 'Toán học', grade: 10 },
-    { id: '2', file: 'Van11_CTST.pdf', page: 5, content: 'Nam Cao là nhà văn hiện thực xuất sắc trước Cách mạng tháng Tám, với phong cách nghệ thuật độc đáo...', subject: 'Ngữ văn', grade: 11 },
-  ]);
+  // RAG Chunks Data State
+  const [extractedData, setExtractedData] = useState<any[]>([]);
+  const [isLoadingChunks, setIsLoadingChunks] = useState(false);
   const [editingContent, setEditingContent] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [chunkSearchQuery, setChunkSearchQuery] = useState('');
 
   // Users State
   const [usersList, setUsersList] = useState<any[]>([]);
   const [userSearch, setUserSearch] = useState('');
+  const [isUsersLoading, setIsUsersLoading] = useState(false);
   
-  // Real Stats
+  // Stats State
   const [stats, setStats] = useState({ totalDocs: 0, totalUsers: 0 });
 
-  React.useEffect(() => {
+  // Load Admin Data on Mount
+  useEffect(() => {
     const fetchAdminData = async () => {
       try {
+        setIsUsersLoading(true);
+        // Load profiles
         const { data: profiles } = await supabase.from('profiles').select('*');
         if (profiles) {
-          setUsersList(profiles.map(p => ({
-            id: p.id,
-            name: p.full_name || p.email?.split('@')[0] || 'Người dùng',
-            email: p.email || 'N/A',
-            grade: p.grade || 1,
-            role: p.role || 'student',
-            status: 'active'
-          })));
+          setUsersList(profiles.map(p => {
+            let status = 'active';
+            const nameParts = (p.full_name || '').split('|');
+            for (const part of nameParts) {
+              if (part.trim() === 'status:locked') {
+                status = 'locked';
+              }
+            }
+            return {
+              id: p.id,
+              name: nameParts[0].trim() || p.email?.split('@')[0] || 'Người dùng',
+              email: p.email || 'N/A',
+              grade: p.grade || 1,
+              role: p.role || 'student',
+              status: status
+            };
+          }));
         }
+
+        // Load document metrics
         const { count: docsCount } = await supabase.from('documents').select('*', { count: 'exact', head: true });
         const { count: usersCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
         setStats({ totalDocs: docsCount || 0, totalUsers: usersCount || 0 });
       } catch (err) {
         console.error("Admin fetch error", err);
+      } finally {
+        setIsUsersLoading(false);
       }
     };
+
     fetchAdminData();
+    fetchAIConfigs();
+    fetchRAGChunks();
   }, []);
-  
-  // Errors Data
-  const mockErrors = [
-    { id: '1', time: '10:23 AM 13/05/2026', type: 'UploadFailed', message: 'Tệp VậtLý12.pdf quá giới hạn 50MB không thể tiền xử lý RAG.' },
-    { id: '2', time: '09:15 AM 13/05/2026', type: 'API_Error', message: 'Gemini Rate limit exceeded. Cảnh báo quá tải AI.' },
-    { id: '3', time: '14:20 PM 12/05/2026', type: 'DatabaseError', message: 'Timeout khi truy vấn vector search cho môn Lịch sử 11.' },
-  ];
 
-  // AI Params
-  const [temperature, setTemperature] = useState(0.7);
-  const [maxTokens, setMaxTokens] = useState(2048);
+  // Fetch configs from Backend API
+  const fetchAIConfigs = async () => {
+    try {
+      const response = await fetch('/api/admin/configs');
+      const res = await response.json();
+      if (res && res.status === 'success' && res.data) {
+        res.data.forEach((row: any) => {
+          if (row.key_name === 'gemini_api_key') setApiKey(row.key_value);
+          else if (row.key_name === 'system_prompt') setSystemPrompt(row.key_value);
+          else if (row.key_name === 'temperature') setTemperature(parseFloat(row.key_value) || 0.7);
+          else if (row.key_name === 'max_tokens') setMaxTokens(parseInt(row.key_value) || 2048);
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching configs:", err);
+    }
+  };
 
-  const handleSaveAIConfig = () => {
-    localStorage.setItem('admin_gemini_api_key', apiKey);
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000);
+  // Fetch actual RAG chunks from Supabase
+  const fetchRAGChunks = async () => {
+    try {
+      setIsLoadingChunks(true);
+      const { data, error } = await supabase
+        .from('document_chunks')
+        .select(`
+          id,
+          content,
+          document_id,
+          documents (
+            name,
+            grade,
+            subject
+          )
+        `)
+        .order('id', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      if (data) {
+        setExtractedData(data.map((chunk: any) => ({
+          id: chunk.id,
+          content: chunk.content,
+          file: chunk.documents?.name || 'Tài liệu không tên',
+          subject: chunk.documents?.subject || 'Khác',
+          grade: chunk.documents?.grade || 'N/A',
+          document_id: chunk.document_id
+        })));
+      }
+    } catch (err) {
+      console.error("Error loading chunks:", err);
+    } finally {
+      setIsLoadingChunks(false);
+    }
+  };
+
+  // Save AI Configs to Backend
+  const handleSaveAIConfig = async () => {
+    setIsSavingConfig(true);
+    try {
+      const configs = [
+        { key_name: 'gemini_api_key', key_value: apiKey },
+        { key_name: 'system_prompt', key_value: systemPrompt },
+        { key_name: 'temperature', key_value: String(temperature) },
+        { key_name: 'max_tokens', key_value: String(maxTokens) }
+      ];
+
+      for (const config of configs) {
+        await fetch('/api/admin/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config)
+        });
+      }
+
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2000);
+    } catch (err) {
+      console.error("Failed to save AI configs:", err);
+      alert("Lỗi khi lưu cấu hình!");
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
+
+  // Upload actual document to RAG pipeline
+  const handleFiles = async (files: File[]) => {
+    const newUploads = files.map(f => ({
+      id: Math.random().toString(36).substring(7),
+      name: f.name,
+      progress: 10,
+      status: 'uploading' as const,
+      fileObj: f
+    }));
+
+    setUploads(prev => [...newUploads.map(({ id, name, progress, status }) => ({ id, name, progress, status })), ...prev]);
+
+    for (const up of newUploads) {
+      try {
+        setUploads(prev => prev.map(u => u.id === up.id ? { ...u, progress: 40 } : u));
+        
+        // uploadDocument(file, grade, userId?, subject?)
+        const res = await uploadDocument(up.fileObj, String(uploadGrade), undefined, uploadSubject);
+        
+        if (res && res.status === 'success') {
+          setUploads(prev => prev.map(u => u.id === up.id ? { ...u, progress: 100, status: 'completed' } : u));
+          fetchRAGChunks();
+          
+          // Update docs count
+          const { count: docsCount } = await supabase.from('documents').select('*', { count: 'exact', head: true });
+          setStats(prev => ({ ...prev, totalDocs: docsCount || 0 }));
+        } else {
+          throw new Error("Upload failed");
+        }
+      } catch (err) {
+        console.error("Upload failed for file:", up.name, err);
+        setUploads(prev => prev.map(u => u.id === up.id ? { ...u, status: 'error', progress: 100 } : u));
+      }
+    }
+  };
+
+  // Edit RAG text chunk in Supabase
+  const handleEditChunk = async (chunkId: string) => {
+    try {
+      const { error } = await supabase
+        .from('document_chunks')
+        .update({ content: editValue })
+        .eq('id', chunkId);
+
+      if (error) throw error;
+
+      setExtractedData(prev => prev.map(c => c.id === chunkId ? { ...c, content: editValue } : c));
+      setEditingContent(null);
+    } catch (err: any) {
+      alert(`Lỗi khi sửa chunk: ${err.message || err}`);
+    }
+  };
+
+  // Delete RAG text chunk from Supabase
+  const handleDeleteChunk = async (chunkId: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa đoạn văn bản này khỏi CSDL Vector RAG không?")) return;
+    try {
+      const { error } = await supabase
+        .from('document_chunks')
+        .delete()
+        .eq('id', chunkId);
+
+      if (error) throw error;
+
+      setExtractedData(prev => prev.filter(c => c.id !== chunkId));
+    } catch (err: any) {
+      alert(`Lỗi khi xóa chunk: ${err.message || err}`);
+    }
+  };
+
+  // Lock or Unlock a user
+  const handleToggleLockUser = async (userId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'active' ? 'locked' : 'active';
+    try {
+      const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', userId).single();
+      if (!profile) return;
+
+      const parts = (profile.full_name || '').split('|');
+      const cleanParts = parts.filter((p: string) => !p.trim().startsWith('status:'));
+      if (newStatus === 'locked') {
+        cleanParts.push('status:locked');
+      }
+
+      const packedName = cleanParts.join('|');
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name: packedName })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setUsersList(prev => prev.map(user => user.id === userId ? { ...user, status: newStatus } : user));
+    } catch (err: any) {
+      alert(`Lỗi khi cập nhật trạng thái người dùng: ${err.message || err}`);
+    }
+  };
+
+  // Promote user to admin role
+  const handlePromoteAdmin = async (userId: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn nâng cấp học viên này lên làm Quản trị viên không?")) return;
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ role: 'admin' })
+        .eq('id', userId);
+
+      if (error) throw error;
+
+      setUsersList(prev => prev.map(user => user.id === userId ? { ...user, role: 'admin' } : user));
+    } catch (err: any) {
+      alert(`Lỗi nâng cấp Admin: ${err.message || err}`);
+    }
+  };
+
+  // Reset user password via forgot-password API
+  const handleResetPassword = async (email: string) => {
+    if (!window.confirm(`Hệ thống sẽ gửi email hướng dẫn tạo lại mật khẩu mới cho tài khoản ${email}. Xác nhận gửi?`)) return;
+    try {
+      const response = await fetch('/api/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      if (!response.ok) throw new Error("API reset failed");
+      alert("Đã gửi email khôi phục mật khẩu thành công!");
+    } catch (err: any) {
+      alert(`Lỗi reset mật khẩu: ${err.message || err}`);
+    }
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -116,29 +340,17 @@ export default function AdminPanel() {
     }
   };
 
-  const handleFiles = (files: File[]) => {
-    const newUploads = files.map(f => ({
-      id: Math.random().toString(36).substring(7),
-      name: f.name,
-      progress: 0,
-      status: 'uploading' as const
-    }));
-    setUploads(prev => [...newUploads, ...prev]);
+  const mockErrors = [
+    { id: '1', time: '10:23 AM 13/05/2026', type: 'UploadFailed', message: 'Tệp VậtLý12.pdf quá giới hạn 50MB không thể tiền xử lý RAG.' },
+    { id: '2', time: '09:15 AM 13/05/2026', type: 'API_Error', message: 'Gemini Rate limit exceeded. Cảnh báo quá tải AI.' },
+    { id: '3', time: '14:20 PM 12/05/2026', type: 'DatabaseError', message: 'Timeout khi truy vấn vector search cho môn Lịch sử 11.' },
+  ];
 
-    newUploads.forEach(upload => {
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += Math.random() * 30;
-        if (progress >= 100) {
-          progress = 100;
-          clearInterval(interval);
-          setUploads(prev => prev.map(u => u.id === upload.id ? { ...u, progress: 100, status: 'completed' } : u));
-        } else {
-          setUploads(prev => prev.map(u => u.id === upload.id ? { ...u, progress } : u));
-        }
-      }, 500);
-    });
-  };
+  const filteredChunks = extractedData.filter(chunk => 
+    chunk.content.toLowerCase().includes(chunkSearchQuery.toLowerCase()) ||
+    chunk.file.toLowerCase().includes(chunkSearchQuery.toLowerCase()) ||
+    chunk.subject.toLowerCase().includes(chunkSearchQuery.toLowerCase())
+  );
 
   return (
     <div className="p-8 max-w-7xl mx-auto pb-24">
@@ -329,10 +541,11 @@ export default function AdminPanel() {
               <div className="pt-4">
                 <button 
                   onClick={handleSaveAIConfig}
-                  className="w-full bg-brand-600 hover:bg-brand-700 text-white py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                  disabled={isSavingConfig}
+                  className="w-full bg-brand-600 hover:bg-brand-700 text-white py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-50"
                 >
-                  {isSaved ? <CheckCircle2 className="w-5 h-5" /> : <Save className="w-5 h-5" />}
-                  {isSaved ? 'Đã lưu cấu hình' : 'Cập nhật cấu hình hiện tại'}
+                  {isSavingConfig ? <Loader2 className="w-5 h-5 animate-spin" /> : isSaved ? <CheckCircle2 className="w-5 h-5" /> : <Save className="w-5 h-5" />}
+                  {isSaved ? 'Đã lưu cấu hình' : isSavingConfig ? 'Đang lưu cấu hình...' : 'Cập nhật cấu hình hiện tại'}
                 </button>
               </div>
             </div>
@@ -363,7 +576,7 @@ export default function AdminPanel() {
                     onChange={(e) => setUploadGrade(Number(e.target.value))}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2.5 px-3 text-sm font-medium outline-none"
                   >
-                    {[6,7,8,9,10,11,12].map(g => <option key={g} value={g}>Lớp {g}</option>)}
+                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(g => <option key={g} value={g}>Lớp {g}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
@@ -373,7 +586,7 @@ export default function AdminPanel() {
                     onChange={(e) => setUploadSubject(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2.5 px-3 text-sm font-medium outline-none"
                   >
-                    {['Toán học','Ngữ văn','Tiếng Anh','Vật lý','Hóa học'].map(s => <option key={s} value={s}>{s}</option>)}
+                    {['Toán', 'Tiếng Việt', 'Tiếng Anh', 'Tự nhiên và Xã hội', 'Ngữ văn', 'Lịch sử và Địa lý', 'Khoa học tự nhiên', 'Khoa học', 'Tin học', 'Giáo dục công dân', 'Giáo dục kinh tế và pháp luật', 'Địa lý', 'Lịch sử', 'Đạo đức', 'Vật lý', 'Hóa học', 'Sinh học'].map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
               </div>
@@ -412,15 +625,15 @@ export default function AdminPanel() {
                         className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100"
                         key={file.id}
                       >
-                        <FileText className={`w-6 h-6 shrink-0 ${file.status === 'completed' ? 'text-emerald-500' : 'text-brand-500'}`} />
+                        <FileText className={`w-6 h-6 shrink-0 ${file.status === 'completed' ? 'text-emerald-500' : file.status === 'error' ? 'text-red-500' : 'text-brand-500'}`} />
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-center mb-1.5">
                             <h5 className="text-xs font-bold text-slate-700 truncate">{file.name}</h5>
-                            <span className="text-[10px] font-bold text-slate-500">{Math.round(file.progress)}%</span>
+                            <span className="text-[10px] font-bold text-slate-500">{file.status === 'error' ? 'Lỗi' : `${Math.round(file.progress)}%`}</span>
                           </div>
                           <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
                             <motion.div 
-                              className={`h-full ${file.status === 'completed' ? 'bg-emerald-500' : 'bg-brand-500'}`}
+                              className={`h-full ${file.status === 'completed' ? 'bg-emerald-500' : file.status === 'error' ? 'bg-red-500' : 'bg-brand-500'}`}
                               animate={{ width: `${file.progress}%` }}
                             />
                           </div>
@@ -449,19 +662,27 @@ export default function AdminPanel() {
               <div className="relative w-full sm:w-64 shrink-0">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input 
-                   type="text" placeholder="Tìm đoạn văn bản..."
-                   className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm font-medium focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
+                  type="text" 
+                  placeholder="Tìm đoạn văn bản..."
+                  value={chunkSearchQuery}
+                  onChange={(e) => setChunkSearchQuery(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm font-medium focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
                 />
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-               {extractedData.map(chunk => (
+               {isLoadingChunks ? (
+                 <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-2">
+                    <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
+                    <span className="text-sm font-medium">Đang tải danh sách chunks...</span>
+                 </div>
+               ) : filteredChunks.map(chunk => (
                  <div key={chunk.id} className="border border-slate-200 rounded-xl p-4 hover:border-brand-300 transition-colors bg-white group shadow-sm hover:shadow-md">
                    <div className="flex justify-between items-start mb-3">
                      <div className="flex items-center gap-2">
-                       <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-bold">{chunk.file} (Trang {chunk.page})</span>
-                       <span className="px-2 py-1 bg-brand-50 text-brand-600 rounded text-xs font-bold">{chunk.subject} {chunk.grade}</span>
+                       <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-bold line-clamp-1 max-w-[200px]">{chunk.file}</span>
+                       <span className="px-2 py-1 bg-brand-50 text-brand-600 rounded text-xs font-bold">{chunk.subject} - Lớp {chunk.grade}</span>
                      </div>
                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                        <button 
@@ -470,8 +691,8 @@ export default function AdminPanel() {
                          <Edit2 className="w-4 h-4" />
                        </button>
                        <button 
-                         onClick={() => setExtractedData(prev => prev.filter(c => c.id !== chunk.id))}
-                         className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded" title="Xóa rác">
+                         onClick={() => handleDeleteChunk(chunk.id)}
+                         className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded" title="Xóa chunk">
                          <Trash2 className="w-4 h-4" />
                        </button>
                      </div>
@@ -485,10 +706,7 @@ export default function AdminPanel() {
                        />
                        <div className="flex justify-end gap-2">
                          <button onClick={() => setEditingContent(null)} className="px-4 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg">Hủy</button>
-                         <button onClick={() => {
-                           setExtractedData(prev => prev.map(c => c.id === chunk.id ? {...c, content: editValue} : c));
-                           setEditingContent(null);
-                         }} className="px-4 py-1.5 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg">Lưu lại</button>
+                         <button onClick={() => handleEditChunk(chunk.id)} className="px-4 py-1.5 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg">Lưu lại</button>
                        </div>
                      </div>
                    ) : (
@@ -496,6 +714,12 @@ export default function AdminPanel() {
                    )}
                  </div>
                ))}
+               {!isLoadingChunks && filteredChunks.length === 0 && (
+                 <div className="text-center py-20 text-slate-400">
+                    <Database className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                    <span className="text-sm">Không tìm thấy đoạn văn bản RAG nào.</span>
+                 </div>
+               )}
             </div>
           </div>
         </div>
@@ -508,10 +732,10 @@ export default function AdminPanel() {
                <h3 className="font-bold text-slate-800 flex items-center gap-2">
                  <Users className="w-5 h-5 text-brand-500" /> Quản lý Học sinh & Phân quyền
                </h3>
-               <p className="text-xs text-slate-500 mt-1 font-medium">Khóa tài khoản, cấp lại mật khẩu hoặc trao quyền Admin cho nhóm.</p>
+               <p className="text-xs text-slate-500 mt-1 font-medium">Khóa tài khoản, gửi email khôi phục mật khẩu hoặc nâng quyền Admin.</p>
             </div>
             <div className="relative w-full sm:w-72 shrink-0">
-               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                <input 
                   type="text" 
                   placeholder="Tìm kiếm Email, Họ tên..."
@@ -523,85 +747,94 @@ export default function AdminPanel() {
           </div>
 
           <div className="flex-1 overflow-x-auto">
-            <table className="w-full min-w-[800px] text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Người dùng</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Lớp</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Vai trò</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Trạng thái</th>
-                  <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {usersList.filter(u => u.name.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase())).map(u => (
-                  <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shrink-0 ${u.role === 'admin' ? 'bg-brand-500' : 'bg-brand-500'}`}>
-                          {u.name.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="font-bold text-sm text-slate-800">{u.name}</div>
-                          <div className="text-xs font-medium text-slate-500">{u.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-bold">Lớp {u.grade}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {u.role === 'admin' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-brand-50 text-brand-700 rounded-md text-xs font-bold">
-                          <Shield className="w-3.5 h-3.5" /> Quản trị viên
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-bold">
-                          <Users className="w-3.5 h-3.5" /> Học viên
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      {u.status === 'active' ? (
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
-                           <div className="w-2 h-2 rounded-full bg-emerald-500" /> Hoạt động
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-red-600">
-                           <div className="w-2 h-2 rounded-full bg-red-500" /> Đã khóa
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right space-x-2">
-                       {u.status === 'active' ? (
-                         <button 
-                            onClick={() => setUsersList(prev => prev.map(user => user.id === u.id ? {...user, status: 'locked'} : user))}
-                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors tooltip-wrapper" title="Khóa tài khoản">
-                           <Lock className="w-4 h-4" />
-                         </button>
-                       ) : (
-                         <button 
-                            onClick={() => setUsersList(prev => prev.map(user => user.id === u.id ? {...user, status: 'active'} : user))}
-                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Mở khóa">
-                           <Unlock className="w-4 h-4" />
-                         </button>
-                       )}
-                       <button className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Reset Mật khẩu">
-                         <KeyRound className="w-4 h-4" />
-                       </button>
-                       {u.role !== 'admin' && (
-                         <button 
-                           onClick={() => setUsersList(prev => prev.map(user => user.id === u.id ? {...user, role: 'admin'} : user))}
-                           className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors" title="Nâng cấp Admin">
-                           <Shield className="w-4 h-4" />
-                         </button>
-                       )}
-                    </td>
+            {isUsersLoading ? (
+              <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-2">
+                <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
+                <span className="text-sm font-medium">Đang tải danh sách học viên...</span>
+              </div>
+            ) : (
+              <table className="w-full min-w-[800px] text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/50 border-b border-slate-100">
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Người dùng</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Lớp</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Vai trò</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Trạng thái</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Thao tác</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {usersList.filter(u => u.name.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase())).length === 0 && (
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {usersList.filter(u => u.name.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase())).map(u => (
+                    <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shrink-0 bg-brand-500">
+                            {u.name.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="font-bold text-sm text-slate-800">{u.name}</div>
+                            <div className="text-xs font-medium text-slate-500">{u.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-bold">Lớp {u.grade}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {u.role === 'admin' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-brand-50 text-brand-700 rounded-md text-xs font-bold">
+                            <Shield className="w-3.5 h-3.5" /> Quản trị viên
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-bold">
+                            <Users className="w-3.5 h-3.5" /> Học viên
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        {u.status === 'active' ? (
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+                             <div className="w-2 h-2 rounded-full bg-emerald-500" /> Hoạt động
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-red-600">
+                             <div className="w-2 h-2 rounded-full bg-red-500" /> Đã khóa
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right space-x-2">
+                         {u.status === 'active' ? (
+                           <button 
+                              onClick={() => handleToggleLockUser(u.id, u.status)}
+                              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Khóa tài khoản">
+                             <Lock className="w-4 h-4" />
+                           </button>
+                         ) : (
+                           <button 
+                              onClick={() => handleToggleLockUser(u.id, u.status)}
+                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Mở khóa">
+                             <Unlock className="w-4 h-4" />
+                           </button>
+                         )}
+                         <button 
+                            onClick={() => handleResetPassword(u.email)}
+                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Reset Mật khẩu">
+                           <KeyRound className="w-4 h-4" />
+                         </button>
+                         {u.role !== 'admin' && (
+                           <button 
+                             onClick={() => handlePromoteAdmin(u.id)}
+                             className="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors" title="Nâng cấp Admin">
+                             <Shield className="w-4 h-4" />
+                           </button>
+                         )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {!isUsersLoading && usersList.filter(u => u.name.toLowerCase().includes(userSearch.toLowerCase()) || u.email.toLowerCase().includes(userSearch.toLowerCase())).length === 0 && (
               <div className="py-20 text-center">
                 <span className="text-sm font-medium text-slate-500">Không tìm thấy người dùng phù hợp.</span>
               </div>

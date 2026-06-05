@@ -102,6 +102,11 @@ export default function App() {
     }
   };
 
+  const handleUserUpdate = (updatedUser: User) => {
+    setUser(updatedUser);
+    localStorage.setItem('virtual_tutor_user', JSON.stringify(updatedUser));
+  };
+
   const getThemeLevel = (grade?: Grade) => {
     if (!grade) return 'high';
     if (grade >= 1 && grade <= 5) return 'primary';
@@ -203,6 +208,7 @@ export default function App() {
               user={user}
               onLogout={handleLogout}
               onGradeChange={handleGradeChange}
+              onUserUpdate={handleUserUpdate}
             />
           </motion.div>
         )}

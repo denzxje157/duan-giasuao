@@ -12,11 +12,13 @@ import Quiz from './dashboard/Quiz.tsx';
 import Workspace from './dashboard/Workspace.tsx';
 import { User, Grade } from '../types';
 import { useStudyTracker } from '../hooks/useStudyTracker';
+import { supabase } from '../lib/supabase';
 
 interface DashboardProps {
   user: User;
   onLogout: () => void;
   onGradeChange: (grade: Grade) => void;
+  onUserUpdate?: (user: User) => void;
 }
 
 export interface WorkspaceConfig {
@@ -26,11 +28,42 @@ export interface WorkspaceConfig {
   subject: string;
 }
 
-import { Sparkles, Trophy, Clock, BrainCircuit, ChevronLeft, ChevronRight, Target, Library as LibraryIcon, MessageSquare, Edit3, User as UserIcon } from 'lucide-react';
+import { Sparkles, Trophy, Clock, BrainCircuit, ChevronLeft, ChevronRight, Target, Library as LibraryIcon, MessageSquare, Edit3, User as UserIcon, Lock } from 'lucide-react';
 
-export default function Dashboard({ user, onLogout, onGradeChange }: DashboardProps) {
+export default function Dashboard({ user, onLogout, onGradeChange, onUserUpdate }: DashboardProps) {
   const [activeTab, setActiveTab] = useState('home');
   const [workspaceConfig, setWorkspaceConfig] = useState<WorkspaceConfig | null>(null);
+
+  const [isLocked, setIsLocked] = useState(false);
+
+  useEffect(() => {
+    if (user && !user.isGuest && user.id) {
+      const checkLockStatus = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', user.id)
+            .single();
+          if (data && data.full_name) {
+            const parts = data.full_name.split('|');
+            const hasLocked = parts.some(p => p.trim() === 'status:locked');
+            if (hasLocked) {
+              setIsLocked(true);
+            } else {
+              setIsLocked(false);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to check lock status:", e);
+        }
+      };
+      checkLockStatus();
+      
+      const interval = setInterval(checkLockStatus, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   // States for parallel study tracking UI
   const [activeTimer, setActiveTimer] = useState<{ sessionSeconds: number; minutes: number; seconds: number; subject: string } | null>(null);
@@ -103,7 +136,7 @@ export default function Dashboard({ user, onLogout, onGradeChange }: DashboardPr
       case 'progress':
         return <Progress user={user} />;
       case 'profile':
-        return <Profile user={user} onLogout={onLogout} />;
+        return <Profile user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />;
       default:
         return (
           <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
@@ -115,6 +148,28 @@ export default function Dashboard({ user, onLogout, onGradeChange }: DashboardPr
         );
     }
   };
+
+  if (isLocked) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 w-full h-full">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl text-center space-y-6">
+          <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto text-3xl">
+            <Lock className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-xl font-bold text-white">Tài khoản đã bị khóa</h3>
+            <p className="text-sm text-slate-400 font-medium">Tài khoản của bạn tạm thời bị khóa bởi Quản trị viên do vi phạm điều khoản hoặc nghi ngờ bất thường.</p>
+          </div>
+          <button 
+            onClick={onLogout}
+            className="w-full py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-colors shadow-lg"
+          >
+            Đăng xuất
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden relative">

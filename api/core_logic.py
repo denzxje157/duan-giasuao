@@ -259,7 +259,7 @@ def _embed_with_provider(text, api_key=None, model_name="gemini-embedding-001"):
     raise Exception("No embedding provider available or all providers failed")
 
 
-def _generate_stream(prompt, api_key, model_name="gemini-2.5-flash", image_data=None):
+def _generate_stream(prompt, api_key, model_name="gemini-2.5-flash", image_data=None, temperature=None, max_tokens=None):
     if genai is not None:
         if hasattr(genai, 'configure'):
             try:
@@ -282,7 +282,18 @@ def _generate_stream(prompt, api_key, model_name="gemini-2.5-flash", image_data=
                     except Exception as img_err:
                         print(f"⚠️ Cannot decode image for Gemini: {img_err}")
                 
-                response_iter = model.generate_content(contents, stream=True)
+                # Dynamic generation config
+                generation_config = {}
+                if temperature is not None:
+                    generation_config["temperature"] = temperature
+                if max_tokens is not None:
+                    generation_config["max_output_tokens"] = max_tokens
+
+                response_iter = model.generate_content(
+                    contents, 
+                    stream=True,
+                    generation_config=generation_config if generation_config else None
+                )
                 for chunk in response_iter:
                     text = getattr(chunk, 'text', None) or getattr(chunk, 'content', None)
                     if text:
@@ -328,12 +339,14 @@ def get_all_keys():
         keys.append(direct_env_key.strip())
 
     try:
-        res = supabase.table("system_configs").select("key_value").execute()
+        res = supabase.table("system_configs").select("key_name, key_value").execute()
         if res.data:
             for row in res.data:
+                name = row.get("key_name") or ""
                 val = row.get("key_value")
-                if val and val.strip() and val.strip() not in keys:
-                    keys.append(val.strip())
+                if name.startswith("gemini_api_key") or name == "api_key" or (val and val.startswith("AIzaSy")):
+                    if val and val.strip() and val.strip() not in keys:
+                        keys.append(val.strip())
     except Exception as e:
         print(f"⚠️ Warning: could not load API keys from Supabase system_configs: {e}")
 
@@ -1060,6 +1073,35 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
         return
 
     db_client = client if client is not None else supabase
+    
+    # Load system configs from DB
+    sys_configs = {}
+    try:
+        res = db_client.table("system_configs").select("key_name, key_value").execute()
+        if res.data:
+            for row in res.data:
+                k = row.get("key_name")
+                v = row.get("key_value")
+                if k and v is not None:
+                    sys_configs[k] = v
+    except Exception as sys_err:
+        print(f"⚠️ Warning: could not load configs from system_configs: {sys_err}")
+
+    db_temperature = None
+    db_max_tokens = None
+    if "temperature" in sys_configs:
+        try:
+            db_temperature = float(sys_configs["temperature"])
+        except ValueError:
+            pass
+    if "max_tokens" in sys_configs:
+        try:
+            db_max_tokens = int(sys_configs["max_tokens"])
+        except ValueError:
+            pass
+            
+    system_instruction = sys_configs.get("system_prompt") or 'Bạn là Gia sư ảo — được định vị là "Trợ lý sư phạm chống gian lận & thấu cảm", TUYỆT ĐỐI KHÔNG nhận mình là "Chatbot trả lời câu hỏi" thông thường.'
+
     chat_history = []
     is_first_turn = True
     cached_session_context = _get_cached_chat_session_context(session_id)
@@ -1244,8 +1286,23 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
     learner_grade = None
     learner_role = None
     learner_email = None
+    learning_style = None
+    daily_goal = None
+    
     if learner_profile:
-        learner_name = learner_profile.get("full_name") or learner_profile.get("name")
+        full_name_raw = learner_profile.get("full_name") or learner_profile.get("name") or ""
+        if "|" in full_name_raw:
+            parts = full_name_raw.split("|")
+            learner_name = parts[0].strip()
+            for part in parts[1:]:
+                part = part.strip()
+                if part.startswith("goal:"):
+                    daily_goal = part[len("goal:"):].strip()
+                elif part.startswith("style:"):
+                    learning_style = part[len("style:"):].strip()
+        else:
+            learner_name = full_name_raw.strip()
+            
         learner_grade = learner_profile.get("grade")
         learner_role = learner_profile.get("role")
         learner_email = learner_profile.get("email")
@@ -1259,6 +1316,17 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
         learner_lines.append(f"- Lớp: {learner_grade}")
     if learner_role:
         learner_lines.append(f"- Vai trò: {learner_role}")
+    if daily_goal:
+        learner_lines.append(f"- Mục tiêu học tập hàng ngày: {daily_goal} phút")
+    if learning_style:
+        learner_lines.append(f"- Phong cách học tập: {learning_style}")
+        if learning_style in ["theory", "Lý thuyết"]:
+            learner_lines.append("- Hướng dẫn phong cách: Học sinh chọn phong cách học lý thuyết. Giải thích các khái niệm chuyên sâu, cung cấp định nghĩa, bản chất và các ví dụ lý thuyết cặn kẽ.")
+        elif learning_style in ["practice", "Thực hành"]:
+            learner_lines.append("- Hướng dẫn phong cách: Học sinh chọn phong cách học thực hành. Hãy ưu tiên gợi mở bài tập, ví dụ thực tế và áp dụng phương pháp Socratic để học sinh tự suy luận từng bước.")
+        elif learning_style in ["concise", "Ngắn gọn"]:
+            learner_lines.append("- Hướng dẫn phong cách: Học sinh chọn phong cách học ngắn gọn. Hãy trả lời cực kỳ cô đọng, đi thẳng vào vấn đề, sử dụng gạch đầu dòng và loại bỏ mọi câu chữ giải thích rườm rà không cần thiết.")
+            
     if len(learner_lines) == 1:
         learner_lines.append("- Chưa xác định được hồ sơ, hãy xưng hô trung tính và hỏi tên nếu cần.")
     learner_context_text = "\n".join(learner_lines)
@@ -1551,7 +1619,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                 default_suggestions = _default_suggestions_for_subject(target_subject or subject or '')
 
                 prompt = f"""
-                Bạn là Gia sư ảo — được định vị là "Trợ lý sư phạm chống gian lận & thấu cảm", TUYỆT ĐỐI KHÔNG nhận mình là "Chatbot trả lời câu hỏi" thông thường.
+                {system_instruction}
 
                 BẠN LÀ GIA SƯ LỚP {target_grade or learner_grade or 'chưa xác định'} - MÔN {target_subject or subject or 'chưa xác định'}. CHỈ ĐƯỢC PHÉP DÙNG KIẾN THỨC CỦA LỚP {target_grade or learner_grade or 'chưa xác định'}. NẾU TÀI LIỆU ĐƯỢC CUNG CẤP KHÔNG THUỘC LỚP {target_grade or learner_grade or 'chưa xác định'}, HÃY TỪ CHỐI TRẢ LỜI VÀ BÁO LỖI.
 
@@ -1638,7 +1706,14 @@ PHẦN TRẢ LỜI CỦA BẠN PHẢI TUÂN THEO CẤU TRÚC SAU:
 [END_SUGGESTIONS].
                 """
 
-                response_iter = _generate_stream(prompt, api_key, model_name=current_model, image_data=image_data)
+                response_iter = _generate_stream(
+                    prompt, 
+                    api_key, 
+                    model_name=current_model, 
+                    image_data=image_data,
+                    temperature=db_temperature,
+                    max_tokens=db_max_tokens
+                )
                 full_answer = ""
                 for chunk in response_iter:
                     if chunk:
