@@ -19,6 +19,7 @@ export function useStudyTracker(user: User | null, subjectName: string = "Chung"
     if (isNaN(localSeconds)) localSeconds = 0;
 
     const trackActivity = async (minutes: number) => {
+      console.log(`[StudyTracker] Attempting to track ${minutes} minute(s) of study for subject "${subjectName}"...`);
       // 1. Earn XP notification event
       window.dispatchEvent(new CustomEvent('study-xp-earned', {
         detail: {
@@ -29,6 +30,7 @@ export function useStudyTracker(user: User | null, subjectName: string = "Chung"
       }));
 
       if (user.isGuest) {
+        console.log(`[StudyTracker] Guest mode detected. Saving stats to localStorage.`);
         // Track locally for guests (overall stats)
         const statsKey = `gamification_stats_guest`;
         let guestStats = { streak: 1, max_streak: 1, total_study_minutes: 0, total_sp: 0 };
@@ -72,9 +74,13 @@ export function useStudyTracker(user: User | null, subjectName: string = "Chung"
       // Track on database for authenticated users
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.access_token) return;
+        if (!session?.access_token) {
+          console.warn(`[StudyTracker] No active Supabase auth session found! Cannot sync stats to database. Please log in again.`);
+          return;
+        }
 
         const url = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/user/track-activity` : '/api/user/track-activity';
+        console.log(`[StudyTracker] Sending activity to API: ${url}`);
         const response = await fetch(url, {
           method: 'POST',
           headers: {
@@ -88,6 +94,7 @@ export function useStudyTracker(user: User | null, subjectName: string = "Chung"
         });
 
         if (response.ok) {
+          console.log(`[StudyTracker] Successfully synced study activity to database!`);
           // Clear cached stale stats to force overview / progress reload
           const statsKey = `gamification_stats_${userId}`;
           localStorage.removeItem(statsKey);
@@ -96,12 +103,16 @@ export function useStudyTracker(user: User | null, subjectName: string = "Chung"
           window.dispatchEvent(new CustomEvent('study-activity-tracked', {
             detail: { subjectName, minutes, isGuest: false }
           }));
+        } else {
+          const errText = await response.text();
+          console.error(`[StudyTracker] API returned error ${response.status}:`, errText);
         }
       } catch (err) {
-        console.error("Failed to track activity:", err);
+        console.error("[StudyTracker] Failed to track activity due to network/API error:", err);
       }
     };
 
+    console.log(`[StudyTracker] Initializing tracker for user "${userId}" on subject "${subjectName}"...`);
     const intervalId = setInterval(() => {
       // Only track when tab is active and visible
       if (document.visibilityState === 'visible') {
@@ -109,6 +120,11 @@ export function useStudyTracker(user: User | null, subjectName: string = "Chung"
         sessionTotalSeconds += 1;
         sessionStorage.setItem('giasuao_session_seconds', String(sessionTotalSeconds));
         
+        // Log every 10 seconds to show it's active without cluttering console
+        if (localSeconds % 10 === 0) {
+          console.log(`[StudyTracker] Active study time: ${localSeconds}s elapsed for subject "${subjectName}" (cumulative: ${sessionTotalSeconds}s)`);
+        }
+
         // Dispatch live tick event to update active timer UI
         window.dispatchEvent(new CustomEvent('study-tick', {
           detail: {
@@ -130,6 +146,7 @@ export function useStudyTracker(user: User | null, subjectName: string = "Chung"
     }, 1000);
 
     return () => {
+      console.log(`[StudyTracker] Stopping tracker for subject "${subjectName}"...`);
       clearInterval(intervalId);
     };
   }, [user, subjectName]);

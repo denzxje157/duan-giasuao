@@ -1449,11 +1449,18 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                 vn_now = datetime.now(vn_tz)
                 vn_time_str = vn_now.strftime("%H:%M:%S ngày %d/%m/%Y")
                 vn_hour = vn_now.hour
+
+                # Check for debug/test keyword in the user's question to force burnout activation
+                is_test_burnout = any(keyword in str(question).lower() for keyword in ["test-burnout", "test_burnout", "test burnout"])
+                if is_test_burnout:
+                    vn_hour = 23
+                    vn_time_str = "23:45:00 ngày " + vn_now.strftime("%d/%m/%Y")
+
                 user_msg_count = sum(1 for m in chat_history if m.get("role") == "user") + 1
                 
                 # Explicit burnout detection — avoids relying solely on natural-language hints
                 is_late_night = vn_hour >= 23 or vn_hour < 5
-                burnout_active = is_late_night and user_msg_count >= 4
+                burnout_active = (is_late_night and user_msg_count >= 4) or is_test_burnout
                 burnout_signal = (
                     f"⚠️ BURNOUT_ACTIVE: TRUE — Giờ hiện tại là {vn_time_str.split()[0]} (đêm khuya). "
                     f"Học sinh đã hỏi {user_msg_count} câu trong phiên này. "
