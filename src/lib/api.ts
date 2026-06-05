@@ -112,11 +112,27 @@ export async function chatWithAI(
   question: string,
   sessionId?: string
 ): Promise<ReadableStream<Uint8Array> | null> {
+  let accessToken = '';
+  try {
+    if ((supabase.auth as any).getSession) {
+      const maybe = await (supabase.auth as any).getSession();
+      accessToken = maybe?.data?.session?.access_token || '';
+    } else if ((supabase.auth as any).session) {
+      const s = (supabase.auth as any).session();
+      accessToken = s?.access_token || '';
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
   const response = await fetch(`${API_BASE_URL}/api/chat`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({
       question,
       session_id: sessionId,
@@ -428,11 +444,27 @@ export async function streamChatResponse(
   onChunk: (chunk: string) => void,
   sessionId?: string
 ): Promise<string> {
+  let accessToken = '';
+  try {
+    if ((supabase.auth as any).getSession) {
+      const maybe = await (supabase.auth as any).getSession();
+      accessToken = maybe?.data?.session?.access_token || '';
+    } else if ((supabase.auth as any).session) {
+      const s = (supabase.auth as any).session();
+      accessToken = s?.access_token || '';
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
   const response = await fetch(`${API_BASE_URL}/api/chat`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({
       question,
       session_id: sessionId,

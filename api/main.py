@@ -31,6 +31,7 @@ def get_vietnam_date() -> date:
 import requests
 import json
 from uuid import uuid4
+from supabase import create_client
 
 # Import core logic from same folder
 from core_logic import (
@@ -267,6 +268,7 @@ class QuizRequest(BaseModel):
     subject: Optional[str] = None
     file_content: Optional[str] = None
     user_id: Optional[str] = None
+    exclude_questions: Optional[List[str]] = None
 
 
 class FlashcardRequest(BaseModel):
@@ -492,16 +494,17 @@ async def upload_document(file: UploadFile = File(...), grade: str = Form("1"), 
         return {"status": "success", "data": doc_data, "warning": str(e)}
 
 
-def _award_sp_to_user(user_id: str, amount: int):
+def _award_sp_to_user(user_id: str, amount: int, client = None):
     try:
+        db_client = client if client is not None else supabase
         today_str = get_vietnam_date().strftime("%Y-%m-%d")
-        stat_res = supabase.table("user_stats").select("*").eq("user_id", user_id).execute()
+        stat_res = db_client.table("user_stats").select("*").eq("user_id", user_id).execute()
         if stat_res.data and len(stat_res.data) > 0:
             stat = stat_res.data[0]
             new_sp = stat.get("total_sp", 0) + amount
-            supabase.table("user_stats").update({"total_sp": new_sp}).eq("user_id", user_id).execute()
+            db_client.table("user_stats").update({"total_sp": new_sp}).eq("user_id", user_id).execute()
         else:
-            supabase.table("user_stats").insert({
+            db_client.table("user_stats").insert({
                 "user_id": user_id,
                 "streak": 0,
                 "max_streak": 0,
@@ -515,7 +518,14 @@ def _award_sp_to_user(user_id: str, amount: int):
 
 
 @app.post("/api/chat")
-def chat(req: ChatRequest):
+def chat(req: ChatRequest, credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))):
+    user_supabase = supabase
+    if credentials and credentials.credentials:
+        try:
+            user_supabase = _get_supabase_client(credentials)
+        except Exception as client_err:
+            print(f"⚠️ Không thể tạo client Supabase xác thực: {client_err}")
+
     def _normalize_subject(subject: Optional[str]) -> str:
         return str(subject or '').strip().lower()
 
@@ -528,7 +538,7 @@ def chat(req: ChatRequest):
         new_subject = _normalize_subject(req.subject)
 
         try:
-            current_meta = supabase.table("chat_sessions").select("grade,subject").eq("id", req.session_id).limit(1).execute()
+            current_meta = user_supabase.table("chat_sessions").select("grade,subject").eq("id", req.session_id).limit(1).execute()
             row = (current_meta.data or [{}])[0]
             old_grade = str(row.get("grade") or old_grade).strip()
             old_subject = _normalize_subject(row.get("subject") or old_subject)
@@ -549,14 +559,14 @@ def chat(req: ChatRequest):
         try:
             if update_payload:
                 try:
-                    supabase.table("chat_sessions").update(update_payload).eq("id", req.session_id).execute()
+                    user_supabase.table("chat_sessions").update(update_payload).eq("id", req.session_id).execute()
                 except Exception as update_err:
                     print(f"⚠️ Không thể cập nhật grade/subject trong chat_sessions: {update_err}")
                     _cache_session_context(req.session_id, grade=update_payload.get("grade") or cached_context.get("grade"), subject=update_payload.get("subject") or cached_context.get("subject"))
                     lightweight_payload = {key: value for key, value in update_payload.items() if key not in {"grade", "subject"}}
                     if lightweight_payload:
                         try:
-                            supabase.table("chat_sessions").update(lightweight_payload).eq("id", req.session_id).execute()
+                            user_supabase.table("chat_sessions").update(lightweight_payload).eq("id", req.session_id).execute()
                         except Exception as fallback_update_err:
                             print(f"⚠️ Không thể cập nhật chat_sessions tối giản: {fallback_update_err}")
         except Exception as meta_err:
@@ -627,8 +637,8 @@ def chat(req: ChatRequest):
                     {"user_id": user_id_val, "role": "assistant", "content": full_answer, "session_id": sid},
                 ]
                 try:
-                    supabase.table("chat_history").insert(rows).execute()
-                    _award_sp_to_user(user_id_val, 15)
+                    user_supabase.table("chat_history").insert(rows).execute()
+                    _award_sp_to_user(user_id_val, 15, client=user_supabase)
                 except Exception as e:
                     print(f"⚠️ Không thể lưu chat_history: {e}")
         except Exception as e:
@@ -645,7 +655,7 @@ def chat(req: ChatRequest):
 @app.post("/api/generate-quiz")
 def api_generate_quiz(req: QuizRequest):
     try:
-        quiz_data = generate_quiz(req.topic, req.difficulty, req.num_questions, req.grade, req.subject, req.file_content, req.user_id)
+        quiz_data = generate_quiz(req.topic, req.difficulty, req.num_questions, req.grade, req.subject, req.file_content, req.user_id, exclude_questions=req.exclude_questions)
         return {"status": "success", "data": quiz_data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi tạo quiz: {str(e)}")
@@ -712,11 +722,19 @@ def _verify_token_and_get_user(credentials: HTTPAuthorizationCredentials):
     except Exception as e:
         raise HTTPException(status_code=401, detail=f'Failed to verify token: {e}')
 
+def _get_supabase_client(credentials: HTTPAuthorizationCredentials):
+    token = credentials.credentials if credentials else None
+    client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    if token:
+        client.postgrest.headers.update({"Authorization": f"Bearer {token}"})
+    return client
+
 @app.get("/api/user/gamification-stats")
 def get_user_gamification_stats(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
     try:
         user_id = _verify_token_and_get_user(credentials)
-        res = supabase.table("user_stats").select("*").eq("user_id", user_id).execute()
+        user_supabase = _get_supabase_client(credentials)
+        res = user_supabase.table("user_stats").select("*").eq("user_id", user_id).execute()
         if res.data and len(res.data) > 0:
             return {"status": "success", "data": res.data[0]}
         else:
@@ -730,6 +748,7 @@ def get_user_gamification_stats(credentials: HTTPAuthorizationCredentials = Depe
 def get_user_progress_charts(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
     try:
         user_id = _verify_token_and_get_user(credentials)
+        user_supabase = _get_supabase_client(credentials)
         
         # Lấy 7 ngày gần nhất
         today = get_vietnam_date()
@@ -738,7 +757,7 @@ def get_user_progress_charts(credentials: HTTPAuthorizationCredentials = Depends
             target_date = today - timedelta(days=i)
             week_data.append({"date": target_date.strftime("%Y-%m-%d"), "day": target_date.strftime("%A"), "time": 0})
             
-        act_res = supabase.table("user_activities").select("*").eq("user_id", user_id).gte("study_date", (today - timedelta(days=6)).strftime("%Y-%m-%d")).execute()
+        act_res = user_supabase.table("user_activities").select("*").eq("user_id", user_id).gte("study_date", (today - timedelta(days=6)).strftime("%Y-%m-%d")).execute()
         
         activity_dict = {d["date"]: 0 for d in week_data}
         for row in (act_res.data or []):
@@ -752,7 +771,7 @@ def get_user_progress_charts(credentials: HTTPAuthorizationCredentials = Depends
         # Lấy Radar data (tổng hợp theo môn)
         grade = 5
         try:
-            profile_res = supabase.table("profiles").select("grade").eq("id", user_id).execute()
+            profile_res = user_supabase.table("profiles").select("grade").eq("id", user_id).execute()
             if profile_res.data and len(profile_res.data) > 0:
                 grade = int(profile_res.data[0].get("grade") or 5)
         except Exception as profile_err:
@@ -768,7 +787,7 @@ def get_user_progress_charts(credentials: HTTPAuthorizationCredentials = Depends
         else:
             default_subjects = ["Toán", "Ngữ văn", "Tiếng Anh", "Vật lý", "Hóa học", "Sinh học"]
 
-        subject_res = supabase.table("user_activities").select("subject_name, study_minutes").eq("user_id", user_id).execute()
+        subject_res = user_supabase.table("user_activities").select("subject_name, study_minutes").eq("user_id", user_id).execute()
         subject_scores = {subj: 0.0 for subj in default_subjects}
 
         for row in (subject_res.data or []):
@@ -794,7 +813,7 @@ def get_user_progress_charts(credentials: HTTPAuthorizationCredentials = Depends
         yesterday = get_vietnam_date() - timedelta(days=1)
         yesterday_str = yesterday.strftime("%Y-%m-%d")
         
-        yesterday_res = supabase.table("user_activities").select("subject_name, study_minutes").eq("user_id", user_id).eq("study_date", yesterday_str).execute()
+        yesterday_res = user_supabase.table("user_activities").select("subject_name, study_minutes").eq("user_id", user_id).eq("study_date", yesterday_str).execute()
         yesterday_data = []
         for row in (yesterday_res.data or []):
             yesterday_data.append({
@@ -819,16 +838,17 @@ def get_user_progress_charts(credentials: HTTPAuthorizationCredentials = Depends
 def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
     try:
         user_id = _verify_token_and_get_user(credentials)
+        user_supabase = _get_supabase_client(credentials)
         today_str = get_vietnam_date().strftime("%Y-%m-%d")
         
         # Cập nhật user_activities
-        act_res = supabase.table("user_activities").select("id, study_minutes").eq("user_id", user_id).eq("study_date", today_str).eq("subject_name", req.subject_name).execute()
+        act_res = user_supabase.table("user_activities").select("id, study_minutes").eq("user_id", user_id).eq("study_date", today_str).eq("subject_name", req.subject_name).execute()
         if act_res.data and len(act_res.data) > 0:
             act_id = act_res.data[0]["id"]
             new_mins = (act_res.data[0].get("study_minutes") or 0) + req.study_minutes
-            supabase.table("user_activities").update({"study_minutes": new_mins}).eq("id", act_id).execute()
+            user_supabase.table("user_activities").update({"study_minutes": new_mins}).eq("id", act_id).execute()
         else:
-            supabase.table("user_activities").insert({
+            user_supabase.table("user_activities").insert({
                 "user_id": user_id,
                 "study_date": today_str,
                 "subject_name": req.subject_name,
@@ -836,7 +856,7 @@ def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizatio
             }).execute()
 
         # Cập nhật user_stats (Streak, SP, Total Minutes)
-        stat_res = supabase.table("user_stats").select("*").eq("user_id", user_id).execute()
+        stat_res = user_supabase.table("user_stats").select("*").eq("user_id", user_id).execute()
         sp_earned = 10 * req.study_minutes # 10 điểm mỗi phút
         
         if stat_res.data and len(stat_res.data) > 0:
@@ -854,7 +874,7 @@ def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizatio
                 else:
                     current_streak = 1
                     
-            supabase.table("user_stats").update({
+            user_supabase.table("user_stats").update({
                 "streak": current_streak,
                 "max_streak": max(current_streak, stat.get("max_streak") or 0),
                 "total_study_minutes": (stat.get("total_study_minutes") or 0) + req.study_minutes,
@@ -862,7 +882,7 @@ def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizatio
                 "last_study_date": today_str
             }).eq("user_id", user_id).execute()
         else:
-            supabase.table("user_stats").insert({
+            user_supabase.table("user_stats").insert({
                 "user_id": user_id,
                 "streak": 1,
                 "max_streak": 1,
@@ -883,15 +903,16 @@ def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizatio
 def add_user_sp(req: AddSPRequest, credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
     try:
         user_id = _verify_token_and_get_user(credentials)
+        user_supabase = _get_supabase_client(credentials)
         today_str = get_vietnam_date().strftime("%Y-%m-%d")
         
-        stat_res = supabase.table("user_stats").select("*").eq("user_id", user_id).execute()
+        stat_res = user_supabase.table("user_stats").select("*").eq("user_id", user_id).execute()
         if stat_res.data and len(stat_res.data) > 0:
             stat = stat_res.data[0]
             new_sp = stat.get("total_sp", 0) + req.sp_amount
-            supabase.table("user_stats").update({"total_sp": new_sp}).eq("user_id", user_id).execute()
+            user_supabase.table("user_stats").update({"total_sp": new_sp}).eq("user_id", user_id).execute()
         else:
-            supabase.table("user_stats").insert({
+            user_supabase.table("user_stats").insert({
                 "user_id": user_id,
                 "streak": 0,
                 "max_streak": 0,
@@ -913,10 +934,11 @@ def get_chat_history_me(session_id: Optional[str] = None, credentials: HTTPAutho
     """
     try:
         token_user_id = _verify_token_and_get_user(credentials)
+        user_supabase = _get_supabase_client(credentials)
 
         # Query chat_history for this user
         try:
-            query = supabase.table('chat_history').select('id, user_id, role, content, session_id, timestamp').eq('user_id', token_user_id)
+            query = user_supabase.table('chat_history').select('id, user_id, role, content, session_id, timestamp').eq('user_id', token_user_id)
             if session_id:
                 query = query.eq('session_id', session_id)
             res = query.execute()
@@ -938,31 +960,16 @@ def get_chat_history_me(session_id: Optional[str] = None, credentials: HTTPAutho
 @app.get("/api/chat-sessions/me")
 def get_chat_sessions_me(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
     try:
-        token = credentials.credentials if credentials else None
-        if not token:
-            raise HTTPException(status_code=401, detail="Missing Authorization token")
+        token_user_id = _verify_token_and_get_user(credentials)
+        user_supabase = _get_supabase_client(credentials)
 
-        auth_url = (SUPABASE_URL.rstrip('/') if SUPABASE_URL else os.getenv('SUPABASE_URL', '')).rstrip('/') + '/auth/v1/user'
-        headers = {
-            'Authorization': f'Bearer {token}',
-            'apikey': SUPABASE_KEY or os.getenv('SUPABASE_KEY', ''),
-        }
-        r = requests.get(auth_url, headers=headers, timeout=5)
-        if r.status_code != 200:
-            raise HTTPException(status_code=401, detail='Invalid or expired token')
-
-        user_info = r.json()
-        token_user_id = user_info.get('id')
-        if not token_user_id:
-            raise HTTPException(status_code=401, detail='Invalid token payload')
-
-        profile_res = supabase.table('profiles').select('grade').eq('id', token_user_id).execute()
+        profile_res = user_supabase.table('profiles').select('grade').eq('id', token_user_id).execute()
         current_grade = None
         if profile_res.data:
             current_grade = str(profile_res.data[0].get('grade') or '')
 
         # 1. Fetch metadata without the large content field
-        history_res = supabase.table('chat_history').select('id, user_id, role, session_id, timestamp').eq('user_id', token_user_id).execute()
+        history_res = user_supabase.table('chat_history').select('id, user_id, role, session_id, timestamp').eq('user_id', token_user_id).execute()
         history_rows_meta = history_res.data or []
         
         # Sort them by timestamp to correctly identify first and last messages
@@ -993,7 +1000,7 @@ def get_chat_sessions_me(credentials: HTTPAuthorizationCredentials = Depends(HTT
         if content_ids_to_fetch:
             try:
                 id_list = list(content_ids_to_fetch)
-                content_res = supabase.table('chat_history').select('id, content').in_('id', id_list).execute()
+                content_res = user_supabase.table('chat_history').select('id, content').in_('id', id_list).execute()
                 for c_row in (content_res.data or []):
                     content_map[c_row['id']] = c_row.get('content') or ''
             except Exception as content_err:
@@ -1011,7 +1018,7 @@ def get_chat_sessions_me(credentials: HTTPAuthorizationCredentials = Depends(HTT
         session_rows = []
         if session_ids:
             try:
-                session_res = supabase.table('chat_sessions').select('*').in_('id', session_ids).execute()
+                session_res = user_supabase.table('chat_sessions').select('*').in_('id', session_ids).execute()
                 session_rows = session_res.data or []
             except Exception as e:
                 print(f'⚠️ Không thể lấy chat_sessions: {e}')
@@ -1027,31 +1034,16 @@ def get_chat_sessions_me(credentials: HTTPAuthorizationCredentials = Depends(HTT
 @app.delete("/api/chat-sessions/me/{session_id}")
 def delete_chat_session_me(session_id: str, credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
     try:
-        token = credentials.credentials if credentials else None
-        if not token:
-            raise HTTPException(status_code=401, detail="Missing Authorization token")
-
-        auth_url = (SUPABASE_URL.rstrip('/') if SUPABASE_URL else os.getenv('SUPABASE_URL', '')).rstrip('/') + '/auth/v1/user'
-        headers = {
-            'Authorization': f'Bearer {token}',
-            'apikey': SUPABASE_KEY or os.getenv('SUPABASE_KEY', ''),
-        }
-        r = requests.get(auth_url, headers=headers, timeout=5)
-        if r.status_code != 200:
-            raise HTTPException(status_code=401, detail='Invalid or expired token')
-
-        user_info = r.json()
-        token_user_id = user_info.get('id')
-        if not token_user_id:
-            raise HTTPException(status_code=401, detail='Invalid token payload')
+        token_user_id = _verify_token_and_get_user(credentials)
+        user_supabase = _get_supabase_client(credentials)
 
         try:
-            supabase.table('chat_history').delete().eq('user_id', token_user_id).eq('session_id', session_id).execute()
+            user_supabase.table('chat_history').delete().eq('user_id', token_user_id).eq('session_id', session_id).execute()
         except Exception as e:
             print(f'⚠️ Lỗi xóa chat_history session {session_id}: {e}')
 
         try:
-            supabase.table('chat_sessions').delete().eq('id', session_id).execute()
+            user_supabase.table('chat_sessions').delete().eq('id', session_id).execute()
         except Exception as e:
             print(f'⚠️ Lỗi xóa chat_sessions session {session_id}: {e}')
 
@@ -1065,33 +1057,18 @@ def delete_chat_session_me(session_id: str, credentials: HTTPAuthorizationCreden
 @app.post("/api/chat-sessions/reset-current")
 def reset_current_chat_session(req: ResetSessionRequest, credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer())):
     try:
-        token = credentials.credentials if credentials else None
-        if not token:
-            raise HTTPException(status_code=401, detail="Missing Authorization token")
-
-        auth_url = (SUPABASE_URL.rstrip('/') if SUPABASE_URL else os.getenv('SUPABASE_URL', '')).rstrip('/') + '/auth/v1/user'
-        headers = {
-            'Authorization': f'Bearer {token}',
-            'apikey': SUPABASE_KEY or os.getenv('SUPABASE_KEY', ''),
-        }
-        r = requests.get(auth_url, headers=headers, timeout=5)
-        if r.status_code != 200:
-            raise HTTPException(status_code=401, detail='Invalid or expired token')
-
-        user_info = r.json()
-        token_user_id = user_info.get('id')
-        if not token_user_id:
-            raise HTTPException(status_code=401, detail='Invalid token payload')
+        token_user_id = _verify_token_and_get_user(credentials)
+        user_supabase = _get_supabase_client(credentials)
 
         current_session_id = (req.current_session_id or '').strip()
         if req.clear_previous and current_session_id:
             try:
-                supabase.table('chat_history').delete().eq('user_id', token_user_id).eq('session_id', current_session_id).execute()
+                user_supabase.table('chat_history').delete().eq('user_id', token_user_id).eq('session_id', current_session_id).execute()
             except Exception as e:
                 print(f'⚠️ Không thể xóa chat_history của phiên cũ: {e}')
 
             try:
-                supabase.table('chat_sessions').delete().eq('id', current_session_id).execute()
+                user_supabase.table('chat_sessions').delete().eq('id', current_session_id).execute()
             except Exception as e:
                 print(f'⚠️ Không thể xóa chat_sessions của phiên cũ: {e}')
 
@@ -1113,25 +1090,18 @@ def reset_current_chat_session(req: ResetSessionRequest, credentials: HTTPAuthor
 def init_session(req: InitSessionRequest, credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))):
     try:
         token_user_id = None
-        token = credentials.credentials if credentials else None
-        if token:
+        user_supabase = supabase
+        if credentials and credentials.credentials:
             try:
-                auth_url = (SUPABASE_URL.rstrip('/') if SUPABASE_URL else os.getenv('SUPABASE_URL', '')).rstrip('/') + '/auth/v1/user'
-                headers = {
-                    'Authorization': f'Bearer {token}',
-                    'apikey': SUPABASE_KEY or os.getenv('SUPABASE_KEY', ''),
-                }
-                r = requests.get(auth_url, headers=headers, timeout=5)
-                if r.status_code == 200:
-                    user_info = r.json()
-                    token_user_id = user_info.get('id')
+                token_user_id = _verify_token_and_get_user(credentials)
+                user_supabase = _get_supabase_client(credentials)
             except Exception as auth_err:
                 print(f'⚠️ Không thể xác thực token cho init-session: {auth_err}')
 
         previous_session_id = (req.current_session_id or '').strip()
         if previous_session_id:
             try:
-                history_delete = supabase.table('chat_history').delete().eq('session_id', previous_session_id)
+                history_delete = user_supabase.table('chat_history').delete().eq('session_id', previous_session_id)
                 if token_user_id:
                     history_delete = history_delete.eq('user_id', token_user_id)
                 history_delete.execute()
@@ -1139,7 +1109,7 @@ def init_session(req: InitSessionRequest, credentials: Optional[HTTPAuthorizatio
                 print(f'⚠️ Không thể xóa chat_history cũ: {e}')
 
             try:
-                supabase.table('chat_sessions').delete().eq('id', previous_session_id).execute()
+                user_supabase.table('chat_sessions').delete().eq('id', previous_session_id).execute()
             except Exception as e:
                 print(f'⚠️ Không thể xóa chat_sessions cũ: {e}')
 
@@ -1152,12 +1122,12 @@ def init_session(req: InitSessionRequest, credentials: Optional[HTTPAuthorizatio
         }
         insert_payload = {key: value for key, value in insert_payload.items() if value is not None}
         try:
-            supabase.table('chat_sessions').insert(insert_payload).execute()
+            user_supabase.table('chat_sessions').insert(insert_payload).execute()
         except Exception as e:
             print(f'⚠️ Không thể tạo chat_sessions mới: {e}')
             minimal_payload = {'id': new_session_id, 'messages': []}
             try:
-                supabase.table('chat_sessions').insert(minimal_payload).execute()
+                user_supabase.table('chat_sessions').insert(minimal_payload).execute()
             except Exception as fallback_err:
                 print(f'⚠️ Không thể tạo chat_sessions tối giản: {fallback_err}')
 

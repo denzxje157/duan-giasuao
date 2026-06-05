@@ -492,7 +492,7 @@ def _build_default_chat_title(subject=None, grade=None):
     return clean_subject
 
 
-def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, file_content=None, user_id=None, model_name="gemini-2.5-flash"):
+def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, file_content=None, user_id=None, model_name="gemini-2.5-flash", exclude_questions=None):
     if genai is None or not topic:
         return []
     
@@ -526,11 +526,17 @@ def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, fi
         except Exception as e:
             print(f"Lỗi lấy dữ liệu RAG cho quiz: {e}")
 
+    exclude_instruction = ""
+    if exclude_questions and len(exclude_questions) > 0:
+        exclude_str = "\n".join(f"- {q}" for q in exclude_questions)
+        exclude_instruction = f"\nTUYỆT ĐỐI KHÔNG tạo các câu hỏi trùng hoặc tương tự với các câu hỏi sau:\n{exclude_str}\n"
+
     prompt = f"""
     Bạn là một giáo viên chuyên ra đề thi. Hãy tạo một bài trắc nghiệm về chủ đề: '{topic}'.{file_context}
     Môn học: {subject or 'Không xác định'}, Lớp: {grade or 'Không xác định'}.
     Độ khó: {difficulty}.
     Số lượng câu hỏi: {num_questions}.
+    {exclude_instruction}
     
     Yêu cầu định dạng đầu ra PHẢI LÀ JSON HỢP LỆ (không bọc trong markdown block ```json ... ```, chỉ xuất ra mảng JSON thuần túy).
     Cấu trúc mỗi câu hỏi trong mảng JSON:

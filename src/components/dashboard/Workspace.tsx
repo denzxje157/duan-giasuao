@@ -4,6 +4,7 @@ import { MessageSquare, Send, Sparkles, User, Bot, Maximize2, Minimize2, Setting
 import { GoogleGenAI } from "@google/genai";
 import { User as UserType } from '../../types';
 import { uploadDocument, API_BASE_URL } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import { convertMathToVietnameseSpeech } from './AIChat.tsx';
 
 // Markdown & Math
@@ -265,13 +266,27 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
       const apiKey = localStorage.getItem('admin_gemini_api_key') || process.env.GEMINI_API_KEY;
       const learningContext = `Bạn là Gia sư AI đang hỗ trợ học sinh học cuốn sách "${displayTitle}". Hãy trả lời các câu hỏi dựa trên ngữ cảnh của cuốn sách này. Trình bày bằng tiếng Việt, sử dụng markdown và KaTeX cho công thức toán học ($ inline, $$ block).`;
       
+      let accessToken = '';
+      try {
+        const maybeSession = await supabase.auth.getSession();
+        accessToken = maybeSession.data.session?.access_token || '';
+      } catch (tokenErr) {
+        console.warn("Failed to get session token:", tokenErr);
+      }
+
       const chatUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/chat` : '/api/chat';
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey || '',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const response = await fetch(chatUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey || '',
-        },
+        headers,
         body: JSON.stringify({
           question: userMsg,
           user_id: user.id || undefined,

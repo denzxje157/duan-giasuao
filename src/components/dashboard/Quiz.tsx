@@ -52,6 +52,66 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
   const [quizData, setQuizData] = useState<any[]>([]);
   const [quizFinished, setQuizFinished] = useState(false);
 
+  // Recovery & Exclusion Keys
+  const activeQuizKey = `active_quiz_${user.id || 'guest'}`;
+  const doneQuestionsKey = `done_questions_${user.id || 'guest'}`;
+
+  const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false);
+  const [pendingQuizState, setPendingQuizState] = useState<any>(null);
+
+  const [doneQuestions, setDoneQuestions] = useState<string[]>(() => {
+    try {
+      const cached = localStorage.getItem(doneQuestionsKey);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Check for active quiz on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(activeQuizKey);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.quizData && parsed.quizData.length > 0 && !parsed.quizFinished) {
+          setPendingQuizState(parsed);
+          setShowRecoveryPrompt(true);
+        }
+      } catch (e) {
+        console.error("Failed to parse active quiz state:", e);
+      }
+    }
+  }, [user.id]);
+
+  const saveActiveQuizState = (
+    qData: any[],
+    index: number,
+    sc: number,
+    selAns: number | null,
+    expl: boolean,
+    finished: boolean,
+    curTopic: string,
+    curDiff: string,
+    curNum: number
+  ) => {
+    if (qData && qData.length > 0 && !finished) {
+      localStorage.setItem(activeQuizKey, JSON.stringify({
+        quizData: qData,
+        currentQuestionIndex: index,
+        score: sc,
+        selectedAnswer: selAns,
+        showExplanation: expl,
+        quizFinished: finished,
+        topic: curTopic,
+        difficulty: curDiff,
+        numQuestions: curNum
+      }));
+    } else {
+      localStorage.removeItem(activeQuizKey);
+    }
+  };
+
   // Flashcard states
   const [isFlipped, setIsFlipped] = useState(false);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -88,6 +148,7 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
       setSelectedAnswer(null);
       setShowExplanation(false);
       setQuizFinished(false);
+      saveActiveQuizState(item.questions, 0, 0, null, false, false, item.topic, item.difficulty || 'Trung bình', item.numQuestions || item.questions.length);
       setActiveMainTab('create');
     } else {
       setFlashcardsData(item.cards);
@@ -113,7 +174,8 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
             difficulty,
             num_questions: numQuestions,
             grade: String(user.grade),
-            file_content: fileContent
+            file_content: fileContent,
+            exclude_questions: doneQuestions
           })
         });
         const data = await res.json();
@@ -124,6 +186,7 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
           setSelectedAnswer(null);
           setShowExplanation(false);
           setQuizFinished(false);
+          saveActiveQuizState(data.data, 0, 0, null, false, false, topic, difficulty, numQuestions);
           // Save to quiz history
           const newQuizHistoryItem = {
             id: Date.now().toString(),
@@ -240,9 +303,12 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
     if (showExplanation || quizData.length === 0) return;
     setSelectedAnswer(index);
     setShowExplanation(true);
-    if (index === quizData[currentQuestionIndex]?.correctAnswer) {
-      setScore(prev => prev + 1);
+    const isCorrect = index === quizData[currentQuestionIndex]?.correctAnswer;
+    const newScore = isCorrect ? score + 1 : score;
+    if (isCorrect) {
+      setScore(newScore);
     }
+    saveActiveQuizState(quizData, currentQuestionIndex, newScore, index, true, false, topic, difficulty, numQuestions);
   };
 
   const saveQuizScore = async (finalScore: number) => {
@@ -268,13 +334,27 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
   };
 
   const handleNextQuestion = () => {
+    // Save completed question text to doneQuestions list
+    const currentQuestionText = quizData[currentQuestionIndex]?.question;
+    if (currentQuestionText) {
+      setDoneQuestions(prev => {
+        if (prev.includes(currentQuestionText)) return prev;
+        const updated = [currentQuestionText, ...prev].slice(0, 50);
+        localStorage.setItem(doneQuestionsKey, JSON.stringify(updated));
+        return updated;
+      });
+    }
+
     setSelectedAnswer(null);
     setShowExplanation(false);
     if (currentQuestionIndex < quizData.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
+      const nextIndex = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(nextIndex);
+      saveActiveQuizState(quizData, nextIndex, score, null, false, false, topic, difficulty, numQuestions);
     } else {
       setQuizFinished(true);
       saveQuizScore(score);
+      localStorage.removeItem(activeQuizKey);
     }
   };
 
@@ -544,6 +624,7 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
                             setSelectedAnswer(null);
                             setShowExplanation(false);
                             setQuizFinished(false);
+                            saveActiveQuizState(quizData, 0, 0, null, false, false, topic, difficulty, numQuestions);
                           }}
                           className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2"
                         >
@@ -558,6 +639,7 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
                             setSelectedAnswer(null);
                             setShowExplanation(false);
                             setQuizFinished(false);
+                            localStorage.removeItem(activeQuizKey);
                           }}
                           className="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
                         >
@@ -638,6 +720,48 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
                         )}
                       </AnimatePresence>
                     </>
+                  ) : showRecoveryPrompt && pendingQuizState ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center space-y-6 max-w-md mx-auto py-10">
+                      <div className="w-20 h-20 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center animate-bounce shrink-0">
+                        <BrainCircuit className="w-10 h-10" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-slate-800">Khôi phục bài tập dở dang?</h3>
+                        <p className="text-slate-500 mt-2 text-sm leading-relaxed font-semibold">
+                          Bạn có một bài trắc nghiệm chưa hoàn thành về chủ đề <span className="text-brand-600 font-bold">"{pendingQuizState.topic}"</span> ({pendingQuizState.quizData?.length} câu, độ khó: {pendingQuizState.difficulty}). Bạn có muốn làm tiếp không?
+                        </p>
+                      </div>
+                      <div className="flex gap-4 w-full">
+                        <button
+                          onClick={() => {
+                            localStorage.removeItem(activeQuizKey);
+                            setShowRecoveryPrompt(false);
+                            setPendingQuizState(null);
+                          }}
+                          className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-all"
+                        >
+                          Bỏ qua
+                        </button>
+                        <button
+                          onClick={() => {
+                            setQuizData(pendingQuizState.quizData);
+                            setCurrentQuestionIndex(pendingQuizState.currentQuestionIndex);
+                            setScore(pendingQuizState.score);
+                            setSelectedAnswer(pendingQuizState.selectedAnswer);
+                            setShowExplanation(pendingQuizState.showExplanation);
+                            setQuizFinished(pendingQuizState.quizFinished);
+                            setTopic(pendingQuizState.topic);
+                            setDifficulty(pendingQuizState.difficulty || 'Trung bình');
+                            setNumQuestions(pendingQuizState.numQuestions || 10);
+                            setShowRecoveryPrompt(false);
+                            setPendingQuizState(null);
+                          }}
+                          className="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl transition-all shadow-md"
+                        >
+                          Làm tiếp
+                        </button>
+                      </div>
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
                       <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center">

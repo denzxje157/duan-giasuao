@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { MessageSquare, Sparkles, User, Bot, Send, Plus, Menu, Moon, Sun, Pen, Mic, Volume2, VolumeX, Settings } from 'lucide-react';
 import { User as UserType } from '../../types';
 import { fetchChatHistory, fetchChatSessions, deleteChatSession, API_BASE_URL, ChatHistoryRow, ChatSessionGroup, ChatSessionItem } from '../../lib/api';
+import { supabase } from '../../lib/supabase';
 import ChatSidebar from './ChatSidebar';
 import DrawingCanvas from './DrawingCanvas';
 import ReactMarkdown from 'react-markdown';
@@ -1212,14 +1213,28 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
     try {
       const apiKey = localStorage.getItem('admin_gemini_api_key') || process.env.GEMINI_API_KEY;
       
+      let accessToken = '';
+      try {
+        const maybeSession = await supabase.auth.getSession();
+        accessToken = maybeSession.data.session?.access_token || '';
+      } catch (tokenErr) {
+        console.warn("Failed to get session token:", tokenErr);
+      }
+
       const chatUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/chat` : '/api/chat';
       const activeSessionId = options?.sessionIdOverride !== undefined ? options.sessionIdOverride : sessionId;
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey || '',
+      };
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
       const response = await fetch(chatUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey || '',
-        },
+        headers,
         body: JSON.stringify({
           question: userMsg,
           session_id: activeSessionId || undefined,
