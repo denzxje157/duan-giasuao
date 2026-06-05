@@ -173,27 +173,27 @@ def _cache_document_context(doc_id, source_name=None, subject=None):
 
 def _infer_subject_from_text(text):
     content = (text or "").lower()
-    if "tích phân" in content:
+    if "tích phân" in content or "tich phan" in content:
         return "Tích phân"
-    if "đạo hàm" in content:
+    if "đạo hàm" in content or "dao ham" in content:
         return "Đạo hàm"
-    if "toán" in content:
+    if "toán" in content or "toan" in content:
         return "Toán"
-    if "sinh học" in content:
+    if "sinh học" in content or "sinh hoc" in content:
         return "Sinh học"
-    if "ngữ văn" in content or "văn" in content:
+    if "ngữ văn" in content or "ngu van" in content or "văn" in content or "van" in content:
         return "Ngữ văn"
-    if "tiếng anh" in content:
+    if "tiếng anh" in content or "tieng anh" in content:
         return "Tiếng Anh"
-    if "vật lý" in content:
+    if "vật lý" in content or "vat ly" in content or "vật li" in content or "vat li" in content:
         return "Vật lý"
-    if "hóa" in content:
+    if "hóa" in content or "hoa" in content:
         return "Hóa học"
-    if "lịch sử" in content:
+    if "lịch sử" in content or "lich su" in content:
         return "Lịch sử"
-    if "địa lý" in content:
+    if "địa lý" in content or "dia ly" in content or "địa li" in content or "dia li" in content:
         return "Địa lý"
-    if "tin học" in content:
+    if "tin học" in content or "tin hoc" in content:
         return "Tin học"
     return "Môn học"
 
@@ -379,7 +379,7 @@ def refresh_available_keys():
     return AVAILABLE_KEYS
 
 
-def get_user_profile(user_id):
+def get_user_profile(user_id, client=None):
     if not user_id or str(user_id).strip() == "guest":
         return None
 
@@ -389,8 +389,9 @@ def get_user_profile(user_id):
     except ValueError:
         return None
 
+    db_client = client if client is not None else supabase
     try:
-        res = supabase.table("profiles").select("id, email, full_name, grade, role").eq("id", user_id).execute()
+        res = db_client.table("profiles").select("id, email, full_name, grade, role").eq("id", user_id).execute()
         if res.data and len(res.data) > 0:
             return res.data[0]
     except Exception as e:
@@ -492,17 +493,18 @@ def _build_default_chat_title(subject=None, grade=None):
     return clean_subject
 
 
-def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, file_content=None, user_id=None, model_name="gemini-2.5-flash", exclude_questions=None):
+def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, file_content=None, user_id=None, model_name="gemini-2.5-flash", exclude_questions=None, client=None):
     if genai is None or not topic:
         return []
     
+    db_client = client if client is not None else supabase
     file_context = ""
     if file_content:
         file_context = f"\n\nDựa trên nội dung tài liệu do người dùng tải lên sau:\n{file_content}\n"
     else:
         try:
             # Query document metadata/IDs only to avoid loading large content columns over network
-            docs_query = supabase.table("documents").select("id,name")
+            docs_query = db_client.table("documents").select("id,name")
             if grade: docs_query = docs_query.eq("grade", str(grade).strip())
             if subject: docs_query = docs_query.eq("subject", subject)
             docs_rows = docs_query.limit(10).execute().data or []
@@ -586,17 +588,18 @@ def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, fi
     return []
 
 
-def generate_flashcards(topic, grade=None, subject=None, file_content=None, user_id=None, model_name="gemini-2.5-flash"):
+def generate_flashcards(topic, grade=None, subject=None, file_content=None, user_id=None, model_name="gemini-2.5-flash", client=None):
     if genai is None or not topic:
         return []
         
+    db_client = client if client is not None else supabase
     file_context = ""
     if file_content:
         file_context = f"\n\nDựa trên nội dung tài liệu do người dùng tải lên sau:\n{file_content}\n"
     else:
         try:
             # Query document metadata/IDs only to avoid loading large content columns over network
-            docs_query = supabase.table("documents").select("id,name")
+            docs_query = db_client.table("documents").select("id,name")
             if grade: docs_query = docs_query.eq("grade", str(grade).strip())
             if subject: docs_query = docs_query.eq("subject", subject)
             docs_rows = docs_query.limit(10).execute().data or []
@@ -907,9 +910,24 @@ def _chunk_text(text, chunk_size=1500, overlap=200):
     return chunks
 
 
-def save_document_to_db(text_content, source_name, doc_id):
-    inferred_subject = _infer_subject_from_text(f"{source_name or ''} {text_content or ''}")
-    _cache_document_context(doc_id, source_name=source_name, subject=inferred_subject)
+def save_document_to_db(text_content, source_name, doc_id, client=None):
+    db_client = client if client is not None else supabase
+    
+    # Fetch existing document to check if it already has a subject
+    final_subject = None
+    try:
+        doc_res = db_client.table("documents").select("subject").eq("id", doc_id).execute()
+        if doc_res.data and len(doc_res.data) > 0:
+            existing_doc = doc_res.data[0]
+            if existing_doc and existing_doc.get("subject") and str(existing_doc.get("subject")).strip():
+                final_subject = existing_doc.get("subject")
+    except Exception as doc_fetch_err:
+        print(f"⚠️ Warning: failed to fetch existing document subject: {doc_fetch_err}")
+
+    if not final_subject:
+        final_subject = _infer_subject_from_text(f"{source_name or ''} {text_content or ''}")
+        
+    _cache_document_context(doc_id, source_name=source_name, subject=final_subject)
     
     try:
         # 1. Split text into chunks
@@ -917,7 +935,7 @@ def save_document_to_db(text_content, source_name, doc_id):
         
         # 2. Delete existing chunks for this document to avoid duplicates on retry/update
         try:
-            supabase.table("document_chunks").delete().eq("document_id", doc_id).execute()
+            db_client.table("document_chunks").delete().eq("document_id", doc_id).execute()
         except Exception as del_err:
             print(f"⚠️ Warning: could not delete old chunks for document {doc_id}: {del_err}")
 
@@ -944,14 +962,14 @@ def save_document_to_db(text_content, source_name, doc_id):
                 
         if chunk_rows:
             try:
-                supabase.table("document_chunks").insert(chunk_rows).execute()
+                db_client.table("document_chunks").insert(chunk_rows).execute()
                 print(f"💾 [Supabase Bulk Insert] Successfully saved {len(chunk_rows)} chunks in bulk.")
             except Exception as insert_err:
                 print(f"❌ Supabase bulk insert failed, attempting fallback loop insertion: {insert_err}")
                 # Fallback to sequential insert if bulk insert fails for some reason
                 for row in chunk_rows:
                     try:
-                        supabase.table("document_chunks").insert(row).execute()
+                        db_client.table("document_chunks").insert(row).execute()
                     except Exception as fallback_row_err:
                         print(f"⚠️ Warning: fallback loop insert failed for row: {fallback_row_err}")
                 
@@ -968,9 +986,10 @@ def save_document_to_db(text_content, source_name, doc_id):
         except Exception as main_emb_err:
             print(f"⚠️ Warning: failed to generate main document embedding: {main_emb_err}")
             
-        supabase.table("documents").update({
+        db_client.table("documents").update({
             "content": safe_content,
             "embedding": main_vector,
+            "subject": final_subject,
             "status": "ready"
         }).eq("id", doc_id).execute()
         return "Thành công"
@@ -978,7 +997,7 @@ def save_document_to_db(text_content, source_name, doc_id):
         print(f"❌ save_document_to_db failed for document {doc_id}: {e}")
         # Try to set status to ready even if chunking/embeddings failed
         try:
-            supabase.table("documents").update({"status": "ready"}).eq("id", doc_id).execute()
+            db_client.table("documents").update({"status": "ready"}).eq("id", doc_id).execute()
         except Exception:
             pass
         return f"Lỗi: {str(e)}"
@@ -1034,18 +1053,19 @@ def _normalize_grade_value(g):
 
 
 
-def get_ai_response_stream_with_history(question, session_id=None, user_id=None, model_name="gemini-2.5-flash", grade=None, subject=None, force_reset_context=False, image_data=None):
+def get_ai_response_stream_with_history(question, session_id=None, user_id=None, model_name="gemini-2.5-flash", grade=None, subject=None, force_reset_context=False, image_data=None, client=None):
     keys = refresh_available_keys()
     if not keys:
         yield "Hệ thống chưa được cấu hình API Key!"
         return
 
+    db_client = client if client is not None else supabase
     chat_history = []
     is_first_turn = True
     cached_session_context = _get_cached_chat_session_context(session_id)
     target_grade = str(grade).strip() if grade is not None else str(cached_session_context.get("grade") or "").strip() or None
     target_subject = _normalize_subject_name(subject or cached_session_context.get("subject"))
-    learner_profile = get_user_profile(user_id)
+    learner_profile = get_user_profile(user_id, client=db_client)
 
     try:
         is_valid_uuid = False
@@ -1069,7 +1089,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
             else:
                 # Cold start: reload from DB
                 try:
-                    res = supabase.table("chat_sessions").select("messages,grade,subject").eq("id", session_id).execute()
+                    res = db_client.table("chat_sessions").select("messages,grade,subject").eq("id", session_id).execute()
                     if res.data and len(res.data) > 0:
                         session_row = res.data[0] or {}
                         session_exists = True
@@ -1083,7 +1103,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                         if user_id:
                             try:
                                 count_res = (
-                                    supabase.table("chat_history")
+                                    db_client.table("chat_history")
                                     .select("id", count="exact")
                                     .eq("session_id", session_id)
                                     .execute()
@@ -1097,7 +1117,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                                 if total_in_db > current_msg_count + 4:
                                     print(f"🔄 [History Rebuild] chat_sessions.messages ({current_msg_count}) lagging behind chat_history ({total_in_db}). Rebuilding...")
                                     hist_res = (
-                                        supabase.table("chat_history")
+                                        db_client.table("chat_history")
                                         .select("role,content,timestamp")
                                         .eq("session_id", session_id)
                                         .order("timestamp")
@@ -1124,7 +1144,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                                         chat_history = rebuilt
                                         # Sync back to chat_sessions.messages
                                         try:
-                                            supabase.table("chat_sessions").update({"messages": chat_history}).eq("id", session_id).execute()
+                                            db_client.table("chat_sessions").update({"messages": chat_history}).eq("id", session_id).execute()
                                             print(f"✅ [History Rebuild] Synced {len(chat_history)} messages back to chat_sessions.messages")
                                         except Exception as sync_err:
                                             print(f"⚠️ Sync failed: {sync_err}")
@@ -1156,7 +1176,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                     insert_payload["grade"] = target_grade
                 if target_subject:
                     insert_payload["subject"] = target_subject
-                supabase.table("chat_sessions").insert(insert_payload).execute()
+                db_client.table("chat_sessions").insert(insert_payload).execute()
                 print(f"🆕 [Session Init] Khởi tạo session mới {session_id} trong DB.")
                 
                 session_row = {
@@ -1186,7 +1206,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
             if target_subject:
                 reset_payload["subject"] = target_subject
             try:
-                supabase.table("chat_sessions").update(reset_payload).eq("id", session_id).execute()
+                db_client.table("chat_sessions").update(reset_payload).eq("id", session_id).execute()
                 if session_id in _SESSION_CACHE:
                     _SESSION_CACHE[session_id]["messages"] = []
                     if target_grade:
@@ -1205,7 +1225,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                 update_payload["subject"] = target_subject
             if update_payload:
                 try:
-                    supabase.table("chat_sessions").update(update_payload).eq("id", session_id).execute()
+                    db_client.table("chat_sessions").update(update_payload).eq("id", session_id).execute()
                     if session_id in _SESSION_CACHE:
                         if "grade" in update_payload:
                             _SESSION_CACHE[session_id]["grade"] = target_grade
@@ -1262,61 +1282,85 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                     # Only skip RAG if message is very short AND there's NO active chat history context
                     is_conversational_only = _truly_conversational or (len(question.strip()) < 15 and len(chat_history) == 0)
                     
-                    docs_rows = []
+                    pub_docs = []
+                    user_docs = []
                     if is_conversational_only:
                         print(f"⚡ [RAG Skip] Bỏ qua RAG cho câu hỏi hội thoại thuần: '{question}'")
                     else:
-                        # 1. Fetch matching documents by grade and subject (including name) (using in-memory cache)
+                        # 1. Fetch matching public documents by grade and subject (including name) (using in-memory cache)
                         docs_cache_key = (target_grade, target_subject)
                         if docs_cache_key in _DOCS_CACHE:
-                            docs_rows = _DOCS_CACHE[docs_cache_key]
-                            print(f"⚡ [Docs Cache] Lấy thành công {len(docs_rows)} documents từ bộ nhớ đệm (0ms)!")
+                            pub_docs = _DOCS_CACHE[docs_cache_key]
+                            print(f"⚡ [Docs Cache] Lấy thành công {len(pub_docs)} public documents từ bộ nhớ đệm (0ms)!")
                         else:
                             try:
-                                docs_query = supabase.table("documents").select("id,name,grade,subject")
+                                pub_query = db_client.table("documents").select("id,name,grade,subject").is_("user_id", "null")
                                 if target_grade:
-                                    docs_query = docs_query.eq("grade", target_grade)
+                                    pub_query = pub_query.eq("grade", target_grade)
                                 if target_subject:
-                                    docs_query = docs_query.eq("subject", target_subject)
-                                docs_rows = docs_query.execute().data or []
+                                    pub_query = pub_query.eq("subject", target_subject)
+                                pub_docs = pub_query.execute().data or []
                                 
                                 # Fallback: if no documents matched target_subject directly, query all matching grade and filter locally by matching subject keywords in name
-                                if not docs_rows and target_grade:
+                                if not pub_docs and target_grade:
                                     try:
-                                        print(f"🔍 [Docs Fallback] Thử tìm tài liệu lớp {target_grade} không lọc môn học để tìm theo tên...")
-                                        fallback_query = supabase.table("documents").select("id,name,grade,subject")
+                                        print(f"🔍 [Docs Fallback] Thử tìm tài liệu public lớp {target_grade} không lọc môn học để tìm theo tên...")
+                                        fallback_query = db_client.table("documents").select("id,name,grade,subject").is_("user_id", "null")
                                         fallback_query = fallback_query.eq("grade", target_grade)
                                         all_docs = fallback_query.execute().data or []
-                                        docs_rows = [
+                                        pub_docs = [
                                             d for d in all_docs
                                             if _normalize_subject_name(d.get("subject")) == target_subject 
                                             or _document_matches_subject(d.get("name"), target_subject)
                                         ]
-                                        print(f"💾 [Docs Fallback] Tìm thấy {len(docs_rows)} tài liệu phù hợp sau khi lọc tên.")
+                                        print(f"💾 [Docs Fallback] Tìm thấy {len(pub_docs)} tài liệu public phù hợp sau khi lọc tên.")
                                     except Exception as fallback_err:
                                         print(f"⚠️ Document fallback query failed: {fallback_err}")
                                 
                                 if len(_DOCS_CACHE) > 500:
                                     for k in list(_DOCS_CACHE.keys())[:50]:
                                         _DOCS_CACHE.pop(k, None)
-                                _DOCS_CACHE[docs_cache_key] = docs_rows
-                                print(f"💾 [Docs Cache] Lưu {len(docs_rows)} documents vào bộ nhớ đệm.")
+                                _DOCS_CACHE[docs_cache_key] = pub_docs
+                                print(f"💾 [Docs Cache] Lưu {len(pub_docs)} public documents vào bộ nhớ đệm.")
                             except Exception as docs_err:
                                 print(f"⚠️ Document query with subject/grade failed, retrying without subject: {docs_err}")
                                 try:
-                                    docs_query = supabase.table("documents").select("id,name,grade")
+                                    pub_query = db_client.table("documents").select("id,name,grade").is_("user_id", "null")
                                     if target_grade:
-                                        docs_query = docs_query.eq("grade", target_grade)
-                                    docs_rows = docs_query.execute().data or []
+                                        pub_query = pub_query.eq("grade", target_grade)
+                                    pub_docs = pub_query.execute().data or []
                                     if len(_DOCS_CACHE) > 500:
                                         for k in list(_DOCS_CACHE.keys())[:50]:
                                             _DOCS_CACHE.pop(k, None)
-                                    _DOCS_CACHE[docs_cache_key] = docs_rows
+                                    _DOCS_CACHE[docs_cache_key] = pub_docs
                                 except Exception as docs_fallback_err:
                                     print(f"⚠️ Document fallback query failed: {docs_fallback_err}")
-                                    docs_rows = []
+                                    pub_docs = []
 
-                    # 2. Filter doc_ids precisely matching criteria
+                        # 2. Fetch user's private documents (no global cache)
+                        if user_id and str(user_id).strip() != "guest":
+                            try:
+                                user_query = db_client.table("documents").select("id,name,grade,subject,content,created_at").eq("user_id", user_id)
+                                if target_grade:
+                                    user_query = user_query.eq("grade", target_grade)
+                                if target_subject:
+                                    user_query = user_query.or_(f"subject.eq.{target_subject},subject.is.null")
+                                
+                                user_docs = user_query.execute().data or []
+                                print(f"🔍 [User Docs] Tìm thấy {len(user_docs)} tài liệu cá nhân của user.")
+                                if user_docs:
+                                    if all("created_at" in d for d in user_docs):
+                                        try:
+                                            user_docs.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+                                        except Exception:
+                                            pass
+                            except Exception as user_err:
+                                print(f"⚠️ User document query failed: {user_err}")
+                                user_docs = []
+
+                    docs_rows = pub_docs + user_docs
+
+                    # 3. Filter doc_ids precisely matching criteria
                     doc_ids = []
                     doc_id_to_name = {}
                     if docs_rows:
@@ -1334,7 +1378,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                                 continue
                             doc_ids.append(doc_id)
 
-                    # 3. Retrieve chunks for matched documents and perform Cosine Similarity search in Python (using in-memory caching)
+                    # 4. Retrieve chunks for matched documents and perform Cosine Similarity search in Python (using in-memory caching)
                     chunks_rows = []
                     if doc_ids:
                         cache_key = tuple(sorted(doc_ids))
@@ -1356,7 +1400,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                             if missing_doc_ids:
                                 try:
                                     print(f"🔍 [RAG Database] Tìm thấy {len(missing_doc_ids)} tài liệu mới chưa được cache, đang truy vấn Supabase...")
-                                    chunks_query = supabase.table("document_chunks").select("content,embedding,document_id").in_("document_id", missing_doc_ids)
+                                    chunks_query = db_client.table("document_chunks").select("content,embedding,document_id").in_("document_id", missing_doc_ids)
                                     db_chunks = chunks_query.limit(1000).execute().data or []
                                     chunks_rows.extend(db_chunks)
                                     print(f"💾 [RAG Database] Tải thành công {len(db_chunks)} chunks từ database.")
@@ -1369,73 +1413,90 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                             _CHUNKS_CACHE[cache_key] = chunks_rows
                             print(f"⚡ [RAG Cache] Đã chuẩn bị {len(chunks_rows)} chunks từ cache/database.")
 
+                    # Build personal uploads context
+                    user_docs_context = ""
+                    if user_docs:
+                        for d in user_docs[:2]: # Limit to top 2 user docs to avoid prompt bloat
+                            d_name = d.get("name") or "Tài liệu học sinh tải lên"
+                            d_content = d.get("content") or ""
+                            if d_content.strip():
+                                user_docs_context += f"\n\n[TÀI LIỆU HỌC SINH TẢI LÊN: {d_name}]\n{d_content[:6000]}\n"
+
+                    # Build textbook RAG context
+                    rag_context = ""
                     if chunks_rows:
-                        # Create embedding vector for the query
-                        question_vector = _embed_with_provider(question)
-                        if isinstance(question_vector[0], list):
-                            question_vector = question_vector[0][:768]
-                        else:
-                            question_vector = question_vector[:768]
+                        try:
+                            # Create embedding vector for the query
+                            question_vector = _embed_with_provider(question)
+                            if isinstance(question_vector[0], list):
+                                question_vector = question_vector[0][:768]
+                            else:
+                                question_vector = question_vector[:768]
 
-                        # Define Cosine Similarity calculator using numpy for vector acceleration (300x speedup)
-                        import numpy as np
-                        q_arr = np.array(question_vector, dtype=np.float32)
-                        q_norm = np.linalg.norm(q_arr)
+                            # Define Cosine Similarity calculator using numpy for vector acceleration (300x speedup)
+                            import numpy as np
+                            q_arr = np.array(question_vector, dtype=np.float32)
+                            q_norm = np.linalg.norm(q_arr)
 
-                        scored_chunks = []
-                        if q_norm > 0:
-                            for chunk in chunks_rows:
-                                content_str = chunk.get("content", "")
-                                embedding_str = chunk.get("embedding", "")
-                                doc_id = chunk.get("document_id", "")
-                                if content_str and embedding_str:
-                                    try:
-                                        if isinstance(embedding_str, str):
-                                            c_vec = json.loads(embedding_str)
-                                        else:
-                                            c_vec = embedding_str
-                                        
-                                        c_arr = np.array(c_vec, dtype=np.float32)
-                                        c_norm = np.linalg.norm(c_arr)
-                                        if c_norm > 0:
-                                            score = float(np.dot(q_arr, c_arr) / (q_norm * c_norm))
-                                            scored_chunks.append((score, content_str, doc_id))
-                                    except Exception:
-                                        pass
+                            scored_chunks = []
+                            if q_norm > 0:
+                                for chunk in chunks_rows:
+                                    content_str = chunk.get("content", "")
+                                    embedding_str = chunk.get("embedding", "")
+                                    doc_id = chunk.get("document_id", "")
+                                    if content_str and embedding_str:
+                                        try:
+                                            if isinstance(embedding_str, str):
+                                                c_vec = json.loads(embedding_str)
+                                            else:
+                                                c_vec = embedding_str
+                                            
+                                            c_arr = np.array(c_vec, dtype=np.float32)
+                                            c_norm = np.linalg.norm(c_arr)
+                                            if c_norm > 0:
+                                                score = float(np.dot(q_arr, c_arr) / (q_norm * c_norm))
+                                                scored_chunks.append((score, content_str, doc_id))
+                                        except Exception:
+                                            pass
 
-                        # Sort by score descending and take top 5 chunks
-                        scored_chunks.sort(key=lambda x: x[0], reverse=True)
-                        top_chunks = scored_chunks[:5]
+                            # Sort by score descending and take top 5 chunks
+                            scored_chunks.sort(key=lambda x: x[0], reverse=True)
+                            top_chunks = scored_chunks[:5]
 
-                        # Detailed Console Log
-                        print(f"🔍 [RAG] Tìm thấy {len(top_chunks)} chunks phù hợp cho câu hỏi: '{question}'")
-                        for idx, (score, content_str, doc_id) in enumerate(top_chunks):
-                            doc_name = doc_id_to_name.get(doc_id, "Tài liệu không tên")
-                            print(f"   - Chunk {idx+1} (Độ khớp: {score:.4f} | Từ file: {doc_name}): {content_str[:120]}...")
-
-                        if top_chunks and top_chunks[0][0] > 0.3:
-                            context_parts = []
+                            # Detailed Console Log
+                            print(f"🔍 [RAG] Tìm thấy {len(top_chunks)} chunks phù hợp cho câu hỏi: '{question}'")
                             for idx, (score, content_str, doc_id) in enumerate(top_chunks):
                                 doc_name = doc_id_to_name.get(doc_id, "Tài liệu không tên")
-                                context_parts.append(f"[Nguồn: {doc_name} (Độ tương đồng: {score:.4f})]\n{content_str}")
-                            context = "\n\n---\n\n".join(context_parts)
+                                print(f"   - Chunk {idx+1} (Độ khớp: {score:.4f} | Từ file: {doc_name}): {content_str[:120]}...")
+
+                            if top_chunks and top_chunks[0][0] > 0.3:
+                                context_parts = []
+                                for idx, (score, content_str, doc_id) in enumerate(top_chunks):
+                                    doc_name = doc_id_to_name.get(doc_id, "Tài liệu không tên")
+                                    context_parts.append(f"[Nguồn: {doc_name} (Độ tương đồng: {score:.4f})]\n{content_str}")
+                                    rag_context = "\n\n---\n\n".join(context_parts)
+                        except Exception as calc_err:
+                            print(f"⚠️ Similarity check failed: {calc_err}")
+
+                    # Combine both contexts
+                    context = ""
+                    if user_docs_context:
+                        context += user_docs_context
+                    if rag_context:
+                        if context:
+                            context += f"\n\n---\n\n[KIẾN THỨC THAM CHIẾU KHÁC TỪ SÁCH GIÁO KHOA]:\n{rag_context}"
                         else:
-                            # Fallback: Do NOT download the entire content column to prevent Vercel Gateway timeouts!
-                            # Instead, just reference the matching document by name.
-                            if docs_rows:
-                                fallback_doc_name = docs_rows[0].get("name") or "Tài liệu không tên"
-                                context = f"[Nguồn: {fallback_doc_name} (Chưa được chia nhỏ)]\nSách giáo khoa có sẵn nhưng chưa được tạo chỉ mục vector."
-                            else:
-                                context = f"Hiện tại cô chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, cô sẽ giải đáp như sau..."
-                    else:
-                        # Fallback to loading preview content directly from documents if document_chunks table is empty
+                            context = rag_context
+
+                    if not context:
+                        # Fallback to preview content if no similarity matches
                         fallback_content = ""
                         fallback_doc_name = "Tài liệu không tên"
                         if doc_ids:
                             for d in docs_rows:
                                 if d.get("id") in doc_ids:
                                     try:
-                                        preview_res = supabase.table("documents").select("name,content").eq("id", d.get("id")).execute()
+                                        preview_res = db_client.table("documents").select("name,content").eq("id", d.get("id")).execute()
                                         if preview_res.data and preview_res.data[0].get("content"):
                                             fallback_content = preview_res.data[0].get("content")
                                             fallback_doc_name = preview_res.data[0].get("name") or "Tài liệu không tên"
@@ -1445,7 +1506,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                         if fallback_content:
                             context = f"[Nguồn: {fallback_doc_name} (Xem trước tài liệu)]\n{fallback_content[:4000]}"
                         else:
-                            context = f"Hiện tại thầy chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, thầy có thể giải đáp như sau..."
+                            context = f"Hiện tại cô chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, cô sẽ giải đáp như sau..."
                 except Exception as rag_err:
                     print(f"⚠️ RAG fallback activated (embedding/search failed): {rag_err}")
                     context = f"Hiện tại thầy chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, thầy có thể giải đáp như sau..."
@@ -1551,7 +1612,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                 5) Nhìn vào LỊCH SỬ TRÒ CHUYỆN để suy ra tiến độ học tập. Nếu học sinh đang ở chủ đề "Tích phân", gợi ý tiếp theo phải gần chủ đề đó; nếu học sinh nói đã xong bài, ưu tiên gợi ý "Kiểm tra kết quả" hoặc "Sang chương mới".
                 6) Không lặp lại các gợi ý đã từng xuất hiện trong lịch sử.
                 7) ĐỊNH DẠNG NGUỒN TRÍCH DẪN: Ở cuối câu trả lời (TRƯỚC marker [END_ANSWER]), hãy tự động thêm một phần "📚 **Tham chiếu từ Sách Giáo Khoa:**" liệt kê rõ ràng tên sách, độ tương đồng/độ khớp từ thông tin "[Nguồn: Tên_sách (Độ tương đồng: x.xxxx)]" trong phần KIẾN THỨC THAM CHIẾU để học sinh biết nguồn gốc nội dung đó (tuyệt đối không lặp lại phần trích dẫn văn bản, chỉ ghi tên sách và độ khớp, ví dụ: `* Sách Vật lí 11 (Độ khớp: 81%)`).
-                8) Không viết thêm nội dung nào ngoài các marker [ANSWER]...[END_ANSWER] và [SUGGESTIONS]...[END_SUGGESTIONS].
+                8) Không viết thêm nội dung nào ngoài các marker [ANSWER]...[END_ANSWER] and [SUGGESTIONS]...[END_SUGGESTIONS].
                 9) [TÙY CHỌN] NẾU NỘI DUNG LÀ GIẢI THÍCH LÝ THUYẾT: Sau khi giải thích xong (trong [ANSWER]), BẮT BUỘC chèn thêm một khối [QUIZ] ở cuối cùng chứa MỘT câu hỏi trắc nghiệm (A,B,C,D) bằng JSON theo ĐÚNG định dạng sau để kiểm tra xem học sinh có nhớ lý thuyết vừa học không. JSON phải CỰC KỲ CHÍNH XÁC:
 [QUIZ]
 {{
@@ -1597,8 +1658,8 @@ PHẦN TRẢ LỜI CỦA BẠN PHẢI TUÂN THEO CẤU TRÚC SAU:
                                 b64_str = b64_str.split(',', 1)[1]
                             img_bytes = base64.b64decode(b64_str)
                             file_path = f"chat_images/{uuid.uuid4()}.png"
-                            supabase.storage.from_("giasuao").upload(file_path, img_bytes, file_options={"content-type": "image/png"})
-                            uploaded_url = supabase.storage.from_("giasuao").get_public_url(file_path)
+                            db_client.storage.from_("giasuao").upload(file_path, img_bytes, file_options={"content-type": "image/png"})
+                            uploaded_url = db_client.storage.from_("giasuao").get_public_url(file_path)
                         except Exception as e:
                             print(f"⚠️ Không thể upload ảnh lên Storage: {e}")
 
@@ -1616,7 +1677,7 @@ PHẦN TRẢ LỜI CỦA BẠN PHẢI TUÂN THEO CẤU TRÚC SAU:
                     if target_subject:
                         update_payload["subject"] = target_subject
                     
-                    supabase.table("chat_sessions").update(update_payload).eq("id", session_id).execute()
+                    db_client.table("chat_sessions").update(update_payload).eq("id", session_id).execute()
                     # CRITICAL: update in-memory session cache so next request reads from here (not DB)
                     if len(_SESSION_CACHE) > 1000:
                         for k in list(_SESSION_CACHE.keys())[:100]:

@@ -224,18 +224,53 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
           content: `Đang tải lên và phân tích tài liệu: ${file.name}...`
         }
       ]);
+
+      let accessToken = '';
+      try {
+        const maybeSession = await supabase.auth.getSession();
+        accessToken = maybeSession.data.session?.access_token || '';
+      } catch (tokenErr) {
+        console.warn("Failed to get session token:", tokenErr);
+      }
+
       const grade = String(user.grade || 1);
-      const result = await uploadDocument(file, grade.toString(), user.id);
+      const result = await uploadDocument(file, grade.toString(), user.id, displayTitle);
       
       setMessages(prev => prev.filter(m => !m.content.startsWith('Đang tải lên và phân tích tài liệu:')));
+
+      const assistantMsg = `Đã tải tệp **${file.name}** lên hệ thống thành công. Cô/Thầy đã đọc và ghi nhớ nội dung tài liệu này. Em có câu hỏi nào cần giải đáp không?`;
 
       setMessages(prev => [
         ...prev,
         {
+          role: 'user',
+          content: `Đã tải lên tài liệu: ${file.name}`
+        },
+        {
           role: 'assistant',
-          content: `Đã tải tệp **${file.name}** lên hệ thống thành công. Cô/Thầy đã đọc và ghi nhớ nội dung tài liệu này. Em có câu hỏi nào cần giải đáp không?`
+          content: assistantMsg
         }
       ]);
+
+      if (workspaceSessionId) {
+        const appendUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/chat-sessions/append-messages` : '/api/chat-sessions/append-messages';
+        const appendHeaders: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+        if (accessToken) appendHeaders['Authorization'] = `Bearer ${accessToken}`;
+        
+        fetch(appendUrl, {
+          method: 'POST',
+          headers: appendHeaders,
+          body: JSON.stringify({
+            session_id: workspaceSessionId,
+            messages: [
+              { role: 'user', content: `Đã tải lên tài liệu: ${file.name}` },
+              { role: 'assistant', content: assistantMsg }
+            ]
+          })
+        }).catch(err => console.error("Failed to append upload messages in workspace:", err));
+      }
     } catch (error: any) {
       console.error('Upload file failed', error);
       setMessages(prev => prev.filter(m => !m.content.startsWith('Đang tải lên và phân tích tài liệu:')));

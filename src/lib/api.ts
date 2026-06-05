@@ -153,7 +153,8 @@ export async function chatWithAI(
 export async function uploadDocument(
   file: File,
   grade: string,
-  userId?: string
+  userId?: string,
+  subject?: string
 ): Promise<any> {
   const formData = new FormData();
   formData.append('file', file);
@@ -161,9 +162,31 @@ export async function uploadDocument(
   if (userId) {
     formData.append('user_id', userId);
   }
+  if (subject) {
+    formData.append('subject', subject);
+  }
+
+  let accessToken = '';
+  try {
+    if ((supabase.auth as any).getSession) {
+      const maybe = await (supabase.auth as any).getSession();
+      accessToken = maybe?.data?.session?.access_token || '';
+    } else if ((supabase.auth as any).session) {
+      const s = (supabase.auth as any).session();
+      accessToken = s?.access_token || '';
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  const headers: Record<string, string> = {};
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
 
   const response = await fetch(`${API_BASE_URL}/api/upload`, {
     method: 'POST',
+    headers,
     body: formData,
   });
 

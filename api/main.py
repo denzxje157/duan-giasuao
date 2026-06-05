@@ -416,7 +416,23 @@ def login_user(req: LoginRequest):
 
 
 @app.post("/api/upload")
-async def upload_document(file: UploadFile = File(...), grade: str = Form("1"), user_id: Optional[str] = Form(None), background_tasks: BackgroundTasks = None):
+async def upload_document(
+    file: UploadFile = File(...),
+    grade: str = Form("1"),
+    subject: Optional[str] = Form(None),
+    user_id: Optional[str] = Form(None),
+    background_tasks: BackgroundTasks = None,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    user_supabase = supabase
+    resolved_user_id = user_id
+    if credentials and credentials.credentials:
+        try:
+            resolved_user_id = _verify_token_and_get_user(credentials)
+            user_supabase = _get_supabase_client(credentials)
+        except Exception as auth_err:
+            print(f"⚠️ Auth failed in upload: {auth_err}")
+
     MAX_FILE_SIZE = 10 * 1024 * 1024
     file_bytes = await file.read()
     if len(file_bytes) > MAX_FILE_SIZE:
@@ -432,23 +448,23 @@ async def upload_document(file: UploadFile = File(...), grade: str = Form("1"), 
     ext = os.path.splitext(file.filename)[1].lower()
     file_path = f"books/{safe_id}{ext}"
 
-    supabase.storage.from_(bucket_name).upload(file_path, file_bytes, file_options={"content-type": file.content_type})
-    file_url = supabase.storage.from_(bucket_name).get_public_url(file_path)
+    user_supabase.storage.from_(bucket_name).upload(file_path, file_bytes, file_options={"content-type": file.content_type})
+    file_url = user_supabase.storage.from_(bucket_name).get_public_url(file_path)
 
-    doc_data = {"name": file.filename, "pdf_url": file_url, "thumbnail_url": "", "grade": grade, "status": "processing"}
-    if user_id and user_id != 'undefined':
-        doc_data["user_id"] = user_id
+    doc_data = {"name": file.filename, "pdf_url": file_url, "thumbnail_url": "", "grade": grade, "subject": subject, "status": "processing"}
+    if resolved_user_id and resolved_user_id != 'undefined':
+        doc_data["user_id"] = resolved_user_id
 
     # Insert document row with deterministic id so we can update embeddings later
     try:
-        res = supabase.table("documents").insert(doc_data).execute()
+        res = user_supabase.table("documents").insert(doc_data).execute()
     except Exception as e:
         print(f"⚠️ Warning: failed to insert document row: {e}")
         if "user_id" in doc_data:
             print("Fallback: inserting document with user_id = None")
             doc_data["user_id"] = None
             try:
-                res = supabase.table("documents").insert(doc_data).execute()
+                res = user_supabase.table("documents").insert(doc_data).execute()
             except Exception as fallback_err:
                 print(f"❌ Fallback insert failed: {fallback_err}")
                 res = None
@@ -477,7 +493,7 @@ async def upload_document(file: UploadFile = File(...), grade: str = Form("1"), 
             except Exception:
                 content_text = f"Uploaded file {file.filename} (binary)"
 
-        supabase.table("documents").update({"content": content_text, "status": "ready"}).eq("id", doc_id).execute()
+        user_supabase.table("documents").update({"content": content_text, "status": "ready"}).eq("id", doc_id).execute()
 
         # Schedule embedding generation in background so upload returns quickly
         if background_tasks is not None:
@@ -594,6 +610,7 @@ def chat(req: ChatRequest, credentials: Optional[HTTPAuthorizationCredentials] =
             req.subject,
             force_reset_context,
             req.image_data,
+            client=user_supabase,
         ):
             try:
                 chunk_str = str(chunk)
@@ -652,19 +669,84 @@ def chat(req: ChatRequest, credentials: Optional[HTTPAuthorizationCredentials] =
     return StreamingResponse(event_stream(), media_type="text/event-stream", headers=headers)
 
 
-@app.post("/api/generate-quiz")
-def api_generate_quiz(req: QuizRequest):
+class AppendMessagesRequest(BaseModel):
+    session_id: str
+    messages: List[Dict[str, Any]]
+
+
+@app.post("/api/chat-sessions/append-messages")
+def append_messages(req: AppendMessagesRequest, credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))):
+    user_supabase = supabase
+    if credentials and credentials.credentials:
+        try:
+            user_supabase = _get_supabase_client(credentials)
+        except Exception as client_err:
+            print(f"⚠️ Không thể tạo client Supabase xác thực: {client_err}")
     try:
-        quiz_data = generate_quiz(req.topic, req.difficulty, req.num_questions, req.grade, req.subject, req.file_content, req.user_id, exclude_questions=req.exclude_questions)
+        # Fetch current session messages
+        res = user_supabase.table("chat_sessions").select("messages").eq("id", req.session_id).execute()
+        if res.data:
+            current_messages = res.data[0].get("messages") or []
+            new_messages = current_messages + req.messages
+            user_supabase.table("chat_sessions").update({"messages": new_messages}).eq("id", req.session_id).execute()
+            
+            # Update local session cache if present
+            from core_logic import _SESSION_CACHE
+            if req.session_id in _SESSION_CACHE:
+                _SESSION_CACHE[req.session_id]["messages"] = new_messages
+            
+            # Also save to chat_history table
+            for msg in req.messages:
+                try:
+                    # Map role to database role ('user' or 'assistant')
+                    role = msg.get("role")
+                    if role == "model":
+                        role = "assistant"
+                    user_supabase.table("chat_history").insert({
+                        "session_id": req.session_id,
+                        "role": role,
+                        "content": msg.get("content")
+                    }).execute()
+                except Exception as hist_err:
+                    print(f"⚠️ Warning: failed to insert message to chat_history: {hist_err}")
+                    
+            return {"status": "success", "message": "Messages appended successfully"}
+        else:
+            # Create session if not exists
+            user_supabase.table("chat_sessions").insert({
+                "id": req.session_id,
+                "messages": req.messages
+            }).execute()
+            return {"status": "success", "message": "Session created and messages appended"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi thêm tin nhắn: {str(e)}")
+
+
+@app.post("/api/generate-quiz")
+def api_generate_quiz(req: QuizRequest, credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))):
+    user_supabase = supabase
+    if credentials and credentials.credentials:
+        try:
+            user_supabase = _get_supabase_client(credentials)
+        except Exception as client_err:
+            print(f"⚠️ Không thể tạo client Supabase xác thực: {client_err}")
+    try:
+        quiz_data = generate_quiz(req.topic, req.difficulty, req.num_questions, req.grade, req.subject, req.file_content, req.user_id, exclude_questions=req.exclude_questions, client=user_supabase)
         return {"status": "success", "data": quiz_data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi tạo quiz: {str(e)}")
 
 
 @app.post("/api/generate-flashcards")
-def api_generate_flashcards(req: FlashcardRequest):
+def api_generate_flashcards(req: FlashcardRequest, credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))):
+    user_supabase = supabase
+    if credentials and credentials.credentials:
+        try:
+            user_supabase = _get_supabase_client(credentials)
+        except Exception as client_err:
+            print(f"⚠️ Không thể tạo client Supabase xác thực: {client_err}")
     try:
-        flashcards_data = generate_flashcards(req.topic, req.grade, req.subject, req.file_content, req.user_id)
+        flashcards_data = generate_flashcards(req.topic, req.grade, req.subject, req.file_content, req.user_id, client=user_supabase)
         return {"status": "success", "data": flashcards_data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi tạo flashcards: {str(e)}")
@@ -1148,4 +1230,7 @@ def init_session(req: InitSessionRequest, credentials: Optional[HTTPAuthorizatio
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    import os
+    reload_env = os.getenv("RELOAD", "true").lower()
+    should_reload = reload_env in ("true", "1", "yes")
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=should_reload)

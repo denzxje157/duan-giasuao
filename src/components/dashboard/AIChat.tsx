@@ -1385,12 +1385,31 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
         { id: tempId, role: 'user', content: `Đang tải lên và phân tích tài liệu: ${f.name}...` }
       ]);
 
+      let accessToken = '';
+      try {
+        const maybeSession = await supabase.auth.getSession();
+        accessToken = maybeSession.data.session?.access_token || '';
+      } catch (tokenErr) {
+        console.warn("Failed to get session token:", tokenErr);
+      }
+
       const form = new FormData();
       form.append('file', f);
       form.append('grade', String(user.grade || '1'));
+      if (activeSubject && activeSubject !== 'Môn học') {
+        form.append('subject', activeSubject);
+      }
+      if (user.id) {
+        form.append('user_id', user.id);
+      }
 
       const uploadUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/upload` : '/api/upload';
-      const resp = await fetch(uploadUrl, { method: 'POST', body: form });
+      const headers: Record<string, string> = {};
+      if (accessToken) {
+        headers['Authorization'] = `Bearer ${accessToken}`;
+      }
+
+      const resp = await fetch(uploadUrl, { method: 'POST', headers, body: form });
       const data = await resp.json();
       
       // Remove temporary loading message
@@ -1398,6 +1417,14 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
 
       if (data?.status === 'success') {
         const filename = f.name;
+        const uploadMessages = [
+          { role: 'user', content: `Đã tải lên tài liệu: ${filename}` },
+          { 
+            role: 'assistant', 
+            content: `Cô/Thầy đã nhận được tài liệu **${filename}**. Hệ thống đã đọc và ghi nhớ nội dung. Em có muốn cô/thầy giải thích đề mẫu này, hướng dẫn giải hay tạo một đề thi/bài tập tương tự để luyện tập không?`
+          }
+        ];
+
         setMessages(prev => [...prev, 
           { id: `upl-u-${Date.now()}`, role: 'user', content: `Đã tải lên tài liệu: ${filename}` },
           { 
@@ -1412,6 +1439,24 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
             ]
           }
         ]);
+
+        if (sessionId) {
+          const appendUrl = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/chat-sessions/append-messages` : '/api/chat-sessions/append-messages';
+          const appendHeaders: Record<string, string> = {
+            'Content-Type': 'application/json',
+          };
+          if (accessToken) appendHeaders['Authorization'] = `Bearer ${accessToken}`;
+          
+          fetch(appendUrl, {
+            method: 'POST',
+            headers: appendHeaders,
+            body: JSON.stringify({
+              session_id: sessionId,
+              messages: uploadMessages
+            })
+          }).catch(err => console.error("Failed to append upload messages to DB:", err));
+        }
+
         setSidebarRefreshTrigger(prev => prev + 1);
       } else {
         setMessages(prev => [...prev, { id: `e-${Date.now()}`, role: 'assistant', content: 'Không thể tải lên tệp, bạn thử lại nhé.' }]);
