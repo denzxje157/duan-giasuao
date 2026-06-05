@@ -68,6 +68,51 @@ async function startServer() {
     }
   });
 
+  // Proxy all other /api/* requests to python backend at http://localhost:8000
+  app.all("/api/*", async (req, res) => {
+    const backendUrl = `http://localhost:8000${req.originalUrl}`;
+    console.log(`[Express Proxy] Forwarding ${req.method} ${req.originalUrl} -> ${backendUrl}`);
+    try {
+      const headers: Record<string, string> = {};
+      for (const [key, value] of Object.entries(req.headers)) {
+        if (typeof value === 'string') {
+          headers[key] = value;
+        }
+      }
+
+      const options: any = {
+        method: req.method,
+        headers: headers,
+      };
+
+      if (req.method !== 'GET' && req.method !== 'HEAD' && req.body) {
+        options.body = JSON.stringify(req.body);
+      }
+
+      const response = await fetch(backendUrl, options);
+      res.status(response.status);
+
+      response.headers.forEach((value, key) => {
+        res.setHeader(key, value);
+      });
+
+      if (response.body) {
+        const reader = response.body.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          res.write(value);
+        }
+      }
+      res.end();
+    } catch (err: any) {
+      console.error(`[Express Proxy] Failed to proxy request to ${backendUrl}:`, err);
+      if (!res.headersSent) {
+        res.status(502).json({ error: "Failed to connect to local backend API server. Make sure the Python backend is running on port 8000." });
+      }
+    }
+  });
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },

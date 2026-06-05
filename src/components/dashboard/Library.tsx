@@ -5,7 +5,6 @@ import { Textbook, Grade, User } from '../../types';
 import { TEXTBOOKS_DATA } from '../../data/textbooks';
 import { supabase } from '../../lib/supabase';
 import { uploadDocument } from '../../lib/api';
-import { useStudyTracker } from '../../hooks/useStudyTracker';
 import { getCachedStale, setCached, invalidateCache } from '../../lib/cache';
 
 interface LibraryProps {
@@ -16,8 +15,6 @@ interface LibraryProps {
 }
 
 export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWorkspace, user }: LibraryProps) {
-
-  useStudyTracker(user, 'Tủ sách');
 
   const [selectedSubject, setSelectedSubject] = useState<string>('Tất cả');
   const [searchQuery, setSearchQuery] = useState('');

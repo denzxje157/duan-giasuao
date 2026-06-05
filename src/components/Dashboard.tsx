@@ -11,6 +11,7 @@ import Profile from './dashboard/Profile.tsx';
 import Quiz from './dashboard/Quiz.tsx';
 import Workspace from './dashboard/Workspace.tsx';
 import { User, Grade } from '../types';
+import { useStudyTracker } from '../hooks/useStudyTracker';
 
 interface DashboardProps {
   user: User;
@@ -35,6 +36,19 @@ export default function Dashboard({ user, onLogout, onGradeChange }: DashboardPr
   const [activeTimer, setActiveTimer] = useState<{ sessionSeconds: number; minutes: number; seconds: number; subject: string } | null>(null);
   const [xpToast, setXpToast] = useState<{ xp: number; subjectName: string; visible: boolean } | null>(null);
   const [isTrackerExpanded, setIsTrackerExpanded] = useState(true);
+  const [activeSubject, setActiveSubject] = useState('Chung');
+
+  // Dynamically determine default subject based on activeTab
+  useEffect(() => {
+    if (activeTab === 'home') setActiveSubject('Chung');
+    else if (activeTab === 'library') setActiveSubject('Tủ sách');
+    else if (activeTab === 'workspace') setActiveSubject(workspaceConfig?.subject || 'Tài liệu');
+    else if (activeTab === 'progress') setActiveSubject('Chung');
+    else if (activeTab === 'profile') setActiveSubject('Chung');
+  }, [activeTab, workspaceConfig]);
+
+  // Run study tracker globally at the root
+  useStudyTracker(user, activeSubject);
 
   useEffect(() => {
     const handleStudyTick = (e: Event) => {
@@ -77,13 +91,13 @@ export default function Dashboard({ user, onLogout, onGradeChange }: DashboardPr
       case 'home':
         return <Overview user={user} setActiveTab={setActiveTab} />;
       case 'ai':
-        return <AIChat user={user} onGradeChange={onGradeChange} />;
+        return <AIChat user={user} onGradeChange={onGradeChange} onSubjectChange={setActiveSubject} />;
       case 'library':
         return <Library currentGrade={user.grade} setActiveTab={setActiveTab} user={user} onOpenWorkspace={(cfg) => { setWorkspaceConfig(cfg); setActiveTab('workspace'); }} />;
       case 'workspace':
         return <Workspace user={user} setActiveTab={setActiveTab} config={workspaceConfig} />;
       case 'quiz':
-        return <Quiz user={user} />;
+        return <Quiz user={user} onSubjectChange={setActiveSubject} />;
       case 'admin':
         return <AdminPanel />;
       case 'progress':

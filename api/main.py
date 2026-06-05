@@ -750,22 +750,45 @@ def get_user_progress_charts(credentials: HTTPAuthorizationCredentials = Depends
             d["time"] = activity_dict[d["date"]]
 
         # Lấy Radar data (tổng hợp theo môn)
+        grade = 5
+        try:
+            profile_res = supabase.table("profiles").select("grade").eq("id", user_id).execute()
+            if profile_res.data and len(profile_res.data) > 0:
+                grade = int(profile_res.data[0].get("grade") or 5)
+        except Exception as profile_err:
+            print(f"Error fetching profile grade: {profile_err}")
+
+        # Định nghĩa danh sách môn học mặc định theo khối lớp để vẽ radar chart đẹp & đầy đủ
+        if grade <= 3:
+            default_subjects = ["Toán", "Tiếng Việt", "Tiếng Anh", "Tự nhiên và Xã hội", "Đạo đức"]
+        elif grade <= 5:
+            default_subjects = ["Toán", "Tiếng Việt", "Tiếng Anh", "Khoa học", "Lịch sử và Địa lý"]
+        elif grade <= 9:
+            default_subjects = ["Toán", "Ngữ văn", "Tiếng Anh", "Khoa học tự nhiên", "Lịch sử và Địa lý"]
+        else:
+            default_subjects = ["Toán", "Ngữ văn", "Tiếng Anh", "Vật lý", "Hóa học", "Sinh học"]
+
         subject_res = supabase.table("user_activities").select("subject_name, study_minutes").eq("user_id", user_id).execute()
-        subject_scores = {}
+        subject_scores = {subj: 0.0 for subj in default_subjects}
+
         for row in (subject_res.data or []):
-            subj = row.get("subject_name", "Khác")
-            subject_scores[subj] = subject_scores.get(subj, 0) + (row.get("study_minutes") or 0)
-            
+            subj = row.get("subject_name")
+            if not subj:
+                continue
+            if subj in subject_scores:
+                subject_scores[subj] += float(row.get("study_minutes") or 0)
+            elif subj in ["Chung", "Tủ sách", "Luyện tập", "Tài liệu", "Khác", "Trò chuyện AI"]:
+                # Phân bổ đều thời gian tự học chung vào các môn chính
+                share = float(row.get("study_minutes") or 0) / len(default_subjects)
+                for ds in default_subjects:
+                    subject_scores[ds] += share
+            else:
+                # Môn học tự chọn khác -> thêm trực tiếp
+                subject_scores[subj] = subject_scores.get(subj, 0.0) + float(row.get("study_minutes") or 0)
+
         radar_data = []
         for subj, mins in subject_scores.items():
-            radar_data.append({"subject": subj, "score": min(mins, 100), "fullMark": 100})
-            
-        if not radar_data:
-            radar_data = [
-                {"subject": "Đại số", "score": 0, "fullMark": 100},
-                {"subject": "Hình học", "score": 0, "fullMark": 100},
-                {"subject": "Vật lý", "score": 0, "fullMark": 100},
-            ]
+            radar_data.append({"subject": subj, "score": min(round(mins), 100), "fullMark": 100})
 
         # Lấy thống kê hôm qua
         yesterday = get_vietnam_date() - timedelta(days=1)

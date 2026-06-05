@@ -8,11 +8,11 @@ import DrawingCanvas from './DrawingCanvas';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { useStudyTracker } from '../../hooks/useStudyTracker';
 
 interface AIChatProps {
   user: UserType;
   onGradeChange?: (grade: any) => void;
+  onSubjectChange?: (subject: string) => void;
 }
 
 interface Message {
@@ -368,7 +368,7 @@ function commandFromSuggestion(label: string, grade: string | number, subject?: 
   return label;
 }
 
-export default function AIChat({ user, onGradeChange }: AIChatProps) {
+export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
   const [quizResults, setQuizResults] = useState<Record<string, boolean>>({});
@@ -749,7 +749,11 @@ export default function AIChat({ user, onGradeChange }: AIChatProps) {
   const historyUserId = user.id || user.email;
   const subjectSections = useMemo(() => getSubjectSectionsByGrade(Number(user.grade || 1)), [user.grade]);
 
-  useStudyTracker(user, selectedSubject || 'Trò chuyện AI');
+  useEffect(() => {
+    if (onSubjectChange) {
+      onSubjectChange(selectedSubject || 'Trò chuyện AI');
+    }
+  }, [selectedSubject, onSubjectChange]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

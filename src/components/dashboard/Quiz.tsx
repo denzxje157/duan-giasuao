@@ -3,15 +3,16 @@ import { motion, AnimatePresence } from 'motion/react';
 import { BrainCircuit, BookOpen, Layers, Sparkles, CheckCircle, XCircle, ArrowRight, RefreshCw, Star, Upload, History } from 'lucide-react';
 import { User } from '../../types';
 import { API_BASE_URL } from '../../lib/api';
-import { useStudyTracker } from '../../hooks/useStudyTracker';
 import { supabase } from '../../lib/supabase';
 import { getCachedStale, setCached } from '../../lib/cache';
+import { useEffect } from 'react';
 
 interface QuizProps {
   user: User;
+  onSubjectChange?: (subject: string) => void;
 }
 
-export default function Quiz({ user }: QuizProps) {
+export default function Quiz({ user, onSubjectChange }: QuizProps) {
   const [activeTab, setActiveTab] = useState<'generator' | 'flashcards'>('generator');
   const [activeMainTab, setActiveMainTab] = useState<'create' | 'history'>('create');
   const quizHistoryKey = `quiz_history_${user.id || 'guest'}`;
@@ -35,8 +36,12 @@ export default function Quiz({ user }: QuizProps) {
     return 'Luyện tập';
   };
 
-  useStudyTracker(user, topic ? getInferredSubject(topic) : 'Luyện tập');
-  
+  useEffect(() => {
+    if (onSubjectChange) {
+      onSubjectChange(topic ? getInferredSubject(topic) : 'Luyện tập');
+    }
+  }, [topic, onSubjectChange]);
+
   // Quiz states
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
