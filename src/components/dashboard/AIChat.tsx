@@ -369,7 +369,28 @@ function commandFromSuggestion(label: string, grade: string | number, subject?: 
   return label;
 }
 
+// Module-level cache to persist data across component mounts/unmounts
+interface ChatCache {
+  userId: string | null;
+  sessionGroups: ChatSessionGroup[] | null;
+  histories: Record<string, Message[]>;
+}
+
+const chatCache: ChatCache = {
+  userId: null,
+  sessionGroups: null,
+  histories: {},
+};
+
 export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatProps) {
+  // Synchronize cache for current user
+  const currentUserId = user.id || user.email;
+  if (chatCache.userId !== currentUserId) {
+    chatCache.userId = currentUserId;
+    chatCache.sessionGroups = null;
+    chatCache.histories = {};
+  }
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
   const [quizResults, setQuizResults] = useState<Record<string, boolean>>({});
@@ -873,6 +894,28 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
         return;
       }
 
+      // Check if we already have the messages cached for this sessionId
+      if (chatCache.histories[sessionId]) {
+        const cachedMessages = chatCache.histories[sessionId];
+        setMessages(cachedMessages);
+
+        // Prefer session subject from sessionGroupsRef
+        const allSessions = sessionGroupsRef.current.flatMap(g => g.subjects.flatMap(s => s.sessions));
+        const targetSession = allSessions.find(s => s.session_id === sessionId);
+        if (targetSession && targetSession.subject && targetSession.subject !== 'Môn học') {
+          setSelectedSubject(targetSession.subject);
+        } else {
+          const firstUserMsg = cachedMessages.find(m => m.role === 'user');
+          if (firstUserMsg) {
+            setSelectedSubject(inferSubjectFromText(firstUserMsg.content));
+          } else {
+            setSelectedSubject('Môn học');
+          }
+        }
+        setCurrentView('chat');
+        return;
+      }
+
       try {
         setIsHistoryLoading(true);
         // Fetch only current active session's messages
@@ -889,6 +932,10 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
             imageUrl: row.imageUrl,
             status: 'completed',
           }));
+
+          // Cache the loaded history
+          chatCache.histories[sessionId] = mappedMessages;
+
           setMessages(mappedMessages);
 
           // Prefer session subject from sessionGroupsRef
@@ -946,9 +993,17 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
         }
         return;
       }
+
+      // Check if we have cached session groups and this is NOT a sidebar refresh trigger
+      if (chatCache.sessionGroups !== null && sidebarRefreshTrigger === 0) {
+        setSessionGroups(chatCache.sessionGroups);
+        return;
+      }
+
       try {
         const data = await fetchChatSessions();
         if (!cancelled) {
+          chatCache.sessionGroups = data || [];
           setSessionGroups(data || []);
         }
       } catch (error) {
@@ -1172,13 +1227,18 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
       }
 
       await deleteChatSession(targetSessionId);
-      setSessionGroups(prev => prev.map((gradeGroup) => ({
-        ...gradeGroup,
-        subjects: gradeGroup.subjects.map((subjectGroup) => ({
-          ...subjectGroup,
-          sessions: subjectGroup.sessions.filter(session => session.session_id !== targetSessionId),
-        })).filter(subjectGroup => subjectGroup.sessions.length > 0),
-      })).filter(gradeGroup => gradeGroup.subjects.length > 0));
+      delete chatCache.histories[targetSessionId];
+      setSessionGroups(prev => {
+        const updated = prev.map((gradeGroup) => ({
+          ...gradeGroup,
+          subjects: gradeGroup.subjects.map((subjectGroup) => ({
+            ...subjectGroup,
+            sessions: subjectGroup.sessions.filter(session => session.session_id !== targetSessionId),
+          })).filter(subjectGroup => subjectGroup.sessions.length > 0),
+        })).filter(gradeGroup => gradeGroup.subjects.length > 0);
+        chatCache.sessionGroups = updated;
+        return updated;
+      });
  
       if (sessionId === targetSessionId) {
         handleNewChat();
@@ -1206,7 +1266,14 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
     setIsDrawingMode(false);
 
     if (!options?.hiddenUserMessage) {
-      setMessages(prev => [...prev, { id: `u-${Date.now()}`, role: 'user', content: userMsg, imageUrl: currentImage || undefined }]);
+      setMessages(prev => {
+        const next: Message[] = [...prev, { id: `u-${Date.now()}`, role: 'user' as const, content: userMsg, imageUrl: currentImage || undefined }];
+        const currentActiveSessionId = options?.sessionIdOverride !== undefined ? options.sessionIdOverride : sessionId;
+        if (currentActiveSessionId) {
+          chatCache.histories[currentActiveSessionId] = next;
+        }
+        return next;
+      });
     }
     setIsLoading(true);
 
@@ -1334,6 +1401,10 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
           };
         });
         updatedMsgs = newMsgs;
+        const currentActiveSessionId = detectedSessionId || activeSessionId;
+        if (currentActiveSessionId) {
+          chatCache.histories[currentActiveSessionId] = newMsgs;
+        }
         return newMsgs;
       });
 
@@ -1396,8 +1467,8 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
       const form = new FormData();
       form.append('file', f);
       form.append('grade', String(user.grade || '1'));
-      if (activeSubject && activeSubject !== 'Môn học') {
-        form.append('subject', activeSubject);
+      if (selectedSubject && selectedSubject !== 'Môn học') {
+        form.append('subject', selectedSubject);
       }
       if (user.id) {
         form.append('user_id', user.id);

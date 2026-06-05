@@ -26,7 +26,7 @@ export interface WorkspaceConfig {
   subject: string;
 }
 
-import { Sparkles, Trophy, Clock, BrainCircuit, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Sparkles, Trophy, Clock, BrainCircuit, ChevronLeft, ChevronRight, Target, Library as LibraryIcon, MessageSquare, Edit3, User as UserIcon } from 'lucide-react';
 
 export default function Dashboard({ user, onLogout, onGradeChange }: DashboardProps) {
   const [activeTab, setActiveTab] = useState('home');
@@ -129,7 +129,7 @@ export default function Dashboard({ user, onLogout, onGradeChange }: DashboardPr
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar user={user} onLogout={onLogout} />
         
-        <main className={`flex-1 overflow-y-auto ${activeTab === 'workspace' ? '' : 'p-4 md:p-8'} custom-scrollbar`}>
+        <main className={`flex-1 overflow-y-auto ${activeTab === 'workspace' ? '' : 'p-4 md:p-8 pb-24 lg:pb-8'} custom-scrollbar`}>
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab + user.grade}
@@ -220,6 +220,60 @@ export default function Dashboard({ user, onLogout, onGradeChange }: DashboardPr
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Mobile Bottom Navigation Bar */}
+      {activeTab !== 'workspace' && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-2 py-1.5 flex items-center justify-around shadow-[0_-8px_30px_rgb(0,0,0,0.06)]">
+          <button 
+            onClick={() => setActiveTab('home')}
+            className={`flex flex-col items-center gap-1 py-1.5 px-2.5 rounded-xl transition-all relative ${activeTab === 'home' ? 'text-brand-600 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <Target className="w-5 h-5" />
+            <span className="text-[10px] tracking-tight">{user.grade <= 5 ? "Trang chủ" : "Tổng quan"}</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('library')}
+            className={`flex flex-col items-center gap-1 py-1.5 px-2.5 rounded-xl transition-all relative ${activeTab === 'library' ? 'text-brand-600 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <LibraryIcon className="w-5 h-5" />
+            <span className="text-[10px] tracking-tight">Tủ sách</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('ai')}
+            className={`flex flex-col items-center gap-1 py-1.5 px-2.5 rounded-xl transition-all relative ${activeTab === 'ai' ? 'text-brand-600 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <div className="relative">
+              <MessageSquare className="w-5 h-5" />
+              <span className="absolute -top-1 -right-1 flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-brand-500"></span>
+              </span>
+            </div>
+            <span className="text-[10px] tracking-tight">{user.grade <= 5 ? "Hỏi Gia Sư" : "Gia sư AI"}</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('quiz')}
+            className={`flex flex-col items-center gap-1 py-1.5 px-2.5 rounded-xl transition-all relative ${activeTab === 'quiz' ? 'text-brand-600 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <Edit3 className="w-5 h-5" />
+            <span className="text-[10px] tracking-tight">Luyện tập</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('progress')}
+            className={`flex flex-col items-center gap-1 py-1.5 px-2.5 rounded-xl transition-all relative ${activeTab === 'progress' ? 'text-brand-600 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <Trophy className="w-5 h-5" />
+            <span className="text-[10px] tracking-tight">Điểm mù</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('profile')}
+            className={`flex flex-col items-center gap-1 py-1.5 px-2.5 rounded-xl transition-all relative ${activeTab === 'profile' ? 'text-brand-600 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <UserIcon className="w-5 h-5" />
+            <span className="text-[10px] tracking-tight">Cá nhân</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -107,8 +107,16 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
         return;
       }
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        let { data: { session } } = await supabase.auth.getSession();
         if (!session?.access_token) return;
+
+        const expiresAt = session.expires_at;
+        const currentTime = Math.floor(Date.now() / 1000);
+        if (expiresAt && currentTime >= expiresAt - 60) {
+          const { data: { session: refreshedSession } } = await supabase.auth.refreshSession();
+          session = refreshedSession;
+          if (!session?.access_token) return;
+        }
 
         const url = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/user/gamification-stats` : '/api/user/gamification-stats';
         const res = await fetch(url, {

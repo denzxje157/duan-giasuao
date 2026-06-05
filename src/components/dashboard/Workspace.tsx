@@ -82,7 +82,7 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
   const displayTitle = config?.title || "Chương 2: Hàm số bậc nhất và bậc hai";
   const displayGrade = config?.grade || user.grade;
 
-
+  const [mobileView, setMobileView] = useState<'pdf' | 'chat'>('pdf');
   const [messages, setMessages] = useState<Message[]>([]);
   const [workspaceSessionId, setWorkspaceSessionId] = useState<string | null>(null);
 
@@ -404,21 +404,39 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
     <div className={`flex w-full ${isFullscreen ? 'fixed inset-0 z-50 bg-slate-50' : 'h-full'} overflow-hidden transition-all duration-300`}>
       
       {/* Left Pane: PDF Viewer */}
-      <div className="flex-1 border-r border-slate-200 bg-slate-100/50 flex flex-col relative overflow-hidden">
+      <div className={`flex-1 border-r border-slate-200 bg-slate-100/50 flex flex-col relative overflow-hidden ${mobileView === 'pdf' ? 'flex' : 'hidden md:flex'}`}>
         {/* PDF Header */}
         <div className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 shrink-0 shadow-sm z-10 w-full">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             {!isFullscreen && (
               <button 
                 onClick={() => setActiveTab?.('library')}
-                className="text-slate-400 hover:text-brand-600 transition-colors mr-2"
+                className="text-slate-400 hover:text-brand-600 transition-colors mr-2 shrink-0"
                 title="Trở về thư viện"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
             )}
-            <span className={`px-2 py-1 ${theme.light} ${theme.text} text-xs font-bold rounded hidden sm:inline-block`}>{config?.subject || 'Toán học'} {displayGrade}</span>
-            <span className="font-semibold text-sm text-slate-700 truncate max-w-[200px] md:max-w-xs">{displayTitle}</span>
+            <span className={`px-2 py-1 ${theme.light} ${theme.text} text-xs font-bold rounded hidden sm:inline-block shrink-0`}>{config?.subject || 'Toán học'} {displayGrade}</span>
+            <span className="font-semibold text-sm text-slate-700 truncate max-w-[120px] sm:max-w-xs">{displayTitle}</span>
+          </div>
+
+          {/* Mobile view switcher in PDF Header */}
+          <div className="flex md:hidden bg-slate-100 p-0.5 rounded-lg mx-2 shrink-0">
+            <button 
+              type="button" 
+              onClick={() => setMobileView('pdf')} 
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${mobileView === 'pdf' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+            >
+              Tài liệu
+            </button>
+            <button 
+              type="button" 
+              onClick={() => setMobileView('chat')} 
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${mobileView === 'chat' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+            >
+              Gia sư AI
+            </button>
           </div>
 
           <div className="flex gap-3 relative items-center">
@@ -505,15 +523,43 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
       </div>
 
       {/* Right Pane: AI Chat */}
-      <div className="w-[450px] shrink-0 bg-white flex flex-col h-full right-pane-chat shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] z-10 w-full sm:w-[450px]">
+      <div className={`w-full md:w-[450px] shrink-0 bg-white flex flex-col h-full right-pane-chat shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] z-10 ${mobileView === 'chat' ? 'flex' : 'hidden md:flex'}`}>
         {/* Chat Header */}
         <div className="h-14 border-b border-slate-100 flex items-center px-4 shrink-0 justify-between bg-white/80 backdrop-blur-md">
           <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${theme.text} ${theme.light}`}>
+            {!isFullscreen && (
+              <button 
+                onClick={() => setActiveTab?.('library')}
+                className="text-slate-400 hover:text-brand-600 transition-colors mr-2 md:hidden"
+                title="Trở về thư viện"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${theme.text} ${theme.light} hidden sm:flex`}>
               <Bot className="w-4 h-4" />
             </div>
             <span className="font-bold text-slate-800 text-sm">Gia sư AI</span>
           </div>
+
+          {/* Mobile view switcher in Chat Header */}
+          <div className="flex md:hidden bg-slate-100 p-0.5 rounded-lg mx-2 shrink-0">
+            <button 
+              type="button" 
+              onClick={() => setMobileView('pdf')} 
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${mobileView === 'pdf' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+            >
+              Tài liệu
+            </button>
+            <button 
+              type="button" 
+              onClick={() => setMobileView('chat')} 
+              className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${mobileView === 'chat' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
+            >
+              Gia sư AI
+            </button>
+          </div>
+
           <button className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-50">
             <Settings className="w-4 h-4" />
           </button>

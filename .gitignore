@@ -16,3 +16,11 @@ dist/
 coverage/
 .DS_Store
 *.log
+
+# Thử nghiệm và nháp
+scratch/
+scratch_*.py
+scratch_test.py
+test_*.js
+test_*.py
+test_db.js
