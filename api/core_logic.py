@@ -1541,7 +1541,8 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                                 context_parts = []
                                 for idx, (score, content_str, doc_id) in enumerate(top_chunks):
                                     doc_name = doc_id_to_name.get(doc_id, "Tài liệu không tên")
-                                    context_parts.append(f"[Nguồn: {doc_name} (Độ tương đồng: {score:.4f})]\n{content_str}")
+                                    percent_score = score * 100
+                                    context_parts.append(f"[Nguồn: {doc_name} (Độ tương đồng: {percent_score:.2f}%)]\n{content_str}")
                                     rag_context = "\n\n---\n\n".join(context_parts)
                         except Exception as calc_err:
                             print(f"⚠️ Similarity check failed: {calc_err}")
