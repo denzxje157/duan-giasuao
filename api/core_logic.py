@@ -1579,30 +1579,37 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                     print(f"⚠️ RAG fallback activated (embedding/search failed): {rag_err}")
                     context = f"Hiện tại thầy chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, thầy có thể giải đáp như sau..."
 
+                # --- BẮT ĐẦU BLOCK BURNOUT AN TOÀN ---
                 from datetime import datetime, timezone, timedelta
+
+                # 1. Tính giờ VN chuẩn (không dùng pytz để Vercel không báo lỗi 500)
                 vn_tz = timezone(timedelta(hours=7))
                 vn_now = datetime.now(vn_tz)
                 vn_time_str = vn_now.strftime("%H:%M:%S ngày %d/%m/%Y")
                 vn_hour = vn_now.hour
 
-                # Check for debug/test keyword in the user's question to force burnout activation
+                # 2. Đếm số câu user đã hỏi trong phiên
+                user_msg_count = sum(1 for m in chat_history if m.get("role") == "user") + 1
+
+                # 3. Mật khẩu ẩn để test lúc báo cáo
                 is_test_burnout = any(keyword in str(question).lower() for keyword in ["test-burnout", "test_burnout", "test burnout"])
                 if is_test_burnout:
                     vn_hour = 23
-                    vn_time_str = "23:45:00 ngày " + vn_now.strftime("%d/%m/%Y")
+                    vn_time_str = f"23:45:00 ngày {vn_now.strftime('%d/%m/%Y')}"
 
-                user_msg_count = sum(1 for m in chat_history if m.get("role") == "user") + 1
-                
-                # Explicit burnout detection — avoids relying solely on natural-language hints
-                is_late_night = vn_hour >= 23 or vn_hour < 5
+                # 4. Logic 11h đêm khóa, 4h sáng mở
+                is_late_night = vn_hour >= 23 or vn_hour < 4
                 burnout_active = (is_late_night and user_msg_count >= 4) or is_test_burnout
-                burnout_signal = (
-                    f"⚠️ BURNOUT_ACTIVE: TRUE — Giờ hiện tại là {vn_time_str.split()[0]} (đêm khuya). "
-                    f"Học sinh đã hỏi {user_msg_count} câu trong phiên này. "
-                    f"BẮT BUỘC: Chỉ nhắc học sinh đi ngủ, từ chối hỗ trợ thêm bài tập hoặc giải thích kiến thức mới trong tối nay."
-                ) if burnout_active else f"BURNOUT_ACTIVE: FALSE (giờ: {vn_time_str.split()[0]}, số câu: {user_msg_count})"
-                
-                current_time_guidance = f"Thời gian hiện tại ở Việt Nam: {vn_time_str}. Số câu hỏi học sinh đã gửi trong phiên học này: {user_msg_count} câu."
+
+                # 5. ÉP NGỦ VÀ CẮT KẾT NỐI API (Chống sập server)
+                if burnout_active:
+                    yield "Con ơi, giờ đã rất trễ rồi đó! Cô biết con rất chăm chỉ học bài nhưng sức khỏe là quan trọng nhất. Mình đã học bài rất tốt rồi, giờ là lúc cất sách vở, tắt máy và đi ngủ sớm thôi nhé! Ngày mai khi con tỉnh táo, chúng mình lại cùng nhau giải quyết các bài tập thú vị nha! 💤"
+                    return  # Dừng hàm ngay lập tức, tuyệt đối không gọi API Google nữa để tránh báo lỗi "quá tải"
+
+                # 6. Ghi nhận thời gian cho AI nếu chưa tới giờ ngủ (cho ban ngày)
+                burnout_signal = f"BURNOUT_ACTIVE: FALSE (giờ: {vn_time_str.split()[0]}, số câu: {user_msg_count})"
+                current_time_guidance = f"Thời gian hiện tại ở Việt Nam: {vn_time_str}. Số câu hỏi đã gửi: {user_msg_count} câu."
+                # --- KẾT THÚC BLOCK BURNOUT ---
                 
                 recent_suggestions = _extract_recent_suggestion_labels(chat_history)
                 # Send only last 10 messages to AI prompt for speed — full history is kept in DB
