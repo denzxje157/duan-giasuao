@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Bell, Search, Clock, Flame, Timer, CheckCircle, Trophy } from 'lucide-react';
-import { User as UserType } from '../../types';
+import { LogOut, Bell, Search, Clock, Flame, Timer, CheckCircle, Trophy, ChevronDown } from 'lucide-react';
+import { User as UserType, Grade } from '../../types';
 import { getUserStats, API_BASE_URL } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { getCachedStale, setCached } from '../../lib/cache';
@@ -8,9 +8,11 @@ import { getCachedStale, setCached } from '../../lib/cache';
 interface TopBarProps {
   user: UserType;
   onLogout: () => void;
+  currentGrade?: Grade;
+  onGradeChange?: (grade: Grade) => void;
 }
 
-export default function TopBar({ user, onLogout }: TopBarProps) {
+export default function TopBar({ user, onLogout, currentGrade, onGradeChange }: TopBarProps) {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [pomodoroLeft, setPomodoroLeft] = useState<number | null>(null);
   const [pomodoroActive, setPomodoroActive] = useState(false);
@@ -206,7 +208,7 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
       <div className="flex items-center justify-between w-full md:w-auto">
         <div className="min-w-0 pr-2">
           <h2 className="text-base md:text-xl font-bold text-slate-800 leading-tight truncate">
-            Xin chào, {user.name} 👋
+            Xin chào, {user.name ? user.name.split('|')[0].trim() : 'học sinh'} 👋
           </h2>
           <p className="text-xs md:text-sm font-medium text-slate-500 flex items-center gap-1.5 mt-0.5 md:mt-0">
             <span className="truncate">
@@ -223,6 +225,21 @@ export default function TopBar({ user, onLogout }: TopBarProps) {
 
         {/* Mobile profile actions (Bell, Avatar, Logout) - hidden on desktop */}
         <div className="flex md:hidden items-center gap-2 shrink-0">
+          {/* Mobile Grade Selector */}
+          {currentGrade !== undefined && onGradeChange && (
+            <div className="relative flex items-center bg-slate-50 border border-slate-200 h-9 px-2.5 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors">
+              <select
+                value={currentGrade}
+                onChange={(e) => onGradeChange(parseInt(e.target.value) as Grade)}
+                className="bg-transparent pr-4 font-bold appearance-none outline-none cursor-pointer text-slate-700 w-full"
+              >
+                {[...Array(12)].map((_, i) => (
+                  <option key={i+1} value={i+1}>Lớp {i+1}</option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+            </div>
+          )}
           <div className="relative">
             <button 
               onClick={() => setNotificationsOpen(prev => !prev)}

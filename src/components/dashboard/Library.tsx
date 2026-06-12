@@ -14,6 +14,17 @@ interface LibraryProps {
   user: User;
 }
 
+const deduplicateBooks = (books: Textbook[]): Textbook[] => {
+  const seen = new Set<string>();
+  return books.filter(book => {
+    const cleanTitle = book.title.toLowerCase().replace(/\s+/g, ' ').trim().normalize('NFC');
+    const key = `${cleanTitle}_${book.grade}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
 export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWorkspace, user }: LibraryProps) {
 
   const [selectedSubject, setSelectedSubject] = useState<string>('Tất cả');
@@ -26,7 +37,7 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
   const [personalDocs, setPersonalDocs] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [systemDocs, setSystemDocs] = useState<Textbook[]>(() => {
-    return TEXTBOOKS_DATA;
+    return deduplicateBooks(TEXTBOOKS_DATA);
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -55,39 +66,19 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
 
       if (!isValidUUID || user.isGuest) {
         setPersonalDocs(localDocs);
-        const system = [...TEXTBOOKS_DATA];
+        const system = deduplicateBooks(TEXTBOOKS_DATA);
         setSystemDocs(system);
         setIsLoading(false);
         return;
       }
       try {
-        const [personalRes, systemRes, chatRes] = await Promise.all([
+        const [personalRes, systemRes] = await Promise.all([
           supabase.from('documents').select('*').eq('user_id', user.id),
-          supabase.from('documents').select('*').is('user_id', null),
-          supabase.from('chat_history').select('content, id, timestamp').eq('user_id', user.id)
+          supabase.from('documents').select('*').is('user_id', null).eq('grade', String(currentGrade))
         ]);
         
         const personal = personalRes.data || [];
         const system = systemRes.data || [];
-        
-        const chatImages: any[] = [];
-        if (chatRes.data) {
-          chatRes.data.forEach(msg => {
-            if (msg.content) {
-              const match = msg.content.match(/!\[.*?\]\((data:image\/[^;]+;base64,[^\)]+)\)/);
-              if (match) {
-                chatImages.push({
-                  id: msg.id || Math.random().toString(),
-                  title: `Ảnh từ đoạn chat`,
-                  status: 'ready',
-                  date: new Date(msg.timestamp || Date.now()).toLocaleDateString('en-GB'),
-                  subject: 'Tài liệu Chat',
-                  pdf_url: match[1]
-                });
-              }
-            }
-          });
-        }
         
         const finalPersonal = [
           ...personal.map(d => ({
@@ -98,7 +89,6 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
             subject: d.subject || 'Khác',
             pdf_url: d.pdf_url
           })),
-          ...chatImages,
           ...localDocs
         ];
 
@@ -108,11 +98,11 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
 
         const mappedSystemDocs = system.map(d => {
           // Normalize names for matching
-          const dbName = (d.name || d.title || d.subject || '').toLowerCase().replace(/\.pdf$/, '').trim();
+          const dbName = (d.name || d.title || d.subject || '').toLowerCase().replace(/\.pdf$/, '').trim().normalize('NFC');
           
           // Find the matching book in TEXTBOOKS_DATA to get its Google Drive PDF URL
           const matchingLocalBook = TEXTBOOKS_DATA.find(
-             local => (local.title || local.name || local.subject || '').toLowerCase().replace(/\.pdf$/, '').trim() === dbName
+             local => (local.title || local.name || local.subject || '').toLowerCase().replace(/\.pdf$/, '').trim().normalize('NFC') === dbName
           );
 
           const pdfUrl = matchingLocalBook?.pdf_url || d.pdf_url || '';
@@ -126,7 +116,7 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
 
           return {
             id: d.id,
-            title: d.name ? d.name.replace(/\.pdf$/i, '') : 'Sách giáo khoa',
+            title: d.name ? d.name.replace(/\.pdf$/i, '').normalize('NFC') : 'Sách giáo khoa',
             subject: d.subject || matchingLocalBook?.subject || 'Khác',
             grade: (Number(d.grade) || matchingLocalBook?.grade || currentGrade) as Grade,
             series: matchingLocalBook?.series || 'Kết nối tri thức',
@@ -137,9 +127,20 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
           };
         });
         
+        // Get all local books for currentGrade
+        const localGradeBooks = TEXTBOOKS_DATA.filter(b => b.grade === currentGrade);
+        
+        // Find which local books are not in the database mapped system docs
+        const extraLocalBooks = localGradeBooks.filter(local => {
+          const cleanLocalTitle = (local.title || '').toLowerCase().replace(/\.pdf$/, '').trim().normalize('NFC');
+          return !mappedSystemDocs.some(
+            dbDoc => dbDoc.title.toLowerCase().replace(/\.pdf$/, '').trim().normalize('NFC') === cleanLocalTitle
+          );
+        });
+
         // We only use the mappedSystemDocs now because they represent the unified books 
         // (Supabase metadata + Google Drive content)
-        setSystemDocs(mappedSystemDocs);
+        setSystemDocs(deduplicateBooks([...mappedSystemDocs, ...extraLocalBooks]));
       } catch (err) {
         console.error('Error fetching docs:', err);
       } finally {
@@ -494,17 +495,20 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   whileHover={{ y: -4 }}
-                  onClick={() => {
+                  onClick={(e) => {
                     if (!doc.pdf_url) return;
-                    if (doc.pdf_url.startsWith('data:image')) {
-                      const win = window.open();
+                    const isImage = 
+                      doc.pdf_url.startsWith('data:image') ||
+                      doc.pdf_url.match(/\.(jpeg|jpg|gif|png|webp)(\?|$)/i) ||
+                      (doc.pdf_url.includes('supabase') && !doc.pdf_url.includes('.pdf'));
+                    if (isImage) {
+                      const win = window.open('', '_blank');
                       if (win) {
                         win.document.write(`
+                          <!DOCTYPE html>
                           <html>
-                            <head><title>Hình ảnh chi tiết</title></head>
-                            <body style="margin: 0; background: #000; display: flex; align-items: center; justify-content: center; height: 100vh;">
-                              <img src="${doc.pdf_url}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
-                            </body>
+                            <head><title>${doc.title}</title><style>body{margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;}img{max-width:100%;max-height:100vh;object-fit:contain;}</style></head>
+                            <body><img src="${doc.pdf_url}" alt="${doc.title}" /></body>
                           </html>
                         `);
                         win.document.close();
@@ -526,7 +530,11 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
                     <div className="absolute top-4 right-4 w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white z-10 opacity-0 group-hover:opacity-100 group-hover:scale-110 transition-all">
                       <GraduationCap className="w-4 h-4 text-white" />
                     </div>
-                    {doc.pdf_url && (doc.pdf_url.startsWith('data:image/') || doc.pdf_url.match(/\.(jpeg|jpg|gif|png)$/i)) ? (
+                    {doc.pdf_url && (
+                      doc.pdf_url.startsWith('data:image/') ||
+                      doc.pdf_url.match(/\.(jpeg|jpg|gif|png|webp)(\?|$)/i) ||
+                      (doc.pdf_url.includes('supabase') && !doc.pdf_url.includes('.pdf'))
+                    ) ? (
                       <img src={doc.pdf_url} alt={doc.title} className="w-full h-full object-cover" />
                     ) : (
                       <File className="w-12 h-12 text-slate-300 group-hover:text-brand-300 transition-colors" />

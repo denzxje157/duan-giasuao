@@ -40,11 +40,21 @@ function extractAnswerFromMarkers(content: string): string {
   if (match && match[1]) {
     answer = match[1].trim();
   }
+  
+  // Clean up raw tags that might remain or leak if regex didn't capture properly
+  answer = answer.replace(/\[ANSWER\]/ig, '');
+  answer = answer.replace(/\[END_ANSWER\]/ig, '');
+  
   // Remove [QUIZ] block from the visible answer
   answer = answer.replace(/\[QUIZ\][\s\S]*?(?:\[END_QUIZ\]|$)/ig, '').trim();
   // Remove [SUGGESTIONS] block from the visible answer
   answer = answer.replace(/\[SUGGESTIONS\][\s\S]*?(?:\[END_SUGGESTIONS\]|$)/ig, '').trim();
-  return answer;
+  
+  // Also clean up any lingering end tags
+  answer = answer.replace(/\[END_QUIZ\]/ig, '');
+  answer = answer.replace(/\[END_SUGGESTIONS\]/ig, '');
+  
+  return answer.trim();
 }
 
 function extractSuggestionsFromMarkers(content: string): SuggestionItem[] {
@@ -107,9 +117,12 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
     setMessages([
       { 
         role: 'assistant', 
-        content: user.grade <= 5 
-          ? `Chào ${user.name}! Mình là bạn Gia Sư. Trong lúc học cuốn **${displayTitle}**, có gì khó hiểu cậu cứ hỏi mình nhé!` 
-          : `Chào ${user.name}! Mình là Gia sư AI. Trong quá trình học cuốn **${displayTitle}**, nếu có đoạn nào chưa hiểu hoặc cần giải đáp, bạn cứ hỏi mình nhé.` 
+        content: (() => {
+          const displayName = user.name ? user.name.split('|')[0].trim() : 'học sinh';
+          return user.grade <= 5
+            ? `Chào ${displayName}! Mình là bạn Gia Sư. Trong lúc học cuốn **${displayTitle}**, có gì khó hiểu cậu cứ hỏi mình nhé!`
+            : `Chào ${displayName}! Mình là Gia sư AI. Trong quá trình học cuốn **${displayTitle}**, nếu có đoạn nào chưa hiểu hoặc cần giải đáp, bạn cứ hỏi mình nhé.`;
+        })() 
       }
     ]);
   }, [displayTitle, user.name, user.grade]);
@@ -510,31 +523,49 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
 
         {/* PDF Content */}
         <div className="flex-1 relative bg-slate-200">
-          {pdfUrl && pdfUrl.trim() !== "" ? (
-            pdfUrl.includes("drive.google.com") ? (
-              <iframe 
-                src={getEmbeddablePdfUrl(pdfUrl)} 
-                className="w-full h-full border-0" 
-                allow="autoplay"
-                title={displayTitle}
-              />
-            ) : (
-              <iframe 
-                src={`https://docs.google.com/gview?url=${encodeURIComponent(pdfUrl)}&embedded=true`} 
-                className="w-full h-full border-0" 
-                allow="autoplay"
-                title={displayTitle}
-              />
-            )
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4 p-8 text-center bg-slate-50">
-              <BookOpen className="w-16 h-16 text-slate-300" />
-              <div>
-                <h3 className="text-lg font-bold text-slate-600 mb-1">Không tìm thấy file PDF</h3>
-                <p className="text-sm">Tài liệu này chưa có liên kết PDF hợp lệ. Nếu đây là tài liệu cá nhân, vui lòng tải lên lại.</p>
+          {(() => {
+            const isImage = pdfUrl.startsWith('data:image/') || pdfUrl.match(/\.(jpeg|jpg|gif|png|webp)($|\?)/i);
+            if (isImage) {
+              return (
+                <div className="w-full h-full bg-slate-900/90 flex items-center justify-center p-4 overflow-auto">
+                  <img 
+                    src={pdfUrl} 
+                    alt={displayTitle} 
+                    className="max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-all duration-300"
+                  />
+                </div>
+              );
+            }
+            if (pdfUrl && pdfUrl.trim() !== "") {
+              if (pdfUrl.includes("drive.google.com")) {
+                return (
+                  <iframe 
+                    src={getEmbeddablePdfUrl(pdfUrl)} 
+                    className="w-full h-full border-0" 
+                    allow="autoplay"
+                    title={displayTitle}
+                  />
+                );
+              }
+              return (
+                <iframe 
+                  src={`https://docs.google.com/gview?url=${encodeURIComponent(pdfUrl)}&embedded=true`} 
+                  className="w-full h-full border-0" 
+                  allow="autoplay"
+                  title={displayTitle}
+                />
+              );
+            }
+            return (
+              <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4 p-8 text-center bg-slate-50">
+                <BookOpen className="w-16 h-16 text-slate-300" />
+                <div>
+                  <h3 className="text-lg font-bold text-slate-600 mb-1">Không tìm thấy file PDF</h3>
+                  <p className="text-sm">Tài liệu này chưa có liên kết PDF hợp lệ. Nếu đây là tài liệu cá nhân, vui lòng tải lên lại.</p>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
 
@@ -610,7 +641,7 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
                         <div className="markdown-body overflow-hidden">
                           <ReactMarkdown 
                             remarkPlugins={[remarkMath]} 
-                            rehypePlugins={[rehypeKatex]}
+                            rehypePlugins={[[rehypeKatex, { strict: 'ignore', throwOnError: false }]]}
                           >
                             {answerPart}
                           </ReactMarkdown>

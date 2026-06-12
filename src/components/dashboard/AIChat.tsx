@@ -6,6 +6,7 @@ import { fetchChatHistory, fetchChatSessions, deleteChatSession, API_BASE_URL, C
 import { supabase } from '../../lib/supabase';
 import ChatSidebar from './ChatSidebar';
 import DrawingCanvas from './DrawingCanvas';
+import { invalidateCache } from '../../lib/cache';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -235,7 +236,7 @@ const MessageContent = ({ content, isStreaming }: { content: string; isStreaming
     <div className="prose prose-invert max-w-none break-words">
       <ReactMarkdown
         remarkPlugins={[remarkMath]}
-        rehypePlugins={[rehypeKatex]}
+        rehypePlugins={[[rehypeKatex, { strict: 'ignore', throwOnError: false }]]}
       >
         {content}
       </ReactMarkdown>
@@ -326,11 +327,21 @@ function extractAnswerFromMarkers(content: string): string {
   if (match && match[1]) {
     answer = match[1].trim();
   }
+  
+  // Clean up raw tags that might remain or leak if regex didn't capture properly
+  answer = answer.replace(/\[ANSWER\]/ig, '');
+  answer = answer.replace(/\[END_ANSWER\]/ig, '');
+  
   // Remove [QUIZ] block from the visible answer
   answer = answer.replace(/\[QUIZ\][\s\S]*?(?:\[END_QUIZ\]|$)/ig, '').trim();
   // Remove [SUGGESTIONS] block from the visible answer
   answer = answer.replace(/\[SUGGESTIONS\][\s\S]*?(?:\[END_SUGGESTIONS\]|$)/ig, '').trim();
-  return answer;
+  
+  // Also clean up any lingering end tags
+  answer = answer.replace(/\[END_QUIZ\]/ig, '');
+  answer = answer.replace(/\[END_SUGGESTIONS\]/ig, '');
+  
+  return answer.trim();
 }
 
 function extractQuizFromMarkers(content: string): { question: string, options: string[], answer: number } | null {
@@ -525,7 +536,20 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
     return () => window.removeEventListener('tts-api-failed', handleTtsFailed);
   }, []);
   const [subjectLoadingKey, setSubjectLoadingKey] = useState<string | null>(null);
-  const [autoVoiceEnabled, setAutoVoiceEnabled] = useState(true);
+  const [autoVoiceEnabled, setAutoVoiceEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('giasuao_auto_voice_enabled');
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
+  const autoVoiceEnabledRef = useRef(true);
+  useEffect(() => {
+    autoVoiceEnabledRef.current = autoVoiceEnabled;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('giasuao_auto_voice_enabled', String(autoVoiceEnabled));
+    }
+  }, [autoVoiceEnabled]);
   const [voiceEngine, setVoiceEngine] = useState<'api' | 'local'>('local'); // Default to local (instant) for Hackathon demo!
 
   const playVoiceSequence = (textToSpeak: string) => {
@@ -894,7 +918,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
         return;
       }
 
-      // Check if we already have the messages cached for this sessionId
+      // Check if we already have the messages cached for this sessionId in memory
       if (chatCache.histories[sessionId]) {
         const cachedMessages = chatCache.histories[sessionId];
         setMessages(cachedMessages);
@@ -916,6 +940,25 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
         return;
       }
 
+      // Try loading from localStorage cache for instant display
+      const localCachedRaw = localStorage.getItem(`ai_chat_history_${sessionId}`);
+      if (localCachedRaw) {
+        try {
+          const localCached = JSON.parse(localCachedRaw);
+          if (Array.isArray(localCached) && localCached.length > 0) {
+            setMessages(localCached);
+            const allSessions = sessionGroupsRef.current.flatMap(g => g.subjects.flatMap(s => s.sessions));
+            const targetSession = allSessions.find(s => s.session_id === sessionId);
+            if (targetSession && targetSession.subject && targetSession.subject !== 'Môn học') {
+              setSelectedSubject(targetSession.subject);
+            }
+            setCurrentView('chat');
+          }
+        } catch (e) {
+          console.warn("Failed to parse cached history:", e);
+        }
+      }
+
       try {
         setIsHistoryLoading(true);
         // Fetch only current active session's messages
@@ -935,6 +978,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
 
           // Cache the loaded history
           chatCache.histories[sessionId] = mappedMessages;
+          localStorage.setItem(`ai_chat_history_${sessionId}`, JSON.stringify(mappedMessages));
 
           setMessages(mappedMessages);
 
@@ -994,10 +1038,24 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
         return;
       }
 
-      // Check if we have cached session groups and this is NOT a sidebar refresh trigger
+      // Check if we have cached session groups in memory and this is NOT a sidebar refresh trigger
       if (chatCache.sessionGroups !== null && sidebarRefreshTrigger === 0) {
         setSessionGroups(chatCache.sessionGroups);
         return;
+      }
+
+      // Try localStorage cache for instant sidebar display (stale-while-revalidate)
+      const userSessionsCacheKey = `ai_chat_sessions_user_${historyUserId || user.id || user.email}`;
+      const cachedSessionsRaw = localStorage.getItem(userSessionsCacheKey);
+      if (cachedSessionsRaw && sidebarRefreshTrigger === 0) {
+        try {
+          const parsed = JSON.parse(cachedSessionsRaw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setSessionGroups(parsed);
+          }
+        } catch (e) {
+          // ignore
+        }
       }
 
       try {
@@ -1005,6 +1063,8 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
         if (!cancelled) {
           chatCache.sessionGroups = data || [];
           setSessionGroups(data || []);
+          const userSessionsCacheKey = `ai_chat_sessions_user_${historyUserId || user.id || user.email}`;
+          localStorage.setItem(userSessionsCacheKey, JSON.stringify(data || []));
         }
       } catch (error) {
         console.error('Failed to load chat sessions', error);
@@ -1100,8 +1160,9 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
       setSidebarOpen(false);
       setCurrentView('chat');
 
+      const displayName = user.name ? user.name.split('|')[0].trim() : 'học sinh';
       await sendMessage(
-        `Chào Gia sư, mình là ${user.name || 'học sinh'}, học sinh lớp ${user.grade}. Mình muốn học môn ${subjectName}. Hãy chào mình thật thân thiện, cá nhân hóa theo tên của mình và đưa ra 4 lựa chọn học tập ngắn gọn cho môn này.`,
+        `Chào Gia sư, mình là ${displayName}, học sinh lớp ${user.grade}. Mình muốn học môn ${subjectName}. Hãy chào mình thật thân thiện, cá nhân hóa theo tên của mình và đưa ra 4 lựa chọn học tập ngắn gọn cho môn này.`,
         { hiddenUserMessage: true, overrideSubject: subjectName, sessionIdOverride: newSessionId }
       );
     } finally {
@@ -1228,6 +1289,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
 
       await deleteChatSession(targetSessionId);
       delete chatCache.histories[targetSessionId];
+      localStorage.removeItem(`ai_chat_history_${targetSessionId}`);
       setSessionGroups(prev => {
         const updated = prev.map((gradeGroup) => ({
           ...gradeGroup,
@@ -1237,6 +1299,8 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
           })).filter(subjectGroup => subjectGroup.sessions.length > 0),
         })).filter(gradeGroup => gradeGroup.subjects.length > 0);
         chatCache.sessionGroups = updated;
+        const userSessionsCacheKey = `ai_chat_sessions_user_${historyUserId || user.id || user.email}`;
+        localStorage.setItem(userSessionsCacheKey, JSON.stringify(updated));
         return updated;
       });
  
@@ -1264,6 +1328,31 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
     const currentImage = attachedImage;
     setAttachedImage(null);
     setIsDrawingMode(false);
+
+    if (currentImage) {
+      if (user.isGuest) {
+        const guestDocKey = `virtual_tutor_guest_docs_${user.id || 'guest'}`;
+        try {
+          const storedLocalDocs = localStorage.getItem(guestDocKey);
+          const localDocs = storedLocalDocs ? JSON.parse(storedLocalDocs) : [];
+          const newDoc = {
+            id: `chat-img-${Date.now()}`,
+            title: `Ảnh từ đoạn chat - ${new Date().toLocaleDateString('en-GB')}`,
+            status: 'ready',
+            date: new Date().toLocaleDateString('en-GB'),
+            subject: activeSubject || 'Khác',
+            pdf_url: currentImage
+          };
+          localDocs.unshift(newDoc);
+          localStorage.setItem(guestDocKey, JSON.stringify(localDocs));
+        } catch (e) {
+          console.error("Failed to save guest chat image:", e);
+        }
+      } else if (user.id) {
+        // Invalidate cache for personal docs
+        invalidateCache(`personal_docs_${user.id}`);
+      }
+    }
 
     if (!options?.hiddenUserMessage) {
       setMessages(prev => {
@@ -1412,13 +1501,11 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
         saveGuestMessageAndSession(detectedSessionId || 'guest', updatedMsgs, String(user.grade || ''), activeSubject || 'Môn học', activeSessionId);
       }
 
-      if (usedVoiceRef.current) {
-        const textToSpeak = extractAnswerFromMarkers(fullAssistantText);
-        if (autoVoiceEnabled) {
-          playVoiceSequence(textToSpeak);
-        }
-        usedVoiceRef.current = false;
+      const textToSpeak = extractAnswerFromMarkers(fullAssistantText);
+      if (autoVoiceEnabledRef.current && textToSpeak) {
+        playVoiceSequence(textToSpeak);
       }
+      usedVoiceRef.current = false;
 
       setSidebarRefreshTrigger(prev => prev + 1);
     } catch (error) {

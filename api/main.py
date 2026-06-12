@@ -456,11 +456,11 @@ def login_user(req: LoginRequest):
 
 @app.post("/api/upload")
 async def upload_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     grade: str = Form("1"),
     subject: Optional[str] = Form(None),
     user_id: Optional[str] = Form(None),
-    background_tasks: BackgroundTasks = None,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
     user_supabase = supabase
@@ -816,6 +816,151 @@ def get_all_users():
         return {"status": "success", "total_users": len(res.data), "data": res.data}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi lấy danh sách User: {str(e)}")
+
+
+@app.get("/api/admin/documents")
+def get_admin_documents(credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))):
+    user_supabase = supabase
+    if credentials and credentials.credentials:
+        try:
+            resolved_user_id = _verify_token_and_get_user(credentials)
+            user_supabase = _get_supabase_client(credentials)
+            # Verify role is admin
+            profile_res = user_supabase.table("profiles").select("role").eq("id", resolved_user_id).execute()
+            if not profile_res.data or profile_res.data[0].get("role") != "admin":
+                raise HTTPException(status_code=403, detail="Chỉ Admin mới có quyền thực hiện chức năng này!")
+        except HTTPException:
+            raise
+        except Exception as auth_err:
+            raise HTTPException(status_code=401, detail=f"Xác thực thất bại: {auth_err}")
+    
+    try:
+        # Fetch documents
+        res = user_supabase.table("documents").select("*").order("created_at", desc=True).execute()
+        return {"status": "success", "data": res.data}
+    except Exception as e:
+        # Fallback to select without created_at sorting in case it doesn't exist
+        try:
+            res = user_supabase.table("documents").select("*").execute()
+            return {"status": "success", "data": res.data}
+        except Exception as fallback_err:
+            raise HTTPException(status_code=500, detail=f"Lỗi lấy danh sách tài liệu: {str(fallback_err)}")
+
+
+@app.post("/api/admin/documents/{doc_id}/reprocess")
+def reprocess_document(
+    doc_id: str,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    user_supabase = supabase
+    if credentials and credentials.credentials:
+        try:
+            resolved_user_id = _verify_token_and_get_user(credentials)
+            user_supabase = _get_supabase_client(credentials)
+            # Verify role is admin
+            profile_res = user_supabase.table("profiles").select("role").eq("id", resolved_user_id).execute()
+            if not profile_res.data or profile_res.data[0].get("role") != "admin":
+                raise HTTPException(status_code=403, detail="Chỉ Admin mới có quyền thực hiện chức năng này!")
+        except HTTPException:
+            raise
+        except Exception as auth_err:
+            raise HTTPException(status_code=401, detail=f"Xác thực thất bại: {auth_err}")
+
+    try:
+        # Fetch document
+        doc_res = user_supabase.table("documents").select("*").eq("id", doc_id).execute()
+        if not doc_res.data:
+            raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu!")
+        
+        doc = doc_res.data[0]
+        pdf_url = doc.get("pdf_url")
+        content_text = doc.get("content") or ""
+        name = doc.get("name") or "Tài liệu"
+
+        # If content_text is empty or too short, download pdf and extract content first
+        if not content_text or len(content_text.strip()) < 50:
+            if not pdf_url:
+                raise HTTPException(status_code=400, detail="Tài liệu không có nội dung và không có URL PDF để tải về!")
+            
+            # Download PDF file bytes
+            print(f"📥 Downloading PDF from public url: {pdf_url}")
+            r = requests.get(pdf_url, timeout=30)
+            if r.status_code != 200:
+                raise HTTPException(status_code=400, detail=f"Không thể tải xuống PDF từ URL: {pdf_url}")
+            
+            file_bytes = r.content
+            # Process pdf
+            print(f"⚙️ Extracting text from PDF...")
+            content_text = process_pdf_to_markdown(file_bytes, "application/pdf")
+            if content_text.startswith("Error:"):
+                raise Exception(content_text)
+            
+            # Update document content
+            user_supabase.table("documents").update({"content": content_text}).eq("id", doc_id).execute()
+
+        # Update status to processing
+        user_supabase.table("documents").update({"status": "processing"}).eq("id", doc_id).execute()
+
+        # Run save_document_to_db in background task
+        background_tasks.add_task(save_document_to_db, content_text, name, doc_id, user_supabase)
+        
+        return {"status": "success", "message": "Đã bắt đầu xử lý lại tài liệu trong nền!"}
+    except Exception as e:
+        print(f"❌ Error reprocessing document: {e}")
+        raise HTTPException(status_code=500, detail=f"Lỗi khi xử lý lại tài liệu: {str(e)}")
+
+
+@app.delete("/api/admin/documents/{doc_id}")
+def delete_document(
+    doc_id: str,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    user_supabase = supabase
+    if credentials and credentials.credentials:
+        try:
+            resolved_user_id = _verify_token_and_get_user(credentials)
+            user_supabase = _get_supabase_client(credentials)
+            # Verify role is admin
+            profile_res = user_supabase.table("profiles").select("role").eq("id", resolved_user_id).execute()
+            if not profile_res.data or profile_res.data[0].get("role") != "admin":
+                raise HTTPException(status_code=403, detail="Chỉ Admin mới có quyền thực hiện chức năng này!")
+        except HTTPException:
+            raise
+        except Exception as auth_err:
+            raise HTTPException(status_code=401, detail=f"Xác thực thất bại: {auth_err}")
+            
+    try:
+        # 1. Fetch document metadata to find the pdf url/file path
+        doc_res = user_supabase.table("documents").select("pdf_url").eq("id", doc_id).execute()
+        pdf_url = None
+        if doc_res.data and len(doc_res.data) > 0:
+            pdf_url = doc_res.data[0].get("pdf_url")
+            
+        # 2. Delete document chunks first
+        try:
+            user_supabase.table("document_chunks").delete().eq("document_id", doc_id).execute()
+        except Exception as chunk_del_err:
+            print(f"⚠️ Warning: failed to delete document chunks: {chunk_del_err}")
+
+        # 3. Delete document row from DB
+        user_supabase.table("documents").delete().eq("id", doc_id).execute()
+        
+        # 4. Attempt to delete from Supabase storage if file path is under bucket 'giasuao'
+        if pdf_url and "giasuao" in pdf_url:
+            try:
+                parts = pdf_url.split("/giasuao/")
+                if len(parts) > 1:
+                    storage_path = parts[1]
+                    storage_path = urllib.parse.unquote(storage_path)
+                    print(f"🗑️ Deleting file from storage bucket giasuao: {storage_path}")
+                    user_supabase.storage.from_("giasuao").remove([storage_path])
+            except Exception as storage_err:
+                print(f"⚠️ Warning: failed to delete file from storage: {storage_err}")
+
+        return {"status": "success", "message": "Đã xóa tài liệu và tất cả các chunk liên quan!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi khi xóa tài liệu: {str(e)}")
 
 
 @app.get("/api/user/stats/{user_id}")

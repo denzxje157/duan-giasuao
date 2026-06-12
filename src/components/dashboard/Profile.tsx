@@ -79,8 +79,9 @@ export default function Profile({ user, onLogout, onUserUpdate }: ProfileProps) 
     e.preventDefault();
     setIsSaving(true);
     try {
+      const cleanGoal = dailyGoal && !isNaN(Number(dailyGoal)) && Number(dailyGoal) > 0 ? dailyGoal : '30';
       const packedParts = [name];
-      packedParts.push(`goal:${dailyGoal}`);
+      packedParts.push(`goal:${cleanGoal}`);
       packedParts.push(`style:${learningStyle}`);
       packedParts.push(`notif:${notifications}`);
       
@@ -249,13 +250,13 @@ export default function Profile({ user, onLogout, onUserUpdate }: ProfileProps) 
                   {/* Daily Goal */}
                   <div className="space-y-3">
                     <label className="text-sm font-semibold text-slate-700 block">Mục tiêu học tập hàng ngày</label>
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="flex flex-wrap gap-2 items-center">
                       {['15', '30', '45', '60'].map((time) => (
                         <button
                           key={time}
                           type="button"
                           onClick={() => setDailyGoal(time)}
-                          className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all ${
+                          className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all whitespace-nowrap ${
                             dailyGoal === time 
                               ? 'bg-brand-600 text-white border-brand-600 shadow-sm' 
                               : 'bg-white text-slate-600 border-slate-200 hover:border-brand-200'
@@ -264,6 +265,27 @@ export default function Profile({ user, onLogout, onUserUpdate }: ProfileProps) 
                           {time} phút
                         </button>
                       ))}
+
+                      {/* Custom input */}
+                      <div className="flex items-center gap-1.5 ml-1">
+                        <input
+                          type="number"
+                          min="1"
+                          max="1440"
+                          placeholder="Tự chọn"
+                          value={!['15', '30', '45', '60'].includes(dailyGoal) ? dailyGoal : ''}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9]/g, '');
+                            setDailyGoal(val);
+                          }}
+                          className={`w-20 py-2.5 px-3 rounded-xl text-xs font-bold border outline-none text-center transition-all ${
+                            !['15', '30', '45', '60'].includes(dailyGoal) && dailyGoal
+                              ? 'bg-brand-600 text-white border-brand-600 placeholder-white/70 shadow-sm'
+                              : 'bg-white text-slate-600 border-slate-200 placeholder-slate-400 focus:border-brand-300'
+                          }`}
+                        />
+                        <span className="text-xs font-semibold text-slate-500">phút</span>
+                      </div>
                     </div>
                   </div>
 

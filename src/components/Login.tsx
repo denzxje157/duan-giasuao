@@ -95,6 +95,17 @@ export default function Login({ onLogin, onGradeSelect }: LoginProps) {
             return; // stop here, do not navigate
           }
 
+          // Insert profile record for the new user
+          if (data.user) {
+            await supabase.from('profiles').upsert({
+              id: data.user.id,
+              full_name: isExpectedAdmin ? 'Administrator' : name,
+              grade: grade,
+              role: role,
+              email: email,
+            }, { onConflict: 'id' });
+          }
+
           // Successful signup -> proceed
           onLogin({ id: data.user?.id, name: isExpectedAdmin ? 'Administrator' : name, email, grade, role });
         }

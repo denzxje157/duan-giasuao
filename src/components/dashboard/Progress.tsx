@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 
 interface ProgressProps {
   user: User;
+  setActiveTab?: (tab: string) => void;
 }
 
 const activityDataMock = [
@@ -32,7 +33,7 @@ const subjectData = [
   { name: 'Tiếng Anh', hours: 0, color: '#10b981' }, // emerald
 ];
 
-export default function Progress({ user }: ProgressProps) {
+export default function Progress({ user, setActiveTab }: ProgressProps) {
   const [stats, setStats] = useState({ streak: 0, total_study_minutes: 0, max_streak: 0, total_sp: 0 });
   const [activityData, setActivityData] = useState(activityDataMock);
   const [radarData, setRadarData] = useState(radarDataMock);
@@ -345,7 +346,10 @@ export default function Progress({ user }: ProgressProps) {
            <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Thành tích & Tiến độ</h2>
            <p className="text-slate-500 font-medium">Theo dõi hành trình học tập và nhận phần thưởng xứng đáng.</p>
         </div>
-        <button className="h-10 w-10 bg-white rounded-full flex items-center justify-center border border-slate-200 shadow-sm text-slate-500 hover:text-slate-800 transition-colors">
+        <button 
+          onClick={() => setActiveTab?.('profile')}
+          className="h-10 w-10 bg-white rounded-full flex items-center justify-center border border-slate-200 shadow-sm text-slate-500 hover:text-slate-800 transition-colors"
+        >
            <Settings className="w-5 h-5" />
         </button>
       </div>

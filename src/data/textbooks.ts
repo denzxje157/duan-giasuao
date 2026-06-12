@@ -354,19 +354,8 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "pdf_url": "https://drive.google.com/file/d/17fDdirG4gVB9kgJXwmKgQm4qACCVmJne/preview"
   },
   {
-    "id": "gdrive-13BjOu86P0PvKLjlc7YjiOIPa8hG4LOcB",
-    "title": "Địa lí 11",
-    "subject": "Địa lí",
-    "grade": 11,
-    "series": "Kết nối tri thức",
-    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/c7e68429-3cfa-5dee-9c45-d373da076970.png",
-    "pages": 100,
-    "size": "N/A",
-    "pdf_url": "https://drive.google.com/file/d/13BjOu86P0PvKLjlc7YjiOIPa8hG4LOcB/preview"
-  },
-  {
     "id": "gdrive-1Y3FJSYE3NmJSlTM8Q52jfDIGte0oIEB-",
-    "title": "Hóa học 12",
+    "title": "Hóa học 12",
     "subject": "Hóa học",
     "grade": 12,
     "series": "Kết nối tri thức",
@@ -376,30 +365,8 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "pdf_url": "https://drive.google.com/file/d/1Y3FJSYE3NmJSlTM8Q52jfDIGte0oIEB-/preview"
   },
   {
-    "id": "gdrive-1PN8blTfV_Q2BrzBknNZlrbnHiS7irPTT",
-    "title": "Hóa học 12",
-    "subject": "Hóa học",
-    "grade": 12,
-    "series": "Kết nối tri thức",
-    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22fa52f6-32ab-501d-b54e-42de40ab164e.png",
-    "pages": 100,
-    "size": "N/A",
-    "pdf_url": "https://drive.google.com/file/d/1PN8blTfV_Q2BrzBknNZlrbnHiS7irPTT/preview"
-  },
-  {
-    "id": "gdrive-1IDOVzemFsTa5XfSoonAKGa70rfA8KICL",
-    "title": "Hóa học 12",
-    "subject": "Hóa học",
-    "grade": 12,
-    "series": "Kết nối tri thức",
-    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22fa52f6-32ab-501d-b54e-42de40ab164e.png",
-    "pages": 100,
-    "size": "N/A",
-    "pdf_url": "https://drive.google.com/file/d/1IDOVzemFsTa5XfSoonAKGa70rfA8KICL/preview"
-  },
-  {
     "id": "gdrive-17P1Sbni8XtSdTCkla3vkreSATDmCOvQ-",
-    "title": "Vật lí 12",
+    "title": "Vật lí 12",
     "subject": "Vật lí",
     "grade": 12,
     "series": "Kết nối tri thức",
@@ -409,114 +376,147 @@ export const TEXTBOOKS_DATA: Textbook[] = [
     "pdf_url": "https://drive.google.com/file/d/17P1Sbni8XtSdTCkla3vkreSATDmCOvQ-/preview"
   },
   {
-    "id": "gdrive-1VNiSjVsu9tESE-XJsDxy-3biN5mz3nIj",
-    "title": "Vật lí 12",
-    "subject": "Vật lí",
+    "id": "gdrive-g12-toan-tap1",
+    "title": "Toán 12, tập một",
+    "subject": "Toán",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/879df1cf-0ce5-5a39-8bad-b4277e74aca6.png",
     "pages": 100,
     "size": "N/A",
-    "pdf_url": "https://drive.google.com/file/d/1VNiSjVsu9tESE-XJsDxy-3biN5mz3nIj/preview"
+    "pdf_url": "https://drive.google.com/file/d/1EFUq6gHsfVOsC8k8lk65dvZ1qmMs__ri/preview"
   },
   {
-    "id": "gdrive-1o5rwJpABnb0m3mqTVmno3RjorXsBrcIg",
-    "title": "Vật lí 12",
-    "subject": "Vật lí",
+    "id": "gdrive-g12-toan-tap2",
+    "title": "Toán 12, tập hai",
+    "subject": "Toán",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/879df1cf-0ce5-5a39-8bad-b4277e74aca6.png",
     "pages": 100,
     "size": "N/A",
-    "pdf_url": "https://drive.google.com/file/d/1o5rwJpABnb0m3mqTVmno3RjorXsBrcIg/preview"
+    "pdf_url": "https://drive.google.com/file/d/1fsF_wkUgIi2kLeSdlmh3_WLxJQOP_o_8/preview"
   },
   {
-    "id": "gdrive-1nfCB5k0I5Wg04GE069avm-tqK5vv8ymE",
-    "title": "Hóa học 12",
-    "subject": "Hóa học",
+    "id": "gdrive-g12-ngu-van-tap1",
+    "title": "Ngữ văn 12, tập một",
+    "subject": "Ngữ văn",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22fa52f6-32ab-501d-b54e-42de40ab164e.png",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/bc3077b4-07a6-51b4-935f-feb334ef3143.png",
     "pages": 100,
     "size": "N/A",
-    "pdf_url": "https://drive.google.com/file/d/1nfCB5k0I5Wg04GE069avm-tqK5vv8ymE/preview"
+    "pdf_url": "https://drive.google.com/file/d/1N5OFJj7G_ltLFFc-GSpRUFyjz873FVbJ/preview"
   },
   {
-    "id": "gdrive-19Y2B_Y3dF1KQeysnFO4cO-iLWkT-LfUr",
-    "title": "Vật lí 12",
-    "subject": "Vật lí",
+    "id": "gdrive-g12-ngu-van-tap2",
+    "title": "Ngữ văn 12, tập hai",
+    "subject": "Ngữ văn",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/7dceb6e4-a6b0-5f35-ae61-2aef76800481.png",
     "pages": 100,
     "size": "N/A",
-    "pdf_url": "https://drive.google.com/file/d/19Y2B_Y3dF1KQeysnFO4cO-iLWkT-LfUr/preview"
+    "pdf_url": "https://drive.google.com/file/d/1FZKhszxgb_UnJkcUyKN1_T6O7y9rLzRw/preview"
   },
   {
-    "id": "gdrive-1RHrp2DO5F_9tCtsGuk9Emh58LKFPhQrR",
-    "title": "Hóa học 12",
-    "subject": "Hóa học",
+    "id": "gdrive-g12-tieng-anh",
+    "title": "Tiếng Anh 12 - Global Success",
+    "subject": "Tiếng Anh",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/22fa52f6-32ab-501d-b54e-42de40ab164e.png",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/7225874b-1041-5a03-9e7c-7c4351757005.png",
     "pages": 100,
     "size": "N/A",
-    "pdf_url": "https://drive.google.com/file/d/1RHrp2DO5F_9tCtsGuk9Emh58LKFPhQrR/preview"
+    "pdf_url": "https://drive.google.com/file/d/1Ai6_ZARgHpfSbRxAIZ_xkktqoHa6UgIB/preview"
   },
   {
-    "id": "gdrive-17RB9e1xc-8QaQ1hp3vRXiGIp_DYWT2tb",
-    "title": "Vật lí 12",
-    "subject": "Vật lí",
+    "id": "gdrive-g12-lich-su",
+    "title": "Lịch sử 12",
+    "subject": "Lịch sử",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/bc8965b5-4f86-5f89-9f4e-0d7d976f0f2c.png",
     "pages": 100,
     "size": "N/A",
-    "pdf_url": "https://drive.google.com/file/d/17RB9e1xc-8QaQ1hp3vRXiGIp_DYWT2tb/preview"
+    "pdf_url": "https://drive.google.com/file/d/12eD20JSnxe8921343hUHZbJRKzug86Z5/preview"
   },
   {
-    "id": "gdrive-1zNpREdEpFz4SPjyPHr6Fmtasad_i-QgL",
-    "title": "Vật lí 12",
-    "subject": "Vật lí",
+    "id": "gdrive-g12-dia-li",
+    "title": "Địa lí 12",
+    "subject": "Địa lí",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/c7e68429-3cfa-5dee-9c45-d373da076970.png",
     "pages": 100,
     "size": "N/A",
-    "pdf_url": "https://drive.google.com/file/d/1zNpREdEpFz4SPjyPHr6Fmtasad_i-QgL/preview"
+    "pdf_url": "https://drive.google.com/file/d/13BjOu86P0PvKLjlc7YjiOIPa8hG4LOcB/preview"
   },
   {
-    "id": "gdrive-1MEybQSZs4f7nzptJZEt_mBzKyZGs9K-E",
-    "title": "Vật lí 12",
-    "subject": "Vật lí",
+    "id": "gdrive-g12-sinh-hoc",
+    "title": "Sinh học 12",
+    "subject": "Sinh học",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/a2e514f5-0a91-5718-9f81-402574619712.png",
     "pages": 100,
     "size": "N/A",
-    "pdf_url": "https://drive.google.com/file/d/1MEybQSZs4f7nzptJZEt_mBzKyZGs9K-E/preview"
+    "pdf_url": "https://drive.google.com/file/d/1vG83Eui2p7tpbkiLwrmiJ9TlD8btO94g/preview"
   },
   {
-    "id": "gdrive-1J9W-AS0J8Yv5snw-DlFdwHavEtzIIm11",
-    "title": "Vật lí 12",
-    "subject": "Vật lí",
+    "id": "gdrive-g12-tin-hoc-cs",
+    "title": "Tin học 12 - Định hướng khoa học máy tính",
+    "subject": "Tin học",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/ed79e973-4c66-5318-9c9c-a1a6da91ca8c.png",
     "pages": 100,
     "size": "N/A",
-    "pdf_url": "https://drive.google.com/file/d/1J9W-AS0J8Yv5snw-DlFdwHavEtzIIm11/preview"
+    "pdf_url": "https://drive.google.com/file/d/1Gh7pJIrNj0XQ_3xOJ-8pLWAyuejb-Bma/preview"
   },
   {
-    "id": "gdrive-1Hd8MCH49DcJLYU_pi-INsi6L6QOgKAOF",
-    "title": "Vật lí 12",
-    "subject": "Vật lí",
+    "id": "gdrive-g12-tin-hoc-ud",
+    "title": "Tin học 12 - Định hướng tin học ứng dụng",
+    "subject": "Tin học",
     "grade": 12,
     "series": "Kết nối tri thức",
-    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/45822f52-5b3b-590a-95b7-f45b38796d9d.png",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/f024650a-dd29-5479-b1e4-bf1df826ef7b.png",
     "pages": 100,
     "size": "N/A",
-    "pdf_url": "https://drive.google.com/file/d/1Hd8MCH49DcJLYU_pi-INsi6L6QOgKAOF/preview"
+    "pdf_url": "https://drive.google.com/file/d/1rRRJ97YxPP0Hp4WuuzeKGLnqBELufC3E/preview"
+  },
+  {
+    "id": "gdrive-g12-gdcd",
+    "title": "Giáo dục kinh tế và pháp luật 12",
+    "subject": "GDKT&PL",
+    "grade": 12,
+    "series": "Kết nối tri thức",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/5526b445-6202-5bda-9a8c-600e2b234c44.png",
+    "pages": 100,
+    "size": "N/A",
+    "pdf_url": "https://drive.google.com/file/d/1NFe1j1NojgU6D-I8Wm8Z9_6LWSWx1Ogm/preview"
+  },
+  {
+    "id": "gdrive-g12-cong-nghe-chan-nuoi",
+    "title": "Công nghệ 12 - Công nghệ chăn nuôi",
+    "subject": "Công nghệ",
+    "grade": 12,
+    "series": "Kết nối tri thức",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/0c2c9f81-70d8-53bf-875b-4e25ed47f085.png",
+    "pages": 100,
+    "size": "N/A",
+    "pdf_url": "https://drive.google.com/file/d/1VP1Cdx9fZToR7I33pCZ91exT-0Ea2vlH/preview"
+  },
+  {
+    "id": "gdrive-g12-cong-nghe-co-khi",
+    "title": "Công nghệ 12 - Công nghệ cơ khí",
+    "subject": "Công nghệ",
+    "grade": 12,
+    "series": "Kết nối tri thức",
+    "thumbnail": "https://ondtrlthellodkhhrmjx.supabase.co/storage/v1/object/public/giasuao/thumbnails/3278f30d-f546-564f-ae9a-6975d2b2a40d.png",
+    "pages": 100,
+    "size": "N/A",
+    "pdf_url": "https://drive.google.com/file/d/1NQ5GRrzzuOZJ4dtaifxHwOhnV6ujmKEh/preview"
   },
   {
     "id": "gdrive-1DogbFo9ieOG66hWlC9fHAUb6MLJeGODh",

@@ -248,6 +248,89 @@ export async function getAllUsers() {
   return response.json();
 }
 
+export async function getAdminDocuments() {
+  let accessToken = '';
+  try {
+    if ((supabase.auth as any).getSession) {
+      const maybe = await (supabase.auth as any).getSession();
+      accessToken = maybe?.data?.session?.access_token || '';
+    } else if ((supabase.auth as any).session) {
+      const s = (supabase.auth as any).session();
+      accessToken = s?.access_token || '';
+    }
+  } catch (e) {}
+
+  const headers: Record<string, string> = {};
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
+  const response = await fetch(`${API_BASE_URL}/api/admin/documents`, {
+    method: 'GET',
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error('Không thể lấy danh sách tài liệu');
+  }
+
+  return response.json();
+}
+
+export async function reprocessDocument(docId: string) {
+  let accessToken = '';
+  try {
+    if ((supabase.auth as any).getSession) {
+      const maybe = await (supabase.auth as any).getSession();
+      accessToken = maybe?.data?.session?.access_token || '';
+    } else if ((supabase.auth as any).session) {
+      const s = (supabase.auth as any).session();
+      accessToken = s?.access_token || '';
+    }
+  } catch (e) {}
+
+  const headers: Record<string, string> = {};
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
+  const response = await fetch(`${API_BASE_URL}/api/admin/documents/${docId}/reprocess`, {
+    method: 'POST',
+    headers,
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Xử lý lại tài liệu thất bại');
+  }
+
+  return response.json();
+}
+
+export async function deleteDocument(docId: string) {
+  let accessToken = '';
+  try {
+    if ((supabase.auth as any).getSession) {
+      const maybe = await (supabase.auth as any).getSession();
+      accessToken = maybe?.data?.session?.access_token || '';
+    } else if ((supabase.auth as any).session) {
+      const s = (supabase.auth as any).session();
+      accessToken = s?.access_token || '';
+    }
+  } catch (e) {}
+
+  const headers: Record<string, string> = {};
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
+  const response = await fetch(`${API_BASE_URL}/api/admin/documents/${docId}`, {
+    method: 'DELETE',
+    headers,
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Xóa tài liệu thất bại');
+  }
+
+  return response.json();
+}
+
 // ==========================================
 // User Stats API
 // ==========================================
@@ -536,6 +619,9 @@ export const apiClient = {
   getConfigs: getSystemConfigs,
   updateConfig: updateSystemConfig,
   getAllUsers,
+  getAdminDocuments,
+  reprocessDocument,
+  deleteDocument,
   getUserStats,
   forgotPassword,
   fetchChatHistory,

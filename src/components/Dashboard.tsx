@@ -124,7 +124,7 @@ export default function Dashboard({ user, onLogout, onGradeChange, onUserUpdate 
       case 'admin':
         return <AdminPanel />;
       case 'progress':
-        return <Progress user={user} />;
+        return <Progress user={user} setActiveTab={setActiveTab} />;
       case 'profile':
         return <Profile user={user} onLogout={onLogout} onUserUpdate={onUserUpdate} />;
       default:
@@ -172,7 +172,7 @@ export default function Dashboard({ user, onLogout, onGradeChange, onUserUpdate 
       />
       
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar user={user} onLogout={onLogout} />
+        <TopBar user={user} onLogout={onLogout} currentGrade={user.grade} onGradeChange={onGradeChange} />
         
         <main className={`flex-1 overflow-y-auto ${activeTab === 'workspace' ? '' : 'p-4 md:p-8 pb-24 lg:pb-8'} custom-scrollbar`}>
           <AnimatePresence mode="wait">

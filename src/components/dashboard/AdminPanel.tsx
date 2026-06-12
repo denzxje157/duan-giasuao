@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Key, UploadCloud, Save, CheckCircle2, ShieldAlert, FileText, X, Activity, AlertTriangle, Settings2, Users, Database, LayoutDashboard, Search, Lock, Unlock, KeyRound, Shield, Edit2, Trash2, Bot, Loader2 } from 'lucide-react';
+import { Key, UploadCloud, Save, CheckCircle2, ShieldAlert, FileText, X, Activity, AlertTriangle, Settings2, Users, Database, LayoutDashboard, Search, Lock, Unlock, KeyRound, Shield, Edit2, Trash2, Bot, Loader2, RefreshCw, ExternalLink } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '../../lib/supabase';
-import { uploadDocument } from '../../lib/api';
+import { uploadDocument, getAdminDocuments, reprocessDocument, deleteDocument } from '../../lib/api';
 
 interface BookUpload {
   id: string;
@@ -55,6 +55,11 @@ export default function AdminPanel() {
   // Stats State
   const [stats, setStats] = useState({ totalDocs: 0, totalUsers: 0 });
 
+  // Documents List State
+  const [documentsList, setDocumentsList] = useState<any[]>([]);
+  const [isLoadingDocs, setIsLoadingDocs] = useState(false);
+  const [ragSubTab, setRagSubTab] = useState<'docs' | 'chunks'>('docs');
+
   // Load Admin Data on Mount
   useEffect(() => {
     const fetchAdminData = async () => {
@@ -96,7 +101,50 @@ export default function AdminPanel() {
     fetchAdminData();
     fetchAIConfigs();
     fetchRAGChunks();
+    fetchDocuments();
   }, []);
+
+  const fetchDocuments = async () => {
+    try {
+      setIsLoadingDocs(true);
+      const res = await getAdminDocuments();
+      if (res && res.status === 'success' && res.data) {
+        setDocumentsList(res.data);
+      }
+    } catch (err) {
+      console.error("Error fetching documents:", err);
+    } finally {
+      setIsLoadingDocs(false);
+    }
+  };
+
+  const handleReprocessDoc = async (docId: string) => {
+    try {
+      setDocumentsList(prev => prev.map(d => d.id === docId ? { ...d, status: 'processing' } : d));
+      const res = await reprocessDocument(docId);
+      if (res && res.status === 'success') {
+        alert("Đã bắt đầu xử lý lại tài liệu!");
+        fetchDocuments();
+      }
+    } catch (err: any) {
+      alert(`Lỗi khi xử lý lại tài liệu: ${err.message || err}`);
+      fetchDocuments();
+    }
+  };
+
+  const handleDeleteDoc = async (docId: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa tài liệu này và tất cả các đoạn văn bản bóc tách liên quan không?")) return;
+    try {
+      const res = await deleteDocument(docId);
+      if (res && res.status === 'success') {
+        setDocumentsList(prev => prev.filter(d => d.id !== docId));
+        fetchRAGChunks();
+        setStats(prev => ({ ...prev, totalDocs: Math.max(0, prev.totalDocs - 1) }));
+      }
+    } catch (err: any) {
+      alert(`Lỗi khi xóa tài liệu: ${err.message || err}`);
+    }
+  };
 
   // Fetch configs from Backend API
   const fetchAIConfigs = async () => {
@@ -205,6 +253,7 @@ export default function AdminPanel() {
         if (res && res.status === 'success') {
           setUploads(prev => prev.map(u => u.id === up.id ? { ...u, progress: 100, status: 'completed' } : u));
           fetchRAGChunks();
+          fetchDocuments();
           
           // Update docs count
           const { count: docsCount } = await supabase.from('documents').select('*', { count: 'exact', head: true });
@@ -652,75 +701,202 @@ export default function AdminPanel() {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden lg:col-span-2 flex flex-col h-[700px]">
-            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50">
-              <div>
-                <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                  <Database className="w-5 h-5 text-brand-500" /> Quản lý Dữ liệu đã bóc tách (Vectors)
-                </h3>
-                <p className="text-xs text-slate-500 mt-1 font-medium">Chỉnh sửa hoặc xóa các đoạn văn bản (chunks) bị rác trước khi đưa vào CSDL chuẩn.</p>
+            <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                <div>
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                    <Database className="w-5 h-5 text-brand-500" /> Quản lý tài liệu & bóc tách (RAG)
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">Theo dõi các tài liệu sách giáo khoa đã nạp hoặc chỉnh sửa các đoạn văn bản bóc tách.</p>
+                </div>
+                
+                {ragSubTab === 'chunks' && (
+                  <div className="relative w-full sm:w-64 shrink-0">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input 
+                      type="text" 
+                      placeholder="Tìm đoạn văn bản..."
+                      value={chunkSearchQuery}
+                      onChange={(e) => setChunkSearchQuery(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm font-medium focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
+                    />
+                  </div>
+                )}
               </div>
-              <div className="relative w-full sm:w-64 shrink-0">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input 
-                  type="text" 
-                  placeholder="Tìm đoạn văn bản..."
-                  value={chunkSearchQuery}
-                  onChange={(e) => setChunkSearchQuery(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm font-medium focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 outline-none"
-                />
+
+              {/* Sub tabs switcher */}
+              <div className="flex border-b border-slate-200">
+                <button
+                  onClick={() => setRagSubTab('docs')}
+                  className={`px-4 py-2 text-sm font-bold border-b-2 transition-all ${
+                    ragSubTab === 'docs'
+                      ? 'border-brand-600 text-brand-600'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Danh sách tài liệu ({documentsList.length})
+                </button>
+                <button
+                  onClick={() => setRagSubTab('chunks')}
+                  className={`px-4 py-2 text-sm font-bold border-b-2 transition-all ${
+                    ragSubTab === 'chunks'
+                      ? 'border-brand-600 text-brand-600'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Đoạn văn bản bóc tách ({filteredChunks.length})
+                </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-               {isLoadingChunks ? (
-                 <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-2">
+            {ragSubTab === 'docs' && (
+              <div className="flex-1 overflow-y-auto">
+                {isLoadingDocs ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-2">
+                    <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
+                    <span className="text-sm font-medium">Đang tải danh sách tài liệu...</span>
+                  </div>
+                ) : documentsList.length === 0 ? (
+                  <div className="text-center py-20 text-slate-400">
+                    <FileText className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                    <span className="text-sm font-medium">Chưa có tài liệu nào được nạp vào RAG.</span>
+                  </div>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/50 border-b border-slate-100">
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Tài liệu</th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Môn học - Lớp</th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Trạng thái</th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {documentsList.map((doc) => (
+                        <tr key={doc.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <FileText className="w-8 h-8 text-brand-500 shrink-0" />
+                              <div className="max-w-[280px] sm:max-w-[350px]">
+                                <div className="font-bold text-sm text-slate-800 truncate" title={doc.name}>
+                                  {doc.name}
+                                </div>
+                                {doc.pdf_url && (
+                                  <a
+                                    href={doc.pdf_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1 mt-0.5 inline-flex"
+                                  >
+                                    <span>Tải tài liệu gốc</span>
+                                    <ExternalLink className="w-3 h-3 ml-0.5" />
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-md text-xs font-bold">
+                              {doc.subject || 'Khác'}
+                            </span>
+                            <span className="ml-1.5 px-2.5 py-1 bg-brand-50 text-brand-700 rounded-md text-xs font-bold">
+                              Lớp {doc.grade || 'N/A'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            {doc.status === 'ready' ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-md text-xs font-bold">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Sẵn sàng
+                              </span>
+                            ) : doc.status === 'processing' ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-bold">
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang phân tách...
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-red-700 rounded-md text-xs font-bold">
+                                <AlertTriangle className="w-3.5 h-3.5 animate-pulse" /> Lỗi xử lý
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleReprocessDoc(doc.id)}
+                                disabled={doc.status === 'processing'}
+                                className="p-2 text-slate-500 hover:text-brand-600 hover:bg-brand-50 rounded-lg disabled:opacity-40"
+                                title="Phân tách lại (Auto-Split & Embed)"
+                              >
+                                <RefreshCw className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteDoc(doc.id)}
+                                className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                                title="Xóa tài liệu"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+
+            {ragSubTab === 'chunks' && (
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {isLoadingChunks ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-slate-400 gap-2">
                     <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
                     <span className="text-sm font-medium">Đang tải danh sách chunks...</span>
-                 </div>
-               ) : filteredChunks.map(chunk => (
-                 <div key={chunk.id} className="border border-slate-200 rounded-xl p-4 hover:border-brand-300 transition-colors bg-white group shadow-sm hover:shadow-md">
-                   <div className="flex justify-between items-start mb-3">
-                     <div className="flex items-center gap-2">
-                       <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-bold line-clamp-1 max-w-[200px]">{chunk.file}</span>
-                       <span className="px-2 py-1 bg-brand-50 text-brand-600 rounded text-xs font-bold">{chunk.subject} - Lớp {chunk.grade}</span>
-                     </div>
-                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                       <button 
-                         onClick={() => { setEditingContent(chunk.id); setEditValue(chunk.content); }}
-                         className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded" title="Sửa chunk">
-                         <Edit2 className="w-4 h-4" />
-                       </button>
-                       <button 
-                         onClick={() => handleDeleteChunk(chunk.id)}
-                         className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded" title="Xóa chunk">
-                         <Trash2 className="w-4 h-4" />
-                       </button>
-                     </div>
-                   </div>
-                   
-                   {editingContent === chunk.id ? (
-                     <div className="space-y-3">
-                       <textarea 
-                         value={editValue} onChange={(e) => setEditValue(e.target.value)}
-                         className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:border-brand-500 min-h-[100px]"
-                       />
-                       <div className="flex justify-end gap-2">
-                         <button onClick={() => setEditingContent(null)} className="px-4 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg">Hủy</button>
-                         <button onClick={() => handleEditChunk(chunk.id)} className="px-4 py-1.5 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg">Lưu lại</button>
-                       </div>
-                     </div>
-                   ) : (
-                     <p className="text-sm text-slate-700 leading-relaxed font-medium bg-slate-50 p-3 rounded-lg border border-slate-100">{chunk.content}</p>
-                   )}
-                 </div>
-               ))}
-               {!isLoadingChunks && filteredChunks.length === 0 && (
-                 <div className="text-center py-20 text-slate-400">
+                  </div>
+                ) : filteredChunks.map(chunk => (
+                  <div key={chunk.id} className="border border-slate-200 rounded-xl p-4 hover:border-brand-300 transition-colors bg-white group shadow-sm hover:shadow-md">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-bold line-clamp-1 max-w-[200px]">{chunk.file}</span>
+                        <span className="px-2 py-1 bg-brand-50 text-brand-600 rounded text-xs font-bold">{chunk.subject} - Lớp {chunk.grade}</span>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => { setEditingContent(chunk.id); setEditValue(chunk.content); }}
+                          className="p-1.5 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded" title="Sửa chunk">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteChunk(chunk.id)}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded" title="Xóa chunk">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {editingContent === chunk.id ? (
+                      <div className="space-y-3">
+                        <textarea 
+                          value={editValue} onChange={(e) => setEditValue(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:border-brand-500 min-h-[100px]"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => setEditingContent(null)} className="px-4 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg">Hủy</button>
+                          <button onClick={() => handleEditChunk(chunk.id)} className="px-4 py-1.5 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-lg">Lưu lại</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-700 leading-relaxed font-medium bg-slate-50 p-3 rounded-lg border border-slate-100">{chunk.content}</p>
+                    )}
+                  </div>
+                ))}
+                {!isLoadingChunks && filteredChunks.length === 0 && (
+                  <div className="text-center py-20 text-slate-400">
                     <Database className="w-12 h-12 text-slate-300 mx-auto mb-2" />
                     <span className="text-sm">Không tìm thấy đoạn văn bản RAG nào.</span>
-                 </div>
-               )}
-            </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

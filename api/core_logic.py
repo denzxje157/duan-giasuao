@@ -77,10 +77,16 @@ def _iter_model_candidates(preferred_model=None):
 
 _KEY_COOLDOWN_TIMESTAMPS = {}
 
-def mark_key_rate_limited(api_key):
+def mark_key_rate_limited(api_key, error_text=""):
     import time
     if api_key:
-        _KEY_COOLDOWN_TIMESTAMPS[api_key.strip()] = time.time()
+        clean = api_key.strip()
+        err_lower = str(error_text).lower()
+        if "quota" in err_lower or "limit" in err_lower or "exhausted" in err_lower or "billing" in err_lower:
+            duration = 3600
+        else:
+            duration = 60
+        _KEY_COOLDOWN_TIMESTAMPS[clean] = (time.time(), duration)
 
 def _iter_active_keys(preferred_key=None):
     import time
@@ -89,9 +95,11 @@ def _iter_active_keys(preferred_key=None):
     ordered_keys = []
     
     def is_in_cooldown(k):
-        ts = _KEY_COOLDOWN_TIMESTAMPS.get(k.strip())
-        if ts and (now - ts) < 60:
-            return True
+        entry = _KEY_COOLDOWN_TIMESTAMPS.get(k.strip())
+        if entry:
+            ts, duration = entry
+            if (now - ts) < duration:
+                return True
         return False
 
     if preferred_key and preferred_key.strip():
@@ -223,7 +231,7 @@ def _embed_with_provider(text, api_key=None, model_name="gemini-embedding-001"):
                     except Exception as e:
                         if _is_rate_limit_error(e):
                             print(f"⚠️ Key {_mask_key(current_key)} đã hết hạn mức embedding, đang thử key tiếp theo...")
-                            mark_key_rate_limited(current_key)
+                            mark_key_rate_limited(current_key, e)
                             last_error = e
                             continue
                         print(f"genai embed_content failed for key {_mask_key(current_key)} with model {current_model}:", e)
@@ -236,7 +244,7 @@ def _embed_with_provider(text, api_key=None, model_name="gemini-embedding-001"):
                     except Exception as e:
                         if _is_rate_limit_error(e):
                             print(f"⚠️ Key {_mask_key(current_key)} đã hết hạn mức embedding, đang thử key tiếp theo...")
-                            mark_key_rate_limited(current_key)
+                            mark_key_rate_limited(current_key, e)
                             last_error = e
                             continue
                         print(f"genai EmbeddingsClient failed for key {_mask_key(current_key)} with model {current_model}:", e)
@@ -244,7 +252,7 @@ def _embed_with_provider(text, api_key=None, model_name="gemini-embedding-001"):
             except Exception as e:
                 if _is_rate_limit_error(e):
                     print(f"⚠️ Key {_mask_key(current_key)} đã hết hạn mức embedding, đang thử key tiếp theo...")
-                    mark_key_rate_limited(current_key)
+                    mark_key_rate_limited(current_key, e)
                     last_error = e
                     continue
                 last_error = e
@@ -273,11 +281,14 @@ def _generate_stream(prompt, api_key, model_name="gemini-2.5-flash", image_data=
                 
                 if image_data and _PIL_AVAILABLE:
                     try:
-                        b64_str = image_data
-                        if b64_str.startswith('data:image'):
-                            b64_str = b64_str.split(',', 1)[1]
-                        img_bytes = base64.b64decode(b64_str)
-                        img = Image.open(BytesIO(img_bytes))
+                        if isinstance(image_data, Image.Image):
+                            img = image_data
+                        else:
+                            b64_str = str(image_data)
+                            if b64_str.startswith('data:image'):
+                                b64_str = b64_str.split(',', 1)[1]
+                            img_bytes = base64.b64decode(b64_str)
+                            img = Image.open(BytesIO(img_bytes))
                         contents = [img, prompt]
                     except Exception as img_err:
                         print(f"⚠️ Cannot decode image for Gemini: {img_err}")
@@ -316,9 +327,9 @@ print(f"[Supabase] CORE_LOGIC: {SUPABASE_URL}")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 FALLBACK_MODELS = [
-    "gemini-2.5-flash",
     "gemini-2.0-flash",
     "gemini-1.5-flash",
+    "gemini-2.0-flash-lite",
     "gemini-flash-latest",
 ]
 
@@ -506,6 +517,81 @@ def _build_default_chat_title(subject=None, grade=None):
     return clean_subject
 
 
+def _safe_parse_json_array(text):
+    """Robustly parse a JSON array from AI output, handling LaTeX and markdown."""
+    if not text:
+        return None
+    # Strip markdown code fences
+    t = text.strip()
+    for fence in ("```json", "```"):
+        if t.startswith(fence):
+            t = t[len(fence):]
+            break
+    if t.endswith("```"):
+        t = t[:-3]
+    t = t.strip()
+
+    # Try 1: direct parse (works if AI gave clean JSON)
+    try:
+        return json.loads(t)
+    except Exception:
+        pass
+
+    # Try 2: extract first JSON array from text using bracket matching
+    try:
+        start = t.index('[')
+        depth = 0
+        for i, ch in enumerate(t[start:], start):
+            if ch == '[':
+                depth += 1
+            elif ch == ']':
+                depth -= 1
+                if depth == 0:
+                    candidate = t[start:i+1]
+                    try:
+                        return json.loads(candidate)
+                    except Exception:
+                        pass
+                    break
+    except Exception:
+        pass
+
+    # Try 3: escape unescaped backslashes then parse
+    try:
+        # Replace lone backslashes that are NOT already valid JSON escapes.
+        # We escape any backslash that is not followed by ["\\/bfnrtu].
+        # However, to prevent mangling LaTeX macros starting with letters in bfnrtu (like \frac, \beta, \nu, \rho, \theta),
+        # we escape backslashes followed by [bfnrt] if they are part of an alphabetic word (i.e. followed by a letter).
+        # We also escape backslashes followed by u if they are not followed by exactly 4 hex digits (i.e. not a valid \uXXXX escape).
+        pattern = r'\\(?!["\\/bfnrtu])|\\(?=[bfnrt][a-zA-Z])|\\(?=u(?![0-9a-fA-F]{4}))'
+        escaped = re.sub(pattern, r'\\\\', t)
+        return json.loads(escaped)
+    except Exception:
+        pass
+
+    # Try 4: same but on escaped+extracted array
+    try:
+        start = t.index('[')
+        depth = 0
+        for i, ch in enumerate(t[start:], start):
+            if ch == '[':
+                depth += 1
+            elif ch == ']':
+                depth -= 1
+                if depth == 0:
+                    candidate = t[start:i+1]
+                    pattern = r'\\(?!["\\/bfnrtu])|\\(?=[bfnrt][a-zA-Z])|\\(?=u(?![0-9a-fA-F]{4}))'
+                    escaped = re.sub(pattern, r'\\\\', candidate)
+                    try:
+                        return json.loads(escaped)
+                    except Exception:
+                        pass
+                    break
+    except Exception:
+        pass
+
+    return None
+
 def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, file_content=None, user_id=None, model_name="gemini-2.5-flash", exclude_questions=None, client=None):
     if genai is None or not topic:
         return []
@@ -553,49 +639,44 @@ def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, fi
     Số lượng câu hỏi: {num_questions}.
     {exclude_instruction}
     
-    Yêu cầu định dạng đầu ra PHẢI LÀ JSON HỢP LỆ (không bọc trong markdown block ```json ... ```, chỉ xuất ra mảng JSON thuần túy).
+    QUAN TRỌNG: Đầu ra PHẢI là một mảng JSON hợp lệ và DUY NHẤT. KHÔNG thêm bất kỳ văn bản hay markdown nào khác.
+    Với công thức toán học, viết dưới dạng văn bản thông thường (VD: "sin(x)", "cos(x)", "pi").
     Cấu trúc mỗi câu hỏi trong mảng JSON:
     [
       {{
         "question": "Nội dung câu hỏi",
         "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
-        "correctAnswer": 0, // Vị trí index của đáp án đúng (0-3)
-        "explanation": "Giải thích chi tiết tại sao lại chọn đáp án này."
+        "correctAnswer": 0,
+        "explanation": "Giải thích ngắn gọn tại sao chọn đáp án này"
       }}
     ]
     """
-    keys = refresh_available_keys()
-    if not keys:
+    refresh_available_keys()
+    active_keys = _iter_active_keys()
+    if not active_keys:
         return []
 
-    for api_key in keys:
+    for api_key in active_keys:
         for m_name in _iter_model_candidates(model_name):
             try:
                 genai.configure(api_key=api_key)
                 m = genai.GenerativeModel(m_name)
                 response = m.generate_content(prompt)
                 
-                text = response.text.strip()
-                # Remove markdown code block if present
-                if text.startswith("```json"):
-                    text = text[7:]
-                if text.startswith("```"):
-                    text = text[3:]
-                if text.endswith("```"):
-                    text = text[:-3]
+                text = getattr(response, 'text', '') or ''
                 text = text.strip()
                 
-                try:
-                    import re
-                    text = re.sub(r'\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})', r'\\\\', text)
-                except Exception as re_err:
-                    print(f"Error escaping LaTeX in JSON: {re_err}")
-                
-                data = json.loads(text)
-                return data
+                data = _safe_parse_json_array(text)
+                if data and isinstance(data, list) and len(data) > 0:
+                    print(f"✅ Quiz generated: {len(data)} questions for topic '{topic}'")
+                    return data
+                else:
+                    print(f"⚠️ Quiz parse failed for model {m_name}, raw response: {text[:300]}")
+                    continue
             except Exception as e:
                 if _is_rate_limit_error(e):
-                    continue
+                    mark_key_rate_limited(api_key, str(e))
+                    break
                 print(f"Lỗi generate_quiz với model {m_name} key {_mask_key(api_key)}: {e}")
                 continue
     return []
@@ -640,48 +721,45 @@ def generate_flashcards(topic, grade=None, subject=None, file_content=None, user
     Môn học: {subject or 'Không xác định'}, Lớp: {grade or 'Không xác định'}.
     Số lượng thẻ: 5-10 thẻ chứa các khái niệm/công thức quan trọng nhất.
     
-    Yêu cầu định dạng đầu ra PHẢI LÀ JSON HỢP LỆ (không bọc trong markdown block, chỉ xuất mảng JSON).
+    QUAN TRỌNG: Đầu ra PHẢI là một mảng JSON hợp lệ và DUY NHẤT. KHÔNG thêm bất kỳ văn bản hay markdown nào khác.
+    Với công thức toán học, viết dưới dạng văn bản thông thường (VD: "sin(x)", "cos(x)", "pi").
     Cấu trúc:
     [
       {{
-        "front": "Khái niệm hoặc câu hỏi ngắn gọn gọn gọn",
+        "front": "Khái niệm hoặc câu hỏi ngắn gọn",
         "back": "Định nghĩa hoặc công thức hoặc đáp án ngắn gọn"
       }}
     ]
     """
-    keys = refresh_available_keys()
-    if not keys:
+    refresh_available_keys()
+    active_keys = _iter_active_keys()
+    if not active_keys:
         return []
 
-    for api_key in keys:
+    for api_key in active_keys:
         for m_name in _iter_model_candidates(model_name):
             try:
                 genai.configure(api_key=api_key)
                 m = genai.GenerativeModel(m_name)
                 response = m.generate_content(prompt)
                 
-                text = response.text.strip()
-                if text.startswith("```json"):
-                    text = text[7:]
-                if text.startswith("```"):
-                    text = text[3:]
-                if text.endswith("```"):
-                    text = text[:-3]
+                text = getattr(response, 'text', '') or ''
                 text = text.strip()
                 
-                try:
-                    import re
-                    text = re.sub(r'\\(?!["\\/bfnrt]|u[0-9a-fA-F]{4})', r'\\\\', text)
-                except Exception as re_err:
-                    print(f"Error escaping LaTeX in JSON: {re_err}")
-                
-                data = json.loads(text)
-                return data
+                data = _safe_parse_json_array(text)
+                if data and isinstance(data, list) and len(data) > 0:
+                    print(f"✅ Flashcards generated: {len(data)} cards for topic '{topic}'")
+                    return data
+                else:
+                    print(f"⚠️ Flashcard parse failed for model {m_name}, raw: {text[:300]}")
+                    continue
             except Exception as e:
                 if _is_rate_limit_error(e):
-                    continue
+                    mark_key_rate_limited(api_key, str(e))
+                    break
                 continue
     return []
+
 
 
 def _generate_chat_title(question, api_key=None, model_name="gemini-2.5-flash", subject=None, grade=None):
@@ -1276,7 +1354,10 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                     print(f"🔄 [Session Update] Updated grade/subject metadata without resetting history: {update_payload}")
                 except Exception as update_err:
                     print(f"⚠️ Không thể cập nhật session metadata: {update_err}")
-    except Exception:
+    except Exception as e:
+        print(f"❌ [Session Load Error]: {e}")
+        import traceback
+        traceback.print_exc()
         if not session_id:
             session_id = str(uuid.uuid4())
 
@@ -1600,7 +1681,7 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
 
                 # 4. Logic 11h đêm khóa, 4h sáng mở
                 is_late_night = vn_hour >= 23 or vn_hour < 4
-                burnout_active = (is_late_night and user_msg_count >= 4) or is_test_burnout
+                burnout_active = is_late_night or is_test_burnout
 
                 # 5. ÉP NGỦ VÀ CẮT KẾT NỐI API (Chống sập server)
                 if burnout_active:
@@ -1625,11 +1706,28 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                 is_image_attached = image_data is not None
                 image_guidance = "Học sinh vừa tải lên một hình ảnh/đề thi mẫu. BẠN PHẢI ĐỌC HÌNH ẢNH ĐÓ. Nếu học sinh yêu cầu, hãy giải thích đề mẫu hoặc hướng dẫn giải chi tiết. ĐẶC BIỆT CHÚ Ý: Bạn PHẢI trả về 3 gợi ý sau trong phần SUGGESTIONS: 1. Giải thích đề mẫu này, 2. Hướng dẫn mình cách giải, 3. Tạo đề thi tương tự đề mẫu." if is_image_attached else ""
                 default_suggestions = _default_suggestions_for_subject(target_subject or subject or '')
+                subject_display = target_subject or subject or 'chưa xác định'
+                grade_display = target_grade or learner_grade or 'chưa xác định'
+                
+                real_world_guidance = ""
+                try:
+                    g_val = int(re.sub(r'\D', '', str(grade_display)))
+                    if 9 <= g_val <= 12:
+                        real_world_guidance = f"""
+                * LƯU Ý QUAN TRỌNG VỀ BÀI TOÁN THỰC TẾ & LIÊN MÔN (LỚP {g_val}):
+                  - Chương trình GDPT 2018 từ lớp 9 đến lớp 12 có nhiều bài tập ứng dụng thực tế giao thoa liên môn (ví dụ: bài toán Hình học/Vector môn Toán sử dụng bối cảnh lực căng xích, trọng lực, công cơ học của Vật lí; bài tập Đạo hàm/Tích phân tính vận tốc, lưu lượng; môn Vật lí/Hóa học dùng mô hình toán học).
+                  - Bạn TUYỆT ĐỐI KHÔNG ĐƯỢC từ chối giải quyết các bài tập này hoặc hướng dẫn học sinh tìm môn khác chỉ vì đề bài chứa các thuật ngữ hoặc hình ảnh từ môn học khác.
+                  - Nếu câu hỏi/hình ảnh là một bài tập ứng dụng thực tế của môn {subject_display}, hãy tiếp nhận và hướng dẫn học sinh giải quyết bằng các công cụ, phương pháp và kiến thức của môn {subject_display}.
+                        """
+                except Exception:
+                    pass
 
                 prompt = f"""
                 {system_instruction}
 
                 BẠN LÀ GIA SƯ LỚP {target_grade or learner_grade or 'chưa xác định'} - MÔN {target_subject or subject or 'chưa xác định'}. CHỈ ĐƯỢC PHÉP DÙNG KIẾN THỨC CỦA LỚP {target_grade or learner_grade or 'chưa xác định'}. NẾU TÀI LIỆU ĐƯỢC CUNG CẤP KHÔNG THUỘC LỚP {target_grade or learner_grade or 'chưa xác định'}, HÃY TỪ CHỐI TRẢ LỜI VÀ BÁO LỖI.
+
+                {real_world_guidance}
 
                 {learner_context_text}
 
@@ -1670,6 +1768,16 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                      a) Chỉ phân tích lỗi sai trong suy nghĩ của học sinh (nếu có trong lịch sử trò chuyện) hoặc gợi ý hướng tiếp cận chung của bài toán/công thức.
                      b) Đặt câu hỏi gợi mở từng bước một (ví dụ: "Trước hết, em hãy tính đạo hàm của hàm số này xem bằng bao nhiêu nhé?", "Đạo hàm của x^3 bằng gì nhỉ?", "Để tìm GTLN trên đoạn [0, 2], bước đầu tiên chúng ta cần làm gì nào?").
                      c) Ép học sinh tự mình thực hiện tính toán hoặc suy luận cho bước hiện tại. Tuyệt đối không làm thay cho họ.
+                   - ĐẶC BIỆT QUAN TRỌNG: CƠ CHẾ ĐÁNH GIÁ VÀ LIÊN KẾT PHẢN HỒI CỦA HỌC SINH (Socratic Response Linkage):
+                     * Khi học sinh phản hồi bằng một câu trả lời ngắn, một con số, hay một cụm từ (ví dụ: "200 ạ", "1050", "đổi đơn vị", "con không biết", v.v.), hãy hiểu ĐÂY CHẮC CHẮN là câu trả lời của học sinh cho câu hỏi gợi mở mà bạn vừa đặt ra ở lượt chat ngay trước đó (có thể xem trong LỊCH SỬ TRÒ CHUYỆN GẦN ĐÂY).
+                     * Bạn phải thực hiện các bước sau:
+                       + Bước 1: Nhìn lại câu hỏi gợi mở gần nhất bạn đã đặt ra ở lượt trước trong LỊCH SỬ TRÒ CHUYỆN.
+                       + Bước 2: Đánh giá xem câu trả lời của học sinh đúng hay sai so với câu hỏi đó.
+                       + Bước 3: Đưa ra phản hồi phù hợp:
+                         - Nếu học sinh trả lời SAI hoặc CHƯA ĐỦ: Giải thích nhẹ nhàng tại sao sai dựa trên số liệu của đề bài (ví dụ: "Để đoàn tàu vượt qua hầm hoàn toàn thì quãng đường phải bằng chiều dài hầm cộng với chiều dài tàu cơ. Chiều dài tàu là 250m, hầm là 800m, con cộng lại thử xem bằng bao nhiêu nhé?"), tuyệt đối KHÔNG tự tính ra kết quả đúng giúp học sinh, và yêu cầu học sinh tự tính toán lại.
+                         - Nếu học sinh trả lời ĐÚNG: Khen ngợi ngắn gọn để khích lệ tinh thần học tập ("Chính xác rồi con!", "Rất tốt!") và hỏi tiếp câu hỏi gợi mở của bước tiếp theo để tiến tới đáp án cuối cùng.
+                         - Nếu học sinh nói "em không biết", "con chịu", "không làm được": Gợi ý công thức hoặc cách tính chi tiết hơn (ví dụ: "Quãng đường tàu phải đi = chiều dài tàu + chiều dài hầm. Chiều dài tàu là 250m và hầm là 800m nè. Con thử cộng lại xem sao nhé?") để học sinh tự hoàn thành phép tính.
+                     * TUYỆT ĐỐI KHÔNG ĐƯỢC coi câu trả lời ngắn của học sinh là một câu hỏi mới, và KHÔNG được hỏi những câu chung chung kiểu "Cô thấy em vừa gửi số 200, em đang thắc mắc gì về số này à?" hay "Hay đây là bài tập nào đó con làm dở?". Phải liên kết chặt chẽ với câu hỏi trước đó để giữ mạch học tập gợi mở.
                    - NGOẠI LỆ: 
                      * Chỉ khi học sinh yêu cầu "Tạo đề thi tương tự", bạn mới được tạo một đề thi mới kèm theo đáp án chi tiết ở phần dưới cùng của đề thi đó để đối chiếu kết quả sau khi làm.
                      * Nếu học sinh chỉ hỏi công thức lý thuyết thuần túy (ví dụ: "Công thức tính đạo hàm là gì?"), bạn giải thích rõ công thức kèm ví dụ mẫu độc lập, nhưng vẫn không giải hộ bài tập của họ.
@@ -1714,11 +1822,31 @@ PHẦN TRẢ LỜI CỦA BẠN PHẢI TUÂN THEO CẤU TRÚC SAU:
 [END_SUGGESTIONS].
                 """
 
+                resolved_image = None
+                if image_data:
+                    resolved_image = image_data
+                else:
+                    # Look back in history to find the most recent image URL in the active session
+                    for m in reversed(chat_history):
+                        img_url = m.get("imageUrl")
+                        if img_url and str(img_url).startswith("http"):
+                            print(f"🔄 [Image Recovery] Found historical image URL: {img_url}. Downloading...")
+                            try:
+                                import requests
+                                response = requests.get(img_url, timeout=5)
+                                if response.status_code == 200:
+                                    resolved_image = Image.open(BytesIO(response.content))
+                                    print("✅ [Image Recovery] Image downloaded and restored to context.")
+                                    break
+                            except Exception as download_err:
+                                print(f"⚠️ [Image Recovery] Failed to download image from {img_url}: {download_err}")
+
+
                 response_iter = _generate_stream(
                     prompt, 
                     api_key, 
                     model_name=current_model, 
-                    image_data=image_data,
+                    image_data=resolved_image,
                     temperature=db_temperature,
                     max_tokens=db_max_tokens
                 )
@@ -1735,7 +1863,6 @@ PHẦN TRẢ LỜI CỦA BẠN PHẢI TUÂN THEO CẤU TRÚC SAU:
                     else:
                         try:
                             import base64
-                            import uuid
                             b64_str = image_data
                             if b64_str.startswith('data:image'):
                                 b64_str = b64_str.split(',', 1)[1]
@@ -1743,6 +1870,37 @@ PHẦN TRẢ LỜI CỦA BẠN PHẢI TUÂN THEO CẤU TRÚC SAU:
                             file_path = f"chat_images/{uuid.uuid4()}.png"
                             db_client.storage.from_("giasuao").upload(file_path, img_bytes, file_options={"content-type": "image/png"})
                             uploaded_url = db_client.storage.from_("giasuao").get_public_url(file_path)
+                            
+                            # Sync canvas drawings / chat-pasted images to student's library (documents table)
+                            try:
+                                is_uuid = False
+                                if user_id:
+                                    try:
+                                        uuid.UUID(str(user_id).strip())
+                                        is_uuid = True
+                                    except ValueError:
+                                        is_uuid = False
+
+                                if is_uuid:
+                                    from datetime import datetime, timezone, timedelta
+                                    vn_tz = timezone(timedelta(hours=7))
+                                    vn_now = datetime.now(vn_tz)
+                                    image_name = f"Ảnh đính kèm - {vn_now.strftime('%d/%m/%Y %H:%M')}"
+                                    doc_data = {
+                                        "name": image_name,
+                                        "pdf_url": uploaded_url,
+                                        "thumbnail_url": "",
+                                        "grade": str(target_grade or "1").strip(),
+                                        "subject": target_subject or "Khác",
+                                        "status": "ready",
+                                        "user_id": str(user_id).strip()
+                                    }
+                                    db_client.table("documents").insert(doc_data).execute()
+                                    print(f"✅ [Library Sync] Synced image {image_name} for user {user_id}")
+                                else:
+                                    print(f"ℹ️ [Library Sync] Skipped database insert: user_id '{user_id}' is not a valid UUID (guest or offline user).")
+                            except Exception as doc_sync_err:
+                                print(f"⚠️ [Library Sync] Failed to insert image: {doc_sync_err}")
                         except Exception as e:
                             print(f"⚠️ Không thể upload ảnh lên Storage: {e}")
 
@@ -1782,7 +1940,7 @@ PHẦN TRẢ LỜI CỦA BẠN PHẢI TUÂN THEO CẤU TRÚC SAU:
             except Exception as e:
                 if _is_rate_limit_error(e):
                     print(f"⚠️ Key {_mask_key(api_key)} đã hết hạn mức, đang thử key tiếp theo...")
-                    mark_key_rate_limited(api_key)
+                    mark_key_rate_limited(api_key, e)
                     last_error = e
                     continue
                 last_error = e
