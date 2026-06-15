@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Key, UploadCloud, Save, CheckCircle2, ShieldAlert, FileText, X, Activity, AlertTriangle, Settings2, Users, Database, LayoutDashboard, Search, Lock, Unlock, KeyRound, Shield, Edit2, Trash2, Bot, Loader2, RefreshCw, ExternalLink } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '../../lib/supabase';
-import { uploadDocument, getAdminDocuments, reprocessDocument, deleteDocument } from '../../lib/api';
+import { uploadDocument, getAdminDocuments, reprocessDocument, deleteDocument, syncSystemTextbooks } from '../../lib/api';
 
 interface BookUpload {
   id: string;

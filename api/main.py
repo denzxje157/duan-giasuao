@@ -454,6 +454,48 @@ def login_user(req: LoginRequest):
         raise HTTPException(status_code=401, detail="Sai email hoặc mật khẩu!")
 
 
+def background_process_document(doc_id: str, file_bytes: bytes, filename: str, content_type: str, token: Optional[str] = None):
+    try:
+        # Recreate supabase client
+        client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        if token:
+            client.postgrest.headers.update({"Authorization": f"Bearer {token}"})
+            
+        content_text = ""
+        if content_type == 'application/pdf' or filename.lower().endswith('.pdf'):
+            content_text = process_pdf_to_markdown(file_bytes, content_type)
+        elif content_type and content_type.startswith('image'):
+            try:
+                ocr_text = process_image_to_text(file_bytes)
+                if ocr_text and ocr_text.strip():
+                    content_text = ocr_text
+                else:
+                    content_text = f"[IMAGE UPLOAD] {filename}"
+            except Exception as e:
+                print(f"⚠️ Image OCR failed: {e}")
+                content_text = f"[IMAGE UPLOAD] {filename}"
+        else:
+            try:
+                content_text = file_bytes.decode('utf-8')
+            except Exception:
+                content_text = f"Uploaded file {filename} (binary)"
+
+        client.table("documents").update({"content": content_text, "status": "ready"}).eq("id", doc_id).execute()
+
+        # Generate embeddings & chunk
+        save_document_to_db(content_text, filename, doc_id, client)
+        print(f"✅ Background processing of {filename} (ID: {doc_id}) completed successfully.")
+    except Exception as e:
+        print(f"❌ Error in background_process_document for {filename} (ID: {doc_id}): {e}")
+        try:
+            client = create_client(SUPABASE_URL, SUPABASE_KEY)
+            if token:
+                client.postgrest.headers.update({"Authorization": f"Bearer {token}"})
+            client.table("documents").update({"status": f"error: {str(e)[:100]}"}).eq("id", doc_id).execute()
+        except Exception as db_err:
+            print(f"⚠️ Failed to update document error status: {db_err}")
+
+
 @app.post("/api/upload")
 async def upload_document(
     background_tasks: BackgroundTasks,
@@ -465,10 +507,12 @@ async def upload_document(
 ):
     user_supabase = supabase
     resolved_user_id = user_id
+    token = None
     if credentials and credentials.credentials:
         try:
             resolved_user_id = _verify_token_and_get_user(credentials)
             user_supabase = _get_supabase_client(credentials)
+            token = credentials.credentials
         except Exception as auth_err:
             print(f"⚠️ Auth failed in upload: {auth_err}")
 
@@ -511,42 +555,11 @@ async def upload_document(
             res = None
 
     doc_id = res.data[0]['id'] if getattr(res, 'data', None) and len(res.data) > 0 and 'id' in res.data[0] else safe_id
-    try:
-        content_text = ""
-        if file.content_type == 'application/pdf' or file.filename.lower().endswith('.pdf'):
-            content_text = process_pdf_to_markdown(file_bytes, file.content_type)
-        elif file.content_type and file.content_type.startswith('image'):
-            # Try OCR extraction for images; if not available, store a placeholder
-            try:
-                ocr_text = process_image_to_text(file_bytes)
-                if ocr_text and ocr_text.strip():
-                    content_text = ocr_text
-                else:
-                    content_text = f"[IMAGE UPLOAD] {file.filename}"
-            except Exception as e:
-                print(f"⚠️ Image OCR failed: {e}")
-                content_text = f"[IMAGE UPLOAD] {file.filename}"
-        else:
-            try:
-                content_text = file_bytes.decode('utf-8')
-            except Exception:
-                content_text = f"Uploaded file {file.filename} (binary)"
+    
+    # Schedule processing in the background
+    background_tasks.add_task(background_process_document, doc_id, file_bytes, file.filename, file.content_type, token)
 
-        user_supabase.table("documents").update({"content": content_text, "status": "ready"}).eq("id", doc_id).execute()
-
-        # Schedule embedding generation in background so upload returns quickly
-        if background_tasks is not None:
-            background_tasks.add_task(save_document_to_db, content_text, file.filename, doc_id)
-        else:
-            try:
-                save_document_to_db(content_text, file.filename, doc_id)
-            except Exception as e:
-                print(f"⚠️ Lỗi khi xử lý embedding đồng bộ: {e}")
-
-        return {"status": "success", "data": {**doc_data, "content": content_text, "id": doc_id}}
-    except Exception as e:
-        print(f"⚠️ Lỗi khi xử lý file ngay lập tức: {e}")
-        return {"status": "success", "data": doc_data, "warning": str(e)}
+    return {"status": "success", "data": {**doc_data, "id": doc_id}}
 
 
 def _award_sp_to_user(user_id: str, amount: int, client = None):
@@ -909,6 +922,156 @@ def reprocess_document(
     except Exception as e:
         print(f"❌ Error reprocessing document: {e}")
         raise HTTPException(status_code=500, detail=f"Lỗi khi xử lý lại tài liệu: {str(e)}")
+
+
+def download_from_gdrive(url_or_id: str) -> bytes:
+    import re
+    import requests
+    # Extract file ID
+    file_id = url_or_id
+    if "drive.google.com" in url_or_id:
+        match = re.search(r'/d/([a-zA-Z0-9_-]+)', url_or_id)
+        if match:
+            file_id = match.group(1)
+        else:
+            match = re.search(r'id=([a-zA-Z0-9_-]+)', url_or_id)
+            if match:
+                file_id = match.group(1)
+                
+    download_url = f"https://docs.google.com/uc?export=download&id={file_id}"
+    
+    session = requests.Session()
+    response = session.get(download_url, stream=True, timeout=60)
+    
+    confirm_token = None
+    for key, value in response.cookies.items():
+        if key.startswith('download_warning'):
+            confirm_token = value
+            break
+            
+    if confirm_token:
+        download_url = f"{download_url}&confirm={confirm_token}"
+        response = session.get(download_url, stream=True, timeout=60)
+        
+    return response.content
+
+
+def load_system_textbooks():
+    import re
+    import json
+    ts_path = os.path.join(os.path.dirname(__file__), "..", "src", "data", "textbooks.ts")
+    if not os.path.exists(ts_path):
+        ts_path = "src/data/textbooks.ts"
+    try:
+        with open(ts_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        start_idx = content.find("[")
+        end_idx = content.rfind("]")
+        if start_idx == -1 or end_idx == -1:
+            return []
+        array_text = content[start_idx:end_idx+1]
+        
+        array_text = re.sub(r'//.*', '', array_text)
+        array_text = re.sub(r',\s*([}\]])', r'\1', array_text)
+        
+        return json.loads(array_text)
+    except Exception as e:
+        print(f"Error loading system textbooks: {e}")
+        return []
+
+
+def background_sync_system_textbooks(books_list: list, token: Optional[str] = None):
+    client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    if token:
+        client.postgrest.headers.update({"Authorization": f"Bearer {token}"})
+        
+    try:
+        existing_res = client.table("documents").select("name, pdf_url").is_("user_id", None).execute()
+        existing_docs = existing_res.data or []
+    except Exception as e:
+        print(f"Error fetching existing docs for sync: {e}")
+        existing_docs = []
+        
+    existing_urls = {d.get("pdf_url") for d in existing_docs if d.get("pdf_url")}
+    existing_names = {d.get("name").lower() for d in existing_docs if d.get("name")}
+    
+    for book in books_list:
+        title = book.get("title")
+        pdf_url = book.get("pdf_url")
+        if not title or not pdf_url:
+            continue
+            
+        clean_title = title.strip()
+        doc_name = clean_title + ".pdf" if not clean_title.lower().endswith(".pdf") else clean_title
+        if pdf_url in existing_urls or doc_name.lower() in existing_names:
+            print(f"⏭️ Textbook '{title}' already exists. Skipping.")
+            continue
+            
+        print(f"📥 Syncing textbook '{title}'...")
+        doc_data = {
+            "name": doc_name,
+            "pdf_url": pdf_url,
+            "thumbnail_url": book.get("thumbnail") or "",
+            "grade": str(book.get("grade")),
+            "subject": book.get("subject"),
+            "status": "processing",
+            "user_id": None
+        }
+        
+        try:
+            insert_res = client.table("documents").insert(doc_data).execute()
+            if not insert_res.data:
+                print(f"❌ Failed to insert document row for '{title}'")
+                continue
+            doc_id = insert_res.data[0]['id']
+        except Exception as e:
+            print(f"❌ Failed to insert document row for '{title}': {e}")
+            continue
+            
+        try:
+            file_bytes = download_from_gdrive(pdf_url)
+            content_text = process_pdf_to_markdown(file_bytes, "application/pdf")
+            if content_text.startswith("Error:"):
+                raise Exception(content_text)
+                
+            client.table("documents").update({"content": content_text, "status": "ready"}).eq("id", doc_id).execute()
+            save_document_to_db(content_text, doc_name, doc_id, client)
+            print(f"✅ Ingested system textbook '{title}' successfully.")
+        except Exception as e:
+            print(f"❌ Error ingesting system textbook '{title}': {e}")
+            try:
+                client.table("documents").update({"status": f"error: {str(e)[:100]}"}).eq("id", doc_id).execute()
+            except Exception:
+                pass
+
+
+@app.post("/api/admin/documents/sync-system-textbooks")
+def sync_system_textbooks(
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    user_supabase = supabase
+    token = None
+    if credentials and credentials.credentials:
+        try:
+            resolved_user_id = _verify_token_and_get_user(credentials)
+            user_supabase = _get_supabase_client(credentials)
+            token = credentials.credentials
+            profile_res = user_supabase.table("profiles").select("role").eq("id", resolved_user_id).execute()
+            if not profile_res.data or profile_res.data[0].get("role") != "admin":
+                raise HTTPException(status_code=403, detail="Chỉ Admin mới có quyền thực hiện chức năng này!")
+        except HTTPException:
+            raise
+        except Exception as auth_err:
+            raise HTTPException(status_code=401, detail=f"Xác thực thất bại: {auth_err}")
+
+    books = load_system_textbooks()
+    if not books:
+        raise HTTPException(status_code=400, detail="Không tìm thấy hoặc không thể tải danh sách sách hệ thống từ textbooks.ts!")
+        
+    background_tasks.add_task(background_sync_system_textbooks, books, token)
+    return {"status": "success", "message": f"Đã bắt đầu đồng bộ và nạp tự động {len(books)} sách hệ thống trong nền!"}
 
 
 @app.delete("/api/admin/documents/{doc_id}")

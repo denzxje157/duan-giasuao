@@ -303,6 +303,34 @@ export async function reprocessDocument(docId: string) {
   return response.json();
 }
 
+export async function syncSystemTextbooks() {
+  let accessToken = '';
+  try {
+    if ((supabase.auth as any).getSession) {
+      const maybe = await (supabase.auth as any).getSession();
+      accessToken = maybe?.data?.session?.access_token || '';
+    } else if ((supabase.auth as any).session) {
+      const s = (supabase.auth as any).session();
+      accessToken = s?.access_token || '';
+    }
+  } catch (e) {}
+
+  const headers: Record<string, string> = {};
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+
+  const response = await fetch(`${API_BASE_URL}/api/admin/documents/sync-system-textbooks`, {
+    method: 'POST',
+    headers,
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || 'Đồng bộ tài liệu hệ thống thất bại');
+  }
+
+  return response.json();
+}
+
 export async function deleteDocument(docId: string) {
   let accessToken = '';
   try {
@@ -621,6 +649,7 @@ export const apiClient = {
   getAllUsers,
   getAdminDocuments,
   reprocessDocument,
+  syncSystemTextbooks,
   deleteDocument,
   getUserStats,
   forgotPassword,
