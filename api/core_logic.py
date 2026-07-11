@@ -1639,22 +1639,24 @@ def get_ai_response_stream_with_history(question, session_id=None, user_id=None,
                             context = rag_context
 
                     if not context:
-                        # Fallback to preview content if no similarity matches
-                        fallback_content = ""
-                        fallback_doc_name = "Tài liệu không tên"
+                        # Fallback to preview content of matching books if no similarity matches
+                        fallback_parts = []
                         if doc_ids:
                             for d in docs_rows:
                                 if d.get("id") in doc_ids:
                                     try:
                                         preview_res = db_client.table("documents").select("name,content").eq("id", d.get("id")).execute()
                                         if preview_res.data and preview_res.data[0].get("content"):
-                                            fallback_content = preview_res.data[0].get("content")
-                                            fallback_doc_name = preview_res.data[0].get("name") or "Tài liệu không tên"
-                                            break
+                                            c_content = preview_res.data[0].get("content") or ""
+                                            c_name = preview_res.data[0].get("name") or "Tài liệu không tên"
+                                            if c_content.strip():
+                                                fallback_parts.append(f"[Nguồn: {c_name} (Xem trước tài liệu)]\n{c_content[:2000]}")
+                                                if len(fallback_parts) >= 3:
+                                                    break
                                     except Exception:
                                         pass
-                        if fallback_content:
-                            context = f"[Nguồn: {fallback_doc_name} (Xem trước tài liệu)]\n{fallback_content[:4000]}"
+                        if fallback_parts:
+                            context = "\n\n---\n\n".join(fallback_parts)
                         else:
                             context = f"Hiện tại cô chưa có tài liệu cụ thể của lớp {target_grade or learner_grade or 'chưa xác định'} môn {target_subject or subject or 'chưa xác định'}, nhưng với kiến thức chung, cô sẽ giải đáp như sau..."
                 except Exception as rag_err:
