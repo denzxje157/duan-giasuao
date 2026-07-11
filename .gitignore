@@ -24,3 +24,9 @@ scratch_test.py
 test_*.js
 test_*.py
 test_db.js
+create_admin.mjs
+
+# Báo cáo và tài liệu Word/PDF
+*.docx
+*.pdf
+.codegraph/
