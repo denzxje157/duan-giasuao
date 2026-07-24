@@ -294,7 +294,7 @@ export default function TopBar({ user, onLogout, currentGrade, onGradeChange }: 
       </div>
       
       {/* Bottom Row on Mobile / Right side on Desktop: Search + Stats Badges + Desktop Actions */}
-      <div className="flex items-center justify-between md:justify-end gap-2.5 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+      <div className="flex items-center justify-start md:justify-end gap-1.5 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 scrollbar-none">
         <div className="hidden sm:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 focus-within:ring-2 focus-within:ring-brand-500/20 focus-within:border-brand-500 transition-all">
           <Search className="w-4 h-4 text-slate-400" />
           <input 
@@ -305,28 +305,28 @@ export default function TopBar({ user, onLogout, currentGrade, onGradeChange }: 
         </div>
 
         {/* Gamification Star Points */}
-        <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-full px-2.5 py-1 md:px-3 md:py-1.5 shadow-sm font-bold text-[10px] md:text-xs shrink-0" title="Điểm sao tích lũy">
-          <Trophy className="w-3 h-3 md:w-3.5 md:h-3.5 text-amber-500 fill-amber-500 animate-bounce" />
+        <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-700 rounded-full px-2.5 py-1 md:px-3 md:py-1.5 shadow-sm font-bold text-xs shrink-0" title="Điểm sao tích lũy">
+          <Trophy className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
           <span>{totalSP.toLocaleString()} SP</span>
         </div>
 
         {/* Gamification Streak */}
-        <div className="flex items-center gap-1 bg-orange-50 border border-orange-200 text-orange-700 rounded-full px-2.5 py-1 md:px-3 md:py-1.5 shadow-sm font-bold text-[10px] md:text-xs shrink-0" title="Chuỗi học tập liên tiếp">
-          <Flame className="w-3 h-3 md:w-3.5 md:h-3.5 fill-orange-500 text-orange-500" />
+        <div className="flex items-center gap-1 bg-orange-50 border border-orange-200 text-orange-700 rounded-full px-2.5 py-1 md:px-3 md:py-1.5 shadow-sm font-bold text-xs shrink-0" title="Chuỗi học tập liên tiếp">
+          <Flame className="w-3.5 h-3.5 fill-orange-500 text-orange-500" />
           <span>{currentStreak} ngày</span>
         </div>
 
         {/* Pomodoro Focus Mode */}
         <button 
           onClick={togglePomodoro}
-          className={`flex items-center gap-1 rounded-full px-2.5 py-1 md:px-3 md:py-1.5 font-bold text-[10px] md:text-sm shadow-sm transition-all border shrink-0 ${pomodoroActive ? 'bg-red-500 text-white border-red-600' : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'}`}
+          className={`flex items-center gap-1 rounded-full px-2.5 py-1 md:px-3 md:py-1.5 font-bold text-xs shadow-sm transition-all border shrink-0 ${pomodoroActive ? 'bg-red-500 text-white border-red-600' : 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'}`}
           title="Focus Mode (Pomodoro)"
         >
           <span>🍅</span>
           {pomodoroActive && pomodoroLeft !== null ? (
             <span className="w-9 md:w-10 text-center font-mono">{formatTime(pomodoroLeft)}</span>
           ) : (
-            <span className="hidden xs:inline">Tập trung</span>
+            <span className="hidden xs:inline">Pomodoro</span>
           )}
         </button>
 
