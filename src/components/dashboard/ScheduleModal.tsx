@@ -129,7 +129,6 @@ export default function ScheduleModal({
     const finalSubject = subject === 'Khác' ? (customSubject.trim() || 'Môn học') : subject;
     
     if (editingId) {
-      // Edit existing
       const updated = schedules.map(s => s.id === editingId ? {
         ...s,
         subject: finalSubject,
@@ -142,7 +141,6 @@ export default function ScheduleModal({
       } : s);
       onSaveSchedules(updated);
     } else {
-      // Add new
       const newItem: ScheduleItem = {
         id: Date.now().toString(),
         subject: finalSubject,
@@ -192,31 +190,31 @@ export default function ScheduleModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/60 backdrop-blur-sm">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[90vh]"
+          className="bg-white w-full max-w-2xl rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[92vh] sm:max-h-[90vh]"
         >
           {/* Header */}
-          <div className="p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <CalendarIcon className="w-5 h-5" />
+          <div className="p-4 sm:p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-              <div>
-                <h3 className="font-extrabold text-lg flex items-center gap-2">
+              <div className="min-w-0">
+                <h3 className="font-extrabold text-sm sm:text-lg flex items-center gap-1.5 sm:gap-2 truncate">
                   Quản lý Lịch học & Đặt lịch
-                  <Sparkles className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 fill-amber-400 shrink-0" />
                 </h3>
-                <p className="text-xs text-slate-400">Thêm, sửa, đặt giờ nhắc nhở học tập hàng ngày</p>
+                <p className="text-[11px] sm:text-xs text-slate-400 truncate">Thêm, sửa, đặt giờ nhắc nhở học tập hàng ngày</p>
               </div>
             </div>
 
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all text-slate-300 hover:text-white"
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all text-slate-300 hover:text-white shrink-0 ml-2"
             >
               <X className="w-4 h-4" />
             </button>
@@ -224,7 +222,7 @@ export default function ScheduleModal({
 
           {/* Browser Notification Banner */}
           {notificationPermission !== 'granted' && (
-            <div className="bg-amber-50 border-b border-amber-100 p-3 px-6 flex items-center justify-between gap-3 text-xs shrink-0">
+            <div className="bg-amber-50 border-b border-amber-100 p-2.5 px-3.5 sm:p-3 sm:px-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3 text-xs shrink-0">
               <div className="flex items-center gap-2 text-amber-800 font-medium">
                 <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
                 <span>Cho phép thông báo trình duyệt để Gia Sư AI tự động nhắc nhở khi tới giờ học.</span>
@@ -232,7 +230,7 @@ export default function ScheduleModal({
               <button
                 type="button"
                 onClick={requestNotification}
-                className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-lg transition-all shadow-sm shrink-0 flex items-center gap-1.5"
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-lg transition-all shadow-sm shrink-0 flex items-center justify-center gap-1.5 text-xs w-full sm:w-auto"
               >
                 <Bell className="w-3.5 h-3.5" /> Bật thông báo
               </button>
@@ -240,11 +238,11 @@ export default function ScheduleModal({
           )}
 
           {/* Top Bar / Navigation Tabs */}
-          <div className="p-4 px-6 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-4 shrink-0">
-            <div className="flex items-center gap-2">
+          <div className="p-3 px-3.5 sm:p-4 sm:px-6 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-4 shrink-0">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
               <button
                 onClick={() => setActiveTab('list')}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
                   activeTab === 'list'
                     ? 'bg-slate-900 text-white shadow-sm'
                     : 'bg-white text-slate-600 hover:bg-slate-200 border border-slate-200'
@@ -254,21 +252,21 @@ export default function ScheduleModal({
               </button>
               <button
                 onClick={handleOpenAddForm}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
                   activeTab === 'form' && !editingId
                     ? 'bg-emerald-600 text-white shadow-sm'
                     : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
                 }`}
               >
-                <Plus className="w-3.5 h-3.5" /> Thêm lịch học mới
+                <Plus className="w-3.5 h-3.5" /> Thêm lịch mới
               </button>
             </div>
 
             {activeTab === 'list' && (
-              <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 text-xs">
+              <div className="flex items-center justify-between sm:justify-end gap-1 bg-white p-1 rounded-xl border border-slate-200 text-xs w-full sm:w-auto">
                 <button
                   onClick={() => setFilter('today')}
-                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                  className={`flex-1 sm:flex-initial px-2.5 py-1 rounded-lg font-bold transition-all text-center ${
                     filter === 'today' ? 'bg-emerald-500 text-white' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
@@ -276,7 +274,7 @@ export default function ScheduleModal({
                 </button>
                 <button
                   onClick={() => setFilter('all')}
-                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                  className={`flex-1 sm:flex-initial px-2.5 py-1 rounded-lg font-bold transition-all text-center ${
                     filter === 'all' ? 'bg-emerald-500 text-white' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
@@ -284,7 +282,7 @@ export default function ScheduleModal({
                 </button>
                 <button
                   onClick={() => setFilter('completed')}
-                  className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
+                  className={`flex-1 sm:flex-initial px-2.5 py-1 rounded-lg font-bold transition-all text-center ${
                     filter === 'completed' ? 'bg-emerald-500 text-white' : 'text-slate-500 hover:text-slate-800'
                   }`}
                 >
@@ -295,12 +293,12 @@ export default function ScheduleModal({
           </div>
 
           {/* Modal Body */}
-          <div className="p-6 overflow-y-auto flex-1 custom-scrollbar">
+          <div className="p-3.5 sm:p-6 overflow-y-auto flex-1 custom-scrollbar">
             {activeTab === 'form' ? (
               /* FORM MODE (ADD / EDIT) */
-              <form onSubmit={handleSaveForm} className="space-y-5">
+              <form onSubmit={handleSaveForm} className="space-y-4 sm:space-y-5">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                  <h4 className="font-bold text-slate-800 text-xs sm:text-sm flex items-center gap-2">
                     {editingId ? <Edit2 className="w-4 h-4 text-emerald-600" /> : <Plus className="w-4 h-4 text-emerald-600" />}
                     {editingId ? "Chỉnh sửa lịch học" : "Tạo lịch học mới & Nhắc nhở"}
                   </h4>
@@ -309,20 +307,20 @@ export default function ScheduleModal({
                     onClick={() => setActiveTab('list')}
                     className="text-xs text-slate-400 hover:text-slate-600"
                   >
-                    Quay lại danh sách
+                    Quay lại
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   {/* Subject */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
                       Môn học <span className="text-rose-500">*</span>
                     </label>
                     <select
                       value={subject}
                       onChange={(e) => setSubject(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 focus:outline-none focus:border-emerald-500"
                     >
                       {SUBJECT_OPTIONS.map(subj => (
                         <option key={subj} value={subj}>{subj}</option>
@@ -343,21 +341,21 @@ export default function ScheduleModal({
 
                   {/* Topic / Note */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
                       Nội dung / Ghi chú bài học
                     </label>
                     <input
                       type="text"
-                      placeholder="Ví dụ: Ôn bài 12, Giải bài tập chương 2..."
+                      placeholder="Ví dụ: Ôn bài 12, Giải bài tập..."
                       value={topic}
                       onChange={(e) => setTopic(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:border-emerald-500"
                     />
                   </div>
 
                   {/* Date */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
                       Ngày học <span className="text-rose-500">*</span>
                     </label>
                     <input
@@ -371,7 +369,7 @@ export default function ScheduleModal({
 
                   {/* Time */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
                       Giờ bắt đầu học <span className="text-rose-500">*</span>
                     </label>
                     <input
@@ -386,16 +384,16 @@ export default function ScheduleModal({
 
                 {/* Color Selection */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
                     Màu thẻ đánh dấu
                   </label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {COLOR_OPTIONS.map(c => (
                       <button
                         type="button"
                         key={c.bg}
                         onClick={() => setColor(c.bg)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
+                        className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${
                           color === c.bg
                             ? `${c.light} ${c.border} ${c.text} ring-2 ring-emerald-200`
                             : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
@@ -409,34 +407,34 @@ export default function ScheduleModal({
                 </div>
 
                 {/* Notification Settings */}
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                <div className="bg-slate-50 p-3.5 sm:p-4 rounded-2xl border border-slate-200 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
-                        <Bell className="w-4 h-4" />
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                        <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </div>
                       <div>
                         <h5 className="font-bold text-xs text-slate-800">Thông báo nhắc nhở giờ học</h5>
-                        <p className="text-[11px] text-slate-500">Phát âm thanh & hiển thị thông báo khi tới giờ</p>
+                        <p className="text-[10px] sm:text-[11px] text-slate-500">Phát âm thanh & thông báo khi tới giờ</p>
                       </div>
                     </div>
                     
                     <button
                       type="button"
                       onClick={() => setNotify(!notify)}
-                      className={`w-12 h-6 rounded-full p-1 transition-all ${notify ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                      className={`w-11 h-6 rounded-full p-1 transition-all shrink-0 ${notify ? 'bg-emerald-500' : 'bg-slate-300'}`}
                     >
-                      <div className={`w-4 h-4 rounded-full bg-white transition-all transform ${notify ? 'translate-x-6' : 'translate-x-0'}`} />
+                      <div className={`w-4 h-4 rounded-full bg-white transition-all transform ${notify ? 'translate-x-5' : 'translate-x-0'}`} />
                     </button>
                   </div>
 
                   {notify && (
-                    <div className="pt-2 border-t border-slate-200 flex items-center gap-3">
+                    <div className="pt-2 border-t border-slate-200 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
                       <label className="text-xs font-bold text-slate-700 shrink-0">Nhắc nhở trước:</label>
                       <select
                         value={notifyMinutesBefore}
                         onChange={(e) => setNotifyMinutesBefore(Number(e.target.value))}
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-white"
+                        className="w-full sm:w-auto px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 bg-white"
                       >
                         <option value={0}>Đúng giờ học (0 phút)</option>
                         <option value={5}>Trước 5 phút</option>
@@ -448,31 +446,31 @@ export default function ScheduleModal({
                 </div>
 
                 {/* Form Actions */}
-                <div className="flex items-center justify-end gap-3 pt-3">
+                <div className="flex items-center justify-end gap-2.5 pt-2">
                   <button
                     type="button"
                     onClick={() => setActiveTab('list')}
                     className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100"
                   >
-                    Hủy bỏ
+                    Hủy
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition-all flex items-center gap-1.5"
+                    className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition-all flex items-center gap-1.5"
                   >
-                    <Check className="w-4 h-4" /> {editingId ? "Cập nhật lịch" : "Lưu lịch học"}
+                    <Check className="w-4 h-4" /> {editingId ? "Cập nhật" : "Lưu lịch học"}
                   </button>
                 </div>
               </form>
             ) : (
               /* LIST MODE */
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {filteredSchedules.length === 0 ? (
-                  <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                    <CalendarIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                    <h4 className="font-bold text-slate-700 text-sm mb-1">Chưa có lịch học nào trong danh sách</h4>
-                    <p className="text-xs text-slate-400 max-w-sm mx-auto mb-4">
-                      {filter === 'today' ? "Hôm nay chưa có lịch học nào được tạo. Hãy lên kế hoạch học tập ngay!" : "Chưa có dữ liệu lịch học."}
+                  <div className="text-center py-10 sm:py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200 p-4">
+                    <CalendarIcon className="w-10 h-10 sm:w-12 sm:h-12 text-slate-300 mx-auto mb-2" />
+                    <h4 className="font-bold text-slate-700 text-xs sm:text-sm mb-1">Chưa có lịch học nào trong danh sách</h4>
+                    <p className="text-[11px] sm:text-xs text-slate-400 max-w-sm mx-auto mb-3.5">
+                      {filter === 'today' ? "Hôm nay chưa có lịch học nào. Hãy lên kế hoạch ngay!" : "Chưa có dữ liệu lịch học."}
                     </p>
                     <button
                       onClick={handleOpenAddForm}
@@ -482,56 +480,65 @@ export default function ScheduleModal({
                     </button>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2.5 sm:space-y-3">
                     {filteredSchedules.map((item) => (
                       <div
                         key={item.id}
-                        className={`p-4 rounded-2xl border transition-all flex items-center gap-4 ${
+                        className={`p-3 sm:p-4 rounded-2xl border transition-all flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 ${
                           item.completed
                             ? 'bg-slate-50 border-slate-200 opacity-60'
                             : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
                         }`}
                       >
-                        {/* Check Complete Button */}
-                        <button
-                          type="button"
-                          onClick={() => handleToggleComplete(item.id)}
-                          className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all shrink-0 ${
-                            item.completed
-                              ? 'bg-emerald-500 border-emerald-500 text-white'
-                              : 'border-slate-300 hover:border-emerald-500 bg-white'
-                          }`}
-                          title={item.completed ? "Đã học xong" : "Đánh dấu đã học"}
-                        >
-                          {item.completed && <Check className="w-4 h-4 stroke-[3]" />}
-                        </button>
+                        {/* Mobile Top Row: Checkbox & Time */}
+                        <div className="flex items-center justify-between w-full sm:w-auto gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleComplete(item.id)}
+                              className={`w-6 h-6 rounded-lg border flex items-center justify-center transition-all shrink-0 ${
+                                item.completed
+                                  ? 'bg-emerald-500 border-emerald-500 text-white'
+                                  : 'border-slate-300 hover:border-emerald-500 bg-white'
+                              }`}
+                              title={item.completed ? "Đã học xong" : "Đánh dấu đã học"}
+                            >
+                              {item.completed && <Check className="w-4 h-4 stroke-[3]" />}
+                            </button>
 
-                        {/* Color Indicator & Time */}
-                        <div className="shrink-0 text-center min-w-[60px]">
-                          <span className="text-sm font-extrabold text-slate-800 block">{item.time}</span>
-                          <span className="text-[10px] font-bold text-slate-400 block">{item.date || todayStr}</span>
+                            <div className="shrink-0 flex items-center sm:block gap-2 min-w-[55px]">
+                              <span className="text-xs sm:text-sm font-extrabold text-slate-800">{item.time}</span>
+                              <span className="text-[10px] font-bold text-slate-400 block sm:inline">{item.date || todayStr}</span>
+                            </div>
+                          </div>
+
+                          {/* Subject Color Pill on Mobile */}
+                          <div className="flex items-center gap-1.5 sm:hidden">
+                            <div className={`w-2.5 h-2.5 rounded-full ${item.color || 'bg-brand-500'}`} />
+                            <span className="text-xs font-bold text-slate-800">{item.subject}</span>
+                          </div>
                         </div>
 
-                        {/* Subject & Topic */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
+                        {/* Subject & Topic for Desktop / Topic for Mobile */}
+                        <div className="flex-1 min-w-0 w-full">
+                          <div className="hidden sm:flex items-center gap-2 mb-0.5">
                             <div className={`w-2.5 h-2.5 rounded-full ${item.color || 'bg-brand-500'}`} />
                             <h4 className={`font-extrabold text-xs text-slate-800 truncate ${item.completed ? 'line-through text-slate-400' : ''}`}>
                               {item.subject}
                             </h4>
                             {item.notify && (
                               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 flex items-center gap-1">
-                                <Bell className="w-2.5 h-2.5" /> Nhắc trước {item.notifyMinutesBefore}p
+                                <Bell className="w-2.5 h-2.5" /> Nhắc {item.notifyMinutesBefore}p
                               </span>
                             )}
                           </div>
-                          <p className={`text-xs truncate ${item.completed ? 'text-slate-400' : 'text-slate-500'}`}>
+                          <p className={`text-xs ${item.completed ? 'text-slate-400' : 'text-slate-500'}`}>
                             {item.topic}
                           </p>
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex items-center gap-1.5 shrink-0">
+                        {/* Actions Row */}
+                        <div className="flex items-center justify-end gap-1.5 shrink-0 w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
                           {onNavigateToTab && !item.completed && (
                             <button
                               type="button"
@@ -539,7 +546,7 @@ export default function ScheduleModal({
                                 onClose();
                                 onNavigateToTab('ai');
                               }}
-                              className="px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[11px] font-bold transition-all flex items-center gap-1"
+                              className="px-2.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[11px] font-bold transition-all flex items-center gap-1 mr-auto sm:mr-0"
                               title="Hỏi AI môn này"
                             >
                               <BookOpen className="w-3 h-3" /> Học ngay
@@ -549,7 +556,7 @@ export default function ScheduleModal({
                           <button
                             type="button"
                             onClick={() => handleToggleNotify(item.id)}
-                            className={`p-2 rounded-xl transition-all ${
+                            className={`p-1.5 sm:p-2 rounded-xl transition-all ${
                               item.notify
                                 ? 'bg-amber-50 text-amber-600 hover:bg-amber-100'
                                 : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
@@ -562,7 +569,7 @@ export default function ScheduleModal({
                           <button
                             type="button"
                             onClick={() => handleOpenEditForm(item)}
-                            className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all"
+                            className="p-1.5 sm:p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all"
                             title="Sửa lịch học"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -571,7 +578,7 @@ export default function ScheduleModal({
                           <button
                             type="button"
                             onClick={() => handleDelete(item.id)}
-                            className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 transition-all"
+                            className="p-1.5 sm:p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 transition-all"
                             title="Xóa lịch học"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
