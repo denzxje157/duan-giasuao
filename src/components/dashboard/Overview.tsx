@@ -348,7 +348,7 @@ export default function Overview({ user, setActiveTab }: OverviewProps) {
           <div className="bg-gradient-to-br from-emerald-600 via-teal-600 to-brand-600 rounded-2xl p-8 text-white relative overflow-hidden shadow-[0_10px_30px_rgba(16,185,129,0.2)]">
             <div className="relative z-10">
               <span className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3 inline-block">
-                ✨ Học tập cùng trí tuệ nhân tạo
+                Học tập hiệu quả cùng Gia Sư
               </span>
               <h2 className="text-3xl font-extrabold mb-2 tracking-tight">
                 {user.grade <= 5 ? "Cùng học thật vui nhé!" : user.grade >= 10 ? "Hướng tới mục tiêu!" : "Tiếp tục chặng đường!"}

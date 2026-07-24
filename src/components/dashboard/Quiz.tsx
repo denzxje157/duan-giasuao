@@ -383,7 +383,7 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
           <p className="text-slate-500 mt-1">
             {user.grade <= 5 
               ? "Làm bài kiểm tra vui và lật thẻ bài ma thuật để nhận sao nhé!"
-              : "Hệ thống AI tự động sinh đề trắc nghiệm và thẻ học tập Flashcard theo yêu cầu của bạn."}
+              : "Hệ thống tự động biên soạn đề trắc nghiệm và thẻ học tập Flashcard theo yêu cầu của bạn."}
           </p>
         </div>
         
@@ -392,7 +392,7 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
             onClick={() => setActiveTab('generator')}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-bold text-sm transition-all ${activeTab === 'generator' ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            <Sparkles className="w-4 h-4" /> Đề trắc nghiệm AI
+            <BookOpen className="w-4 h-4" /> Đề trắc nghiệm
           </button>
           <button 
             onClick={() => setActiveTab('flashcards')}
@@ -565,11 +565,11 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
                   {isGenerating ? (
                     <>
                       <RefreshCw className="w-5 h-5 animate-spin" />
-                      <span>Đang biên soạn đề trắc nghiệm AI...</span>
+                      <span>Đang biên soạn đề trắc nghiệm...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                      <BookOpen className="w-5 h-5 group-hover:scale-110 transition-transform" />
                       Tạo đề ngay
                     </>
                   )}
@@ -656,7 +656,7 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
                           }}
                           className="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
                         >
-                          <Sparkles className="w-4 h-4" /> Làm đề mới
+                          <Plus className="w-4 h-4" /> Làm đề mới
                         </button>
                       </div>
                     </div>
@@ -841,7 +841,7 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
                   </>
                 ) : (
                   <>
-                    <Sparkles className="w-5 h-5" />
+                    <Layers className="w-5 h-5" />
                     <span>Tạo thẻ ngay</span>
                   </>
                 )}
@@ -888,7 +888,7 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
                   style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
                 >
                   <span className="absolute top-6 left-6 text-purple-300 font-bold uppercase tracking-widest text-xs">Đáp án</span>
-                  <Sparkles className="w-12 h-12 text-purple-300 mb-6" />
+                  <CheckCircle className="w-12 h-12 text-purple-200 mb-6" />
                   <h2 className="text-3xl sm:text-4xl font-bold text-white text-center leading-tight">
                     {flashcardsData.length > 0 ? flashcardsData[currentCardIndex]?.back : 'Chưa có thẻ nào'}
                   </h2>

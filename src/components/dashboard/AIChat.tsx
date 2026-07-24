@@ -1929,7 +1929,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                               {quizResults[msg.id] !== undefined && (
                                 <div className="space-y-2.5 mt-3">
                                   <div className={`text-sm font-bold ${quizResults[msg.id] ? 'text-green-400' : 'text-red-400'}`}>
-                                    {quizResults[msg.id] ? '✨ Chính xác! Điểm kinh nghiệm +10 EXP' : '❌ Sai rồi!'}
+                                    {quizResults[msg.id] ? '🎉 Chính xác! Điểm kinh nghiệm +10 EXP' : '❌ Sai rồi!'}
                                   </div>
                                   {(quiz as any).explanation && (
                                     <div className="text-[13px] bg-white/5 border border-white/10 rounded-xl p-3 text-zinc-300 font-normal leading-relaxed">

@@ -204,9 +204,8 @@ export default function ScheduleModal({
                 <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0">
-                <h3 className="font-extrabold text-sm sm:text-lg flex items-center gap-1.5 sm:gap-2 truncate">
+                <h3 className="font-extrabold text-sm sm:text-lg truncate">
                   Quản lý Lịch học & Đặt lịch
-                  <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 fill-amber-400 shrink-0" />
                 </h3>
                 <p className="text-[11px] sm:text-xs text-slate-400 truncate">Thêm, sửa, đặt giờ nhắc nhở học tập hàng ngày</p>
               </div>
