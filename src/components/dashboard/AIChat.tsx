@@ -691,11 +691,9 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
         audio.playbackRate = speechRate;
         
         let hasError = false;
-        audio.onerror = (e) => {
-          console.warn(`Audio chunk ${index} failed to load (attempt ${retryCount + 1}).`, e);
-          
+        audio.onerror = () => {
           if (retryCount < 2) {
-            // Remove this audio from the queue and retry creating a new one
+            // Remove failed audio from queue and silently retry
             const idx = activeAudioQueueRef.current.indexOf(audio);
             if (idx > -1) activeAudioQueueRef.current.splice(idx, 1);
             
@@ -703,19 +701,15 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
             setTimeout(() => {
               if (seqId === activeAudioSeqRef.current) {
                 const retryAudio = getAudioForIndex(index, retryCount + 1);
-                // If it has become the active sentence, try playing it
                 if (index === currentSentence) {
                   currentPlayingAudioRef.current = retryAudio;
-                  retryAudio.play().catch((err) => {
-                    console.warn(`Retry play failed for chunk ${index}`, err);
-                  });
+                  retryAudio.play().catch(() => {});
                 }
               }
-            }, 1000);
+            }, 600);
           } else {
             hasError = true;
             if (index === currentSentence) {
-              console.error(`All retry attempts failed for chunk ${index}. Switching to quick device speech engine.`);
               window.dispatchEvent(new CustomEvent('tts-api-failed'));
               currentSentence++;
               playNext();
