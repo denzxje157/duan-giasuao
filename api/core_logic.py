@@ -592,30 +592,148 @@ def _safe_parse_json_array(text):
 
     return None
 
-def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, file_content=None, user_id=None, model_name="gemini-2.5-flash", exclude_questions=None, client=None):
-    if genai is None or not topic:
-        return []
+def parse_topic_subject_and_grade(topic_str, default_grade=None, default_subject=None):
+    if not topic_str:
+        return default_subject, default_grade, topic_str or ""
+
+    t = topic_str.strip()
+    t_lower = t.lower()
     
-    db_client = client if client is not None else supabase
-    file_context = ""
-    if file_content:
-        file_context = f"\n\nDựa trên nội dung tài liệu do người dùng tải lên sau:\n{file_content}\n"
+    parsed_grade = str(default_grade).strip() if (default_grade and str(default_grade).strip() not in ["None", "null", ""]) else None
+    parsed_subject = default_subject.strip() if (default_subject and str(default_subject).strip() not in ["None", "Luyện tập", "Môn học", "Không xác định", "null", ""]) else None
+
+    subj_pattern = r'địa|địa lý|địa lí|toán|lý|lí|vật lý|vật lí|hóa|hóa học|sinh|sinh học|sử|lịch sử|văn|ngữ văn|tin|tin học|anh|tiếng anh|công nghệ|gdcd|khtn|tnxh|đạo đức|khoa học'
+
+    grade_match = re.search(r'(?:lớp|khối|grade|g)\s*([1-9]|1[0-2])\b', t_lower)
+    if not grade_match:
+        grade_match = re.search(r'\b(?:' + subj_pattern + r')\s*([1-9]|1[0-2])\b', t_lower)
+        if grade_match:
+            parsed_grade = grade_match.group(1)
+        else:
+            grade_match = re.search(r'\b([1-9]|1[0-2])\s*(?:' + subj_pattern + r')\b', t_lower)
+            if grade_match:
+                parsed_grade = grade_match.group(1)
+            else:
+                trailing_match = re.search(r'\b([1-9]|1[0-2])\s*$', t_lower)
+                if trailing_match and (re.search(r'\bbài\s*\d+', t_lower) or re.search(r'\bchương\s*\d+', t_lower) or re.search(r'\bunit\s*\d+', t_lower)):
+                    parsed_grade = trailing_match.group(1)
     else:
-        try:
-            # Query document metadata/IDs only to avoid loading large content columns over network
-            docs_query = db_client.table("documents").select("id,name")
-            if grade: docs_query = docs_query.eq("grade", str(grade).strip())
-            if subject: docs_query = docs_query.eq("subject", subject)
-            docs_rows = docs_query.limit(10).execute().data or []
-            
-            if docs_rows:
-                doc_ids = [str(r.get("id")).strip() for r in docs_rows if r.get("id")]
-                # Filter chunks matching these document IDs in RAM cache
-                matching_chunks = [c for c in _LOCAL_CHUNKS if str(c.get("document_id")).strip() in doc_ids]
-                
-                # filter matching content keywords to simulate RAG
+        parsed_grade = grade_match.group(1)
+
+    if 'khoa học tự nhiên' in t_lower or re.search(r'\bkhtn\b', t_lower):
+        parsed_subject = 'Khoa học tự nhiên'
+    elif 'lịch sử và địa lý' in t_lower or 'lịch sử và địa lí' in t_lower or 'lịch sử & địa lý' in t_lower or 'lịch sử & địa lí' in t_lower or 'sử địa' in t_lower:
+        parsed_subject = 'Lịch sử và Địa lí'
+    elif 'giáo dục kinh tế và pháp luật' in t_lower or 'kinh tế và pháp luật' in t_lower or re.search(r'\bgdktpl\b', t_lower) or re.search(r'\bgdkt&pl\b', t_lower):
+        parsed_subject = 'Giáo dục Kinh tế và Pháp luật'
+    elif 'tự nhiên và xã hội' in t_lower or 'tự nhiên xã hội' in t_lower or re.search(r'\btnxh\b', t_lower):
+        parsed_subject = 'Tự nhiên và Xã hội'
+    elif 'giáo dục công dân' in t_lower or re.search(r'\bgdcd\b', t_lower):
+        if parsed_grade and parsed_grade in ['10', '11', '12']:
+            parsed_subject = 'Giáo dục Kinh tế và Pháp luật'
+        else:
+            parsed_subject = 'Giáo dục công dân'
+    elif 'tiếng việt' in t_lower:
+        parsed_subject = 'Tiếng Việt'
+    elif 'tiếng anh' in t_lower or 'english' in t_lower or re.search(r'\bunit\s*\d+', t_lower):
+        parsed_subject = 'Tiếng Anh'
+    elif 'ngữ văn' in t_lower or 'văn học' in t_lower:
+        parsed_subject = 'Ngữ văn'
+    elif 'địa lý' in t_lower or 'địa lí' in t_lower or re.search(r'\bmôn địa\b', t_lower) or re.search(r'\bđịa\b', t_lower):
+        parsed_subject = 'Địa lí'
+    elif 'lịch sử' in t_lower or re.search(r'\bmôn sử\b', t_lower) or re.search(r'\bsử\b', t_lower):
+        parsed_subject = 'Lịch sử'
+    elif 'hóa học' in t_lower or re.search(r'\bmôn hóa\b', t_lower) or (re.search(r'\bhóa\b', t_lower) and not any(w in t_lower for w in ['văn hóa', 'tiến hóa', 'tiêu hóa', 'cá nhân hóa', 'tối ưu hóa'])):
+        parsed_subject = 'Hóa học'
+    elif 'sinh học' in t_lower or re.search(r'\bmôn sinh\b', t_lower) or re.search(r'\bsinh\b', t_lower):
+        parsed_subject = 'Sinh học'
+    elif 'tin học' in t_lower or re.search(r'\bmôn tin\b', t_lower) or re.search(r'\btin\b', t_lower):
+        parsed_subject = 'Tin học'
+    elif 'vật lý' in t_lower or 'vật lí' in t_lower or re.search(r'\bmôn lý\b', t_lower) or re.search(r'\bmôn lí\b', t_lower) or re.search(r'\blý\b', t_lower) or re.search(r'\blí\b', t_lower):
+        parsed_subject = 'Vật lí'
+    elif 'toán học' in t_lower or re.search(r'\bmôn toán\b', t_lower) or re.search(r'\btoán\b', t_lower):
+        parsed_subject = 'Toán'
+    elif 'công nghệ' in t_lower:
+        parsed_subject = 'Công nghệ'
+    elif 'đạo đức' in t_lower:
+        parsed_subject = 'Đạo đức'
+    elif 'khoa học' in t_lower:
+        parsed_subject = 'Khoa học'
+    elif re.search(r'\bvăn\b', t_lower):
+        parsed_subject = 'Ngữ văn'
+    elif re.search(r'\banh\b', t_lower):
+        parsed_subject = 'Tiếng Anh'
+
+    if not parsed_subject and default_subject:
+        ds_lower = str(default_subject).lower()
+        if 'địa' in ds_lower: parsed_subject = 'Địa lí'
+        elif 'sử' in ds_lower: parsed_subject = 'Lịch sử'
+        elif 'lý' in ds_lower or 'lí' in ds_lower: parsed_subject = 'Vật lí'
+        elif 'hóa' in ds_lower: parsed_subject = 'Hóa học'
+        elif 'sinh' in ds_lower: parsed_subject = 'Sinh học'
+        elif 'tin' in ds_lower: parsed_subject = 'Tin học'
+        elif 'văn' in ds_lower: parsed_subject = 'Ngữ văn'
+        elif 'toán' in ds_lower: parsed_subject = 'Toán'
+        elif 'anh' in ds_lower: parsed_subject = 'Tiếng Anh'
+        elif 'công nghệ' in ds_lower: parsed_subject = 'Công nghệ'
+        elif 'kinh tế' in ds_lower or 'pháp luật' in ds_lower or 'gdcd' in ds_lower:
+            parsed_subject = 'Giáo dục Kinh tế và Pháp luật' if (parsed_grade and parsed_grade in ['10', '11', '12']) else 'Giáo dục công dân'
+        elif 'khtn' in ds_lower or 'tự nhiên' in ds_lower: parsed_subject = 'Khoa học tự nhiên'
+        elif 'tnxh' in ds_lower: parsed_subject = 'Tự nhiên và Xã hội'
+        else: parsed_subject = default_subject
+
+    return parsed_subject, parsed_grade, t
+
+
+def _fetch_rag_context(topic, target_subject, target_grade, file_content=None, db_client=None):
+    if file_content:
+        return f"\n\nDựa trên nội dung tài liệu do người dùng tải lên sau:\n{file_content}\n"
+    
+    if db_client is None:
+        db_client = supabase
+
+    try:
+        docs_query = db_client.table("documents").select("id, name, grade, subject")
+        if target_grade:
+            docs_query = docs_query.eq("grade", str(target_grade).strip())
+        docs_rows = docs_query.limit(30).execute().data or []
+
+        if target_subject and docs_rows:
+            filtered_rows = []
+            target_subj_lower = target_subject.lower()
+            for r in docs_rows:
+                doc_subj = str(r.get("subject") or "").lower()
+                doc_name = str(r.get("name") or "").lower()
+                if doc_subj and (target_subj_lower in doc_subj or doc_subj in target_subj_lower):
+                    filtered_rows.append(r)
+                elif "địa" in target_subj_lower and ("địa" in doc_subj or "địa" in doc_name):
+                    filtered_rows.append(r)
+                elif "sử" in target_subj_lower and ("sử" in doc_subj or "sử" in doc_name):
+                    filtered_rows.append(r)
+                elif "lý" in target_subj_lower and ("lý" in doc_subj or "lí" in doc_subj or "lý" in doc_name or "lí" in doc_name):
+                    filtered_rows.append(r)
+                elif "hóa" in target_subj_lower and ("hóa" in doc_subj or "hóa" in doc_name):
+                    filtered_rows.append(r)
+                elif "sinh" in target_subj_lower and ("sinh" in doc_subj or "sinh" in doc_name):
+                    filtered_rows.append(r)
+                elif "tin" in target_subj_lower and ("tin" in doc_subj or "tin" in doc_name):
+                    filtered_rows.append(r)
+                elif "toán" in target_subj_lower and ("toán" in doc_subj or "toán" in doc_name):
+                    filtered_rows.append(r)
+                elif "văn" in target_subj_lower and ("văn" in doc_subj or "văn" in doc_name):
+                    filtered_rows.append(r)
+                elif "anh" in target_subj_lower and ("anh" in doc_subj or "anh" in doc_name):
+                    filtered_rows.append(r)
+
+            docs_rows = filtered_rows
+
+        if docs_rows:
+            doc_ids = [str(r.get("id")).strip() for r in docs_rows if r.get("id")]
+            matching_chunks = [c for c in _LOCAL_CHUNKS if str(c.get("document_id")).strip() in doc_ids]
+
+            if matching_chunks:
                 matching_docs = []
-                keywords = [w.lower() for w in topic.split() if len(w) > 2]
+                keywords = [w.lower() for w in topic.split() if len(w) >= 2 and w.lower() not in ["bài", "lớp", "môn", "học"]]
                 for c in matching_chunks:
                     content_str = c.get("content", "")
                     if content_str and any(kw in content_str.lower() for kw in keywords):
@@ -623,22 +741,42 @@ def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, fi
                 if not matching_docs:
                     matching_docs = [c.get("content", "") for c in matching_chunks[:3]]
                 combined_docs = "\n\n".join(matching_docs[:3])
-                file_context = f"\n\nKIẾN THỨC TỪ CƠ SỞ DỮ LIỆU RAG (Sách giáo khoa / Tài liệu):\n{combined_docs}\n"
-        except Exception as e:
-            print(f"Lỗi lấy dữ liệu RAG cho quiz: {e}")
+                return f"\n\nKIẾN THỨC TỪ CƠ SỞ DỮ LIỆU RAG (Sách giáo khoa / Tài liệu):\n{combined_docs}\n"
+    except Exception as e:
+        print(f"Lỗi lấy dữ liệu RAG cho quiz/flashcard: {e}")
+
+    return ""
+
+
+def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, file_content=None, user_id=None, model_name="gemini-2.5-flash", exclude_questions=None, client=None):
+    if genai is None or not topic:
+        return []
+    
+    target_subject, target_grade, clean_topic = parse_topic_subject_and_grade(topic, grade, subject)
+    db_client = client if client is not None else supabase
+    file_context = _fetch_rag_context(clean_topic, target_subject, target_grade, file_content, db_client)
 
     exclude_instruction = ""
     if exclude_questions and len(exclude_questions) > 0:
         exclude_str = "\n".join(f"- {q}" for q in exclude_questions)
         exclude_instruction = f"\nTUYỆT ĐỐI KHÔNG tạo các câu hỏi trùng hoặc tương tự với các câu hỏi sau:\n{exclude_str}\n"
 
+    subject_display = target_subject or 'Không xác định'
+    grade_display = f"Lớp {target_grade}" if target_grade else 'Không xác định'
+
     prompt = f"""
-    Bạn là một giáo viên chuyên ra đề thi. Hãy tạo một bài trắc nghiệm về chủ đề: '{topic}'.{file_context}
-    Môn học: {subject or 'Không xác định'}, Lớp: {grade or 'Không xác định'}.
+    Bạn là một giáo viên chuyên ra đề thi hàng đầu tại Việt Nam, am hiểu sâu sắc chương trình Sách giáo khoa phổ thông của Bộ Giáo dục và Đào tạo.
+    Hãy tạo một bài trắc nghiệm về: '{clean_topic}'.{file_context}
+    Môn học: {subject_display}.
+    Khối lớp: {grade_display}.
     Độ khó: {difficulty}.
     Số lượng câu hỏi: {num_questions}.
     {exclude_instruction}
-    
+
+    YÊU CẦU QUAN TRỌNG VỀ NỘI DUNG CÂU HỎI:
+    1. ĐẢM BẢO TẤT CẢ các câu hỏi phải thuộc ĐÚNG kiến thức môn {subject_display} {grade_display} (chương trình GDĐT Việt Nam). TUYỆT ĐỐI KHÔNG tạo câu hỏi thuộc môn học khác.
+    2. Nếu nội dung yêu cầu là một bài học cụ thể (ví dụ "Bài 12", "Bài 5"), hãy tạo các câu hỏi bám sát trọng tâm kiến thức và nội dung của bài học đó trong SGK môn {subject_display} {grade_display}.
+
     QUAN TRỌNG: Đầu ra PHẢI là một mảng JSON hợp lệ và DUY NHẤT. KHÔNG thêm bất kỳ văn bản hay markdown nào khác.
     Với công thức toán học, viết dưới dạng văn bản thông thường (VD: "sin(x)", "cos(x)", "pi").
     Cấu trúc mỗi câu hỏi trong mảng JSON:
@@ -668,7 +806,7 @@ def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, fi
                 
                 data = _safe_parse_json_array(text)
                 if data and isinstance(data, list) and len(data) > 0:
-                    print(f"✅ Quiz generated: {len(data)} questions for topic '{topic}'")
+                    print(f"✅ Quiz generated: {len(data)} questions for topic '{topic}' (subject={target_subject}, grade={target_grade})")
                     return data
                 else:
                     print(f"⚠️ Quiz parse failed for model {m_name}, raw response: {text[:300]}")
@@ -686,41 +824,24 @@ def generate_flashcards(topic, grade=None, subject=None, file_content=None, user
     if genai is None or not topic:
         return []
         
+    target_subject, target_grade, clean_topic = parse_topic_subject_and_grade(topic, grade, subject)
     db_client = client if client is not None else supabase
-    file_context = ""
-    if file_content:
-        file_context = f"\n\nDựa trên nội dung tài liệu do người dùng tải lên sau:\n{file_content}\n"
-    else:
-        try:
-            # Query document metadata/IDs only to avoid loading large content columns over network
-            docs_query = db_client.table("documents").select("id,name")
-            if grade: docs_query = docs_query.eq("grade", str(grade).strip())
-            if subject: docs_query = docs_query.eq("subject", subject)
-            docs_rows = docs_query.limit(10).execute().data or []
-            
-            if docs_rows:
-                doc_ids = [str(r.get("id")).strip() for r in docs_rows if r.get("id")]
-                # Filter chunks matching these document IDs in RAM cache
-                matching_chunks = [c for c in _LOCAL_CHUNKS if str(c.get("document_id")).strip() in doc_ids]
-                
-                matching_docs = []
-                keywords = [w.lower() for w in topic.split() if len(w) > 2]
-                for c in matching_chunks:
-                    content_str = c.get("content", "")
-                    if content_str and any(kw in content_str.lower() for kw in keywords):
-                        matching_docs.append(content_str)
-                if not matching_docs:
-                    matching_docs = [c.get("content", "") for c in matching_chunks[:3]]
-                combined_docs = "\n\n".join(matching_docs[:3])
-                file_context = f"\n\nKIẾN THỨC TỪ CƠ SỞ DỮ LIỆU RAG (Sách giáo khoa / Tài liệu):\n{combined_docs}\n"
-        except Exception as e:
-            print(f"Lỗi lấy dữ liệu RAG cho flashcard: {e}")
+    file_context = _fetch_rag_context(clean_topic, target_subject, target_grade, file_content, db_client)
+
+    subject_display = target_subject or 'Không xác định'
+    grade_display = f"Lớp {target_grade}" if target_grade else 'Không xác định'
 
     prompt = f"""
-    Bạn là một giáo viên chuyên tạo thẻ học tập (flashcard). Hãy tạo một bộ flashcard về chủ đề: '{topic}'.{file_context}
-    Môn học: {subject or 'Không xác định'}, Lớp: {grade or 'Không xác định'}.
+    Bạn là một giáo viên chuyên tạo thẻ học tập (flashcard) hàng đầu tại Việt Nam, am hiểu sâu sắc chương trình Sách giáo khoa phổ thông của Bộ GD&ĐT.
+    Hãy tạo một bộ flashcard về: '{clean_topic}'.{file_context}
+    Môn học: {subject_display}.
+    Khối lớp: {grade_display}.
     Số lượng thẻ: 5-10 thẻ chứa các khái niệm/công thức quan trọng nhất.
     
+    YÊU CẦU QUAN TRỌNG VỀ NỘI DUNG:
+    1. ĐẢM BẢO TẤT CẢ các thẻ học tập phải thuộc ĐÚNG kiến thức môn {subject_display} {grade_display} (chương trình GDĐT Việt Nam). TUYỆT ĐỐI KHÔNG tạo thẻ thuộc môn học khác.
+    2. Nếu nội dung yêu cầu là một bài học cụ thể (ví dụ "Bài 12", "Bài 5"), hãy tạo các flashcard bám sát trọng tâm kiến thức của bài học đó trong SGK môn {subject_display} {grade_display}.
+
     QUAN TRỌNG: Đầu ra PHẢI là một mảng JSON hợp lệ và DUY NHẤT. KHÔNG thêm bất kỳ văn bản hay markdown nào khác.
     Với công thức toán học, viết dưới dạng văn bản thông thường (VD: "sin(x)", "cos(x)", "pi").
     Cấu trúc:
@@ -748,7 +869,7 @@ def generate_flashcards(topic, grade=None, subject=None, file_content=None, user
                 
                 data = _safe_parse_json_array(text)
                 if data and isinstance(data, list) and len(data) > 0:
-                    print(f"✅ Flashcards generated: {len(data)} cards for topic '{topic}'")
+                    print(f"✅ Flashcards generated: {len(data)} cards for topic '{topic}' (subject={target_subject}, grade={target_grade})")
                     return data
                 else:
                     print(f"⚠️ Flashcard parse failed for model {m_name}, raw: {text[:300]}")

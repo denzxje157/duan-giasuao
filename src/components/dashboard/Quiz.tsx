@@ -26,13 +26,23 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
 
   const getInferredSubject = (topicStr: string) => {
     const t = topicStr.toLowerCase();
+    if (t.includes('khoa học tự nhiên') || t.includes('khtn')) return 'Khoa học tự nhiên';
+    if (t.includes('lịch sử và địa lý') || t.includes('lịch sử và địa lí') || t.includes('sử địa')) return 'Lịch sử và Địa lý';
+    if (t.includes('giáo dục kinh tế') || t.includes('kinh tế và pháp luật') || t.includes('gdktpl') || t.includes('gdcd') || t.includes('giáo dục công dân')) return 'Giáo dục Kinh tế và Pháp luật';
+    if (t.includes('địa lý') || t.includes('địa lí') || t.includes('địa')) return 'Địa lí';
+    if (t.includes('lịch sử') || t.includes('sử')) return 'Lịch sử';
     if (t.includes('toán') || t.includes('đạo hàm') || t.includes('hình học') || t.includes('tích phân') || t.includes('số học') || t.includes('phương trình')) return 'Toán';
-    if (t.includes('tiếng việt') || t.includes('văn học') || t.includes('tác phẩm') || t.includes('bài thơ')) return 'Tiếng Việt';
-    if (t.includes('anh') || t.includes('english') || t.includes('grammar') || t.includes('vocabulary')) return 'Tiếng Anh';
-    if (t.includes('lý') || t.includes('vật lý') || t.includes('lực') || t.includes('quang học')) return 'Khoa học';
-    if (t.includes('tin học') || t.includes('máy tính') || t.includes('programming') || t.includes('code')) return 'Tin học';
-    if (t.includes('đạo đức') || t.includes('gdcd')) return 'Đạo đức';
-    if (t.includes('lịch sử') || t.includes('địa lý')) return 'Lịch sử và Địa lý';
+    if (t.includes('ngữ văn') || t.includes('văn học') || t.includes('tác phẩm') || t.includes('bài thơ') || t.includes('văn')) return 'Ngữ văn';
+    if (t.includes('tiếng việt') || t.includes('chính tả') || t.includes('tập đọc')) return 'Tiếng Việt';
+    if (t.includes('tiếng anh') || t.includes('english') || t.includes('grammar') || t.includes('vocabulary') || t.includes('unit') || t.includes('anh')) return 'Tiếng Anh';
+    if (t.includes('vật lý') || t.includes('vật lí') || t.includes(' lý') || t.includes(' lí') || t.startsWith('lý') || t.startsWith('lí')) return 'Vật lí';
+    if (t.includes('hóa học') || t.includes('hóa')) return 'Hóa học';
+    if (t.includes('sinh học') || t.includes('sinh')) return 'Sinh học';
+    if (t.includes('tin học') || t.includes('máy tính') || t.includes('programming') || t.includes('code') || t.includes('tin')) return 'Tin học';
+    if (t.includes('công nghệ')) return 'Công nghệ';
+    if (t.includes('đạo đức')) return 'Đạo đức';
+    if (t.includes('tự nhiên và xã hội') || t.includes('tnxh')) return 'Tự nhiên và Xã hội';
+    if (t.includes('khoa học')) return 'Khoa học';
     return 'Luyện tập';
   };
 
@@ -164,6 +174,7 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
     setIsGenerating(true);
     
     try {
+      const inferredSubject = getInferredSubject(topic);
       if (activeTab === 'generator') {
         const url = import.meta.env.DEV ? `${API_BASE_URL.replace(/\/$/, '')}/api/generate-quiz` : '/api/generate-quiz';
         const res = await fetch(url, {
@@ -174,6 +185,7 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
             difficulty,
             num_questions: numQuestions,
             grade: String(user.grade),
+            subject: inferredSubject !== 'Luyện tập' ? inferredSubject : undefined,
             file_content: fileContent,
             exclude_questions: doneQuestions
           })
@@ -212,6 +224,7 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
           body: JSON.stringify({
             topic,
             grade: String(user.grade),
+            subject: inferredSubject !== 'Luyện tập' ? inferredSubject : undefined,
             file_content: fileContent
           })
         });

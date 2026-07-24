@@ -280,68 +280,10 @@ class FlashcardRequest(BaseModel):
 
 
 def _infer_subject_from_text(text: str) -> str:
-    import re
-    content = (text or '').lower()
-    
-    # 1. Combined / specific terms first to prevent overlaps (e.g. "khoa học tự nhiên" matching "tự nhiên")
-    if 'khoa học tự nhiên' in content:
-        return 'Khoa học tự nhiên'
-    if 'lịch sử và địa lý' in content:
-        return 'Lịch sử và Địa lý'
-    if 'giáo dục kinh tế và pháp luật' in content or 'kinh tế và pháp luật' in content or 'gdktpl' in content:
-        return 'Giáo dục kinh tế và pháp luật'
-        
-    # 2. Check other multi-word subjects
-    if 'tiếng việt' in content or 'chính tả' in content or 'tập đọc' in content:
-        return 'Tiếng Việt'
-    if 'tiếng anh' in content or 'english' in content or 'alphabet' in content:
-        return 'Tiếng Anh'
-    if 'tự nhiên' in content or 'xã hội' in content or 'cây' in content or 'con vật' in content:
-        return 'Tự nhiên và Xã hội'
-    if 'ngữ văn' in content or 'văn học' in content or 'phân tích' in content:
-        return 'Ngữ văn'
-    if 'giáo dục công dân' in content:
-        return 'Giáo dục công dân'
-        
-    # 3. Check single-word or simpler subjects
-    if 'toán' in content or 'phép cộng' in content or 'phép trừ' in content:
-        return 'Toán'
-    if 'khoa học' in content:
-        return 'Khoa học'
-    if 'tin học' in content:
-        return 'Tin học'
-    if 'địa lý' in content:
-        return 'Địa lý'
-    if 'lịch sử' in content:
-        return 'Lịch sử'
-    if 'đạo đức' in content:
-        return 'Đạo đức'
-    if 'vật lý' in content or 'điện' in content or 'lực' in content:
-        return 'Vật lý'
-        
-    # 4. Handle "Hóa học" precisely (ignoring "cá nhân hóa", etc.)
-    if 'hóa học' in content or 'phản ứng' in content or 'môn hóa' in content or 'hóa trị' in content or 'hóa hữu cơ' in content or 'hóa vô cơ' in content:
-        return 'Hóa học'
-        
-    # Syllable word-boundary match for "hóa"
-    if re.search(r'\bhóa\b', content):
-        non_chem_patterns = [
-            r'cá nhân hóa', r'văn hóa', r'tiến hóa', r'tiêu hóa', r'lão hóa', 
-            r'tự động hóa', r'tối ưu hóa', r'hiện đại hóa', r'công nghiệp hóa', 
-            r'khái quát hóa', r'bản địa hóa', r'phần mềm hóa', r'đồng bộ hóa', 
-            r'đơn giản hóa', r'hợp thức hóa', r'cụ thể hóa', r'chuẩn hóa', 
-            r'chuyển hóa', r'đa dạng hóa'
-        ]
-        temp = content
-        for pattern in non_chem_patterns:
-            temp = re.sub(pattern, '', temp)
-        if re.search(r'\bhóa\b', temp):
-            return 'Hóa học'
+    from api.core_logic import parse_topic_subject_and_grade
+    subj, _, _ = parse_topic_subject_and_grade(text)
+    return subj or 'Môn học'
 
-    if 'sinh học' in content or 'tế bào' in content:
-        return 'Sinh học'
-        
-    return 'Môn học'
 
 
 
