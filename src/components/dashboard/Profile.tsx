@@ -1,8 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Camera, Mail, User as UserIcon, Lock, KeyRound, Save, Activity, UploadCloud, MessageSquare, BookOpen, Key, Bell, Shield, Eye, EyeOff, Settings, BrainCircuit } from 'lucide-react';
+import { Camera, Mail, User as UserIcon, Lock, KeyRound, Save, Activity, UploadCloud, MessageSquare, BookOpen, Key, Bell, Shield, Eye, EyeOff, Settings, BrainCircuit, Check, Smile } from 'lucide-react';
 import { User } from '../../types';
 import { supabase } from '../../lib/supabase';
+
+export const AVATAR_COLLECTION = [
+  { id: 'av-1', name: 'Robot Trí Tuệ', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=smart-robot&backgroundColor=b6e3f4' },
+  { id: 'av-2', name: 'Nam Chăm Học', url: 'https://api.dicebear.com/7.x/micah/svg?seed=chibi-boy&backgroundColor=ffd5dc' },
+  { id: 'av-3', name: 'Nữ Thông Thái', url: 'https://api.dicebear.com/7.x/micah/svg?seed=chibi-girl&backgroundColor=c0aede' },
+  { id: 'av-4', name: 'Mèo Đáng Yêu', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=cute-cat&backgroundColor=ffdfbf' },
+  { id: 'av-5', name: 'Dũng Sĩ Tri Thức', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=hero-student&backgroundColor=b6e3f4' },
+  { id: 'av-6', name: 'Kính Cận Thần Đồng', url: 'https://api.dicebear.com/7.x/fun-emoji/svg?seed=cool-glasses&backgroundColor=d1d4f9' },
+  { id: 'av-7', name: 'Ngôi Sao Lớp Học', url: 'https://api.dicebear.com/7.x/notionists/svg?seed=star-student&backgroundColor=d1d4f9' },
+  { id: 'av-8', name: 'Gia Sư Cyber', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=cyber-tutor&backgroundColor=c0aede' },
+  { id: 'av-9', name: 'Cún Chăm Chỉ', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=happy-pup&backgroundColor=b6e3f4' },
+  { id: 'av-10', name: 'Gamer Học Giỏi', url: 'https://api.dicebear.com/7.x/micah/svg?seed=gamer-student&backgroundColor=ffd5dc' },
+  { id: 'av-11', name: 'Học Sinh Ưu Tú', url: 'https://api.dicebear.com/7.x/adventurer/svg?seed=top-student&backgroundColor=ffdfbf' },
+  { id: 'av-12', name: 'Thiên Tài Sao Vàng', url: 'https://api.dicebear.com/7.x/fun-emoji/svg?seed=super-star&backgroundColor=b6e3f4' },
+];
+
+const DEFAULT_AVATAR = AVATAR_COLLECTION[0].url;
 
 interface ProfileProps {
   user: User;
@@ -11,6 +28,8 @@ interface ProfileProps {
 }
 
 export default function Profile({ user, onLogout, onUserUpdate }: ProfileProps) {
+  const avatarKey = `user_selected_avatar_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
+
   // Unpack settings from user.name (e.g. Name|goal:30|style:practice|notif:true)
   const nameParts = user.name.split('|');
   const initialName = nameParts[0].trim();
@@ -34,6 +53,11 @@ export default function Profile({ user, onLogout, onUserUpdate }: ProfileProps) 
   const [learningStyle, setLearningStyle] = useState(initialStyle);
   const [notifications, setNotifications] = useState(initialNotif);
   const [showTrackerWidget, setShowTrackerWidget] = useState(() => localStorage.getItem('study_tracker_enabled_mobile') === 'true');
+
+  const [selectedAvatar, setSelectedAvatar] = useState<string>(() => {
+    if (typeof window === 'undefined') return DEFAULT_AVATAR;
+    return localStorage.getItem(avatarKey) || user.avatar || DEFAULT_AVATAR;
+  });
 
   useEffect(() => {
     const handleToggle = () => {
@@ -149,14 +173,14 @@ export default function Profile({ user, onLogout, onUserUpdate }: ProfileProps) 
           <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm text-center relative overflow-hidden group">
              <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-brand-500 to-brand-500 z-0" />
              <div className="relative z-10 pt-10">
-               <div className="w-24 h-24 rounded-full mx-auto bg-white p-1 shadow-xl mb-4 relative cursor-pointer">
-                 <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center overflow-hidden">
-                    <span className="text-4xl font-bold text-slate-400">{name.charAt(0)}</span>
-                 </div>
-                 <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Camera className="w-6 h-6 text-white" />
-                 </div>
-               </div>
+                <div className="w-24 h-24 rounded-full mx-auto bg-white p-1 shadow-xl mb-4 relative cursor-pointer group">
+                  <div className="w-full h-full rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200">
+                     <img src={selectedAvatar} alt="Avatar" className="w-full h-full object-cover" />
+                  </div>
+                  <div className="absolute inset-0 bg-black/30 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                     <Camera className="w-6 h-6 text-white" />
+                  </div>
+                </div>
                <h3 className="font-bold text-xl text-slate-800">{name}</h3>
                <p className="text-sm font-medium text-slate-500 mb-4">{user.email}</p>
                
@@ -357,6 +381,47 @@ export default function Profile({ user, onLogout, onUserUpdate }: ProfileProps) 
                         </div>
                       </button>
                     ))}
+                  </div>
+                </div>
+
+                {/* Avatar Collection Selection */}
+                <div className="space-y-3 pt-4 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-bold text-slate-800 block flex items-center gap-1.5">
+                      <Smile className="w-4 h-4 text-brand-500" /> Chọn Avatar đại diện
+                    </label>
+                    <span className="text-[11px] text-slate-400 font-medium">Bấm chọn để áp dụng</span>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5 sm:gap-3">
+                    {AVATAR_COLLECTION.map((item) => {
+                      const isSelected = selectedAvatar === item.url;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedAvatar(item.url);
+                            localStorage.setItem(avatarKey, item.url);
+                            window.dispatchEvent(new CustomEvent('user-avatar-changed', { detail: item.url }));
+                          }}
+                          className={`p-2.5 rounded-2xl border transition-all relative group flex flex-col items-center gap-1.5 cursor-pointer ${
+                            isSelected 
+                              ? 'border-brand-500 bg-brand-50/40 ring-2 ring-brand-500/20 shadow-sm' 
+                              : 'border-slate-200 bg-slate-50/50 hover:bg-white hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full overflow-hidden border border-white shadow-sm bg-white shrink-0">
+                            <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-700 truncate w-full text-center">{item.name}</span>
+                          {isSelected && (
+                            <div className="absolute top-1 right-1 w-4 h-4 bg-brand-500 text-white rounded-full flex items-center justify-center shadow-sm">
+                              <Check className="w-2.5 h-2.5 stroke-[3]" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

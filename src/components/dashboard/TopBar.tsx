@@ -18,6 +18,26 @@ export default function TopBar({ user, onLogout, currentGrade, onGradeChange }: 
   const [pomodoroActive, setPomodoroActive] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const statsCacheKey = `gamification_stats_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
+  const avatarKey = `user_selected_avatar_${user.isGuest ? 'guest' : (user.id || 'guest')}`;
+  const DEFAULT_AVATAR = 'https://api.dicebear.com/7.x/bottts/svg?seed=smart-robot&backgroundColor=b6e3f4';
+
+  const [currentAvatar, setCurrentAvatar] = useState<string>(() => {
+    if (typeof window === 'undefined') return DEFAULT_AVATAR;
+    return localStorage.getItem(avatarKey) || user.avatar || DEFAULT_AVATAR;
+  });
+
+  useEffect(() => {
+    const handleAvatarChange = (e: any) => {
+      if (e.detail) {
+        setCurrentAvatar(e.detail);
+      } else {
+        const saved = localStorage.getItem(avatarKey);
+        if (saved) setCurrentAvatar(saved);
+      }
+    };
+    window.addEventListener('user-avatar-changed', handleAvatarChange);
+    return () => window.removeEventListener('user-avatar-changed', handleAvatarChange);
+  }, [avatarKey]);
 
   const [currentStreak, setCurrentStreak] = useState(() => {
     try {
@@ -375,8 +395,8 @@ export default function TopBar({ user, onLogout, currentGrade, onGradeChange }: 
           <div className="h-8 w-[1px] bg-slate-200 mx-1" />
 
           <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 py-1.5 pl-1.5 pr-4.5 rounded-full cursor-pointer hover:bg-slate-100 transition-colors">
-            <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center overflow-hidden">
-              <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} alt="Avatar" className="w-full h-full object-cover" />
+            <div className="w-7 h-7 rounded-full bg-brand-100 flex items-center justify-center overflow-hidden border border-slate-200">
+              <img src={currentAvatar} alt="Avatar" className="w-full h-full object-cover" />
             </div>
             <p className="text-xs font-bold text-slate-700">Lớp {user.grade}</p>
           </div>
