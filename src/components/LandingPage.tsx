@@ -62,12 +62,20 @@ export default function LandingPage({ onLoginClick, onGuestLogin }: LandingPageP
              </div>
              <span className="font-extrabold text-xl tracking-tight text-slate-800">GiaSư<span className="text-brand-600">Ảo</span></span>
           </div>
-          <button 
-             onClick={onLoginClick}
-             className="px-6 py-2 bg-slate-900 text-white text-sm font-semibold rounded-full hover:bg-slate-800 transition-all shadow-md"
-          >
-             Đăng nhập / Đăng ký
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+               onClick={onGuestLogin}
+               className="px-5 py-2.5 bg-gradient-to-r from-brand-600 to-indigo-600 text-white text-xs sm:text-sm font-bold rounded-full hover:from-brand-700 hover:to-indigo-700 shadow-md shadow-brand-500/20 flex items-center gap-1.5 transition-all hover:scale-105"
+            >
+               <span>🚀 Trải nghiệm Demo ngay</span>
+            </button>
+            <button 
+               onClick={onLoginClick}
+               className="px-5 py-2.5 bg-slate-900 text-white text-xs sm:text-sm font-bold rounded-full hover:bg-slate-800 transition-all shadow-md"
+            >
+               Đăng nhập / Đăng ký
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -78,9 +86,9 @@ export default function LandingPage({ onLoginClick, onGuestLogin }: LandingPageP
              <motion.div 
                initial={{ opacity: 0, y: 20 }}
                animate={{ opacity: 1, y: 0 }}
-               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand-50 border border-brand-100 text-brand-600 text-sm font-semibold"
+               className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-brand-50 border border-brand-100 text-brand-600 text-sm font-bold shadow-sm"
              >
-               <Zap className="w-4 h-4" /> Tiên phong AI trong giáo dục
+               <Zap className="w-4 h-4 text-brand-500 fill-brand-500" /> Tiên phong AI Giáo dục cho Học sinh THCS
              </motion.div>
              
              <motion.h1 
@@ -89,7 +97,7 @@ export default function LandingPage({ onLoginClick, onGuestLogin }: LandingPageP
                transition={{ delay: 0.1 }}
                className="text-5xl md:text-6xl font-extrabold leading-[1.1] tracking-tight text-slate-900"
              >
-               Học tập thông minh hơn với <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-brand-500">Gia sư AI 1 kèm 1</span>
+               Học tập thông minh hơn với <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-indigo-600">Gia sư AI 1 kèm 1</span>
              </motion.h1>
 
              <motion.p 
@@ -98,22 +106,31 @@ export default function LandingPage({ onLoginClick, onGuestLogin }: LandingPageP
                transition={{ delay: 0.2 }}
                className="text-lg text-slate-600 leading-relaxed max-w-xl font-medium"
              >
-               Không chỉ đưa ra đáp án, Gia sư ảo giúp bạn phân tích từng bước, bám sát sách giáo khoa và tạo lộ trình học riêng biệt cho bạn.
+               Không chỉ đưa ra đáp án, Gia sư ảo giúp bạn phân tích từng bước, bám sát sách giáo khoa chuẩn bộ GD&ĐT và gợi ý bài tập rèn luyện cá nhân hóa.
              </motion.p>
 
              <motion.div
                initial={{ opacity: 0, y: 20 }}
                animate={{ opacity: 1, y: 0 }}
                transition={{ delay: 0.3 }}
+               className="space-y-4"
              >
-               <button 
-                 onClick={onGuestLogin || scrollToDemo}
-                 className="px-8 py-4 bg-brand-600 text-white rounded-full font-bold text-lg hover:bg-brand-700 shadow-xl shadow-brand-600/30 flex items-center gap-3 transition-transform hover:-translate-y-1"
-               >
-                 Học ngay miễn phí <ArrowRight className="w-5 h-5" />
-               </button>
-               <p className="text-sm font-medium text-slate-400 mt-4 flex items-center gap-2">
-                 <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Không cần thẻ tín dụng
+               <div className="flex flex-wrap items-center gap-3">
+                 <button 
+                   onClick={onGuestLogin}
+                   className="px-8 py-4 bg-gradient-to-r from-brand-600 to-indigo-600 text-white rounded-2xl font-extrabold text-base sm:text-lg hover:from-brand-700 hover:to-indigo-700 shadow-xl shadow-brand-600/30 flex items-center gap-3 transition-transform hover:-translate-y-1 cursor-pointer"
+                 >
+                   <span>🚀 Trải nghiệm Demo ngay (Không cần tạo tài khoản)</span> <ArrowRight className="w-5 h-5" />
+                 </button>
+                 <button 
+                   onClick={onLoginClick}
+                   className="px-6 py-4 bg-white border border-slate-200 text-slate-700 rounded-2xl font-bold text-base hover:bg-slate-50 transition-all flex items-center gap-2 cursor-pointer"
+                 >
+                   Đăng nhập / Đăng ký
+                 </button>
+               </div>
+               <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
+                 <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Vào xem ứng dụng trong 3 giây • Chat 6 câu miễn phí cùng Gia sư AI
                </p>
              </motion.div>
           </div>

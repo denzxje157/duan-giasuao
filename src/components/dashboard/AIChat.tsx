@@ -780,6 +780,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
     }
   };
 
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem(`ai_chat_session_${user.id || user.email}`);
@@ -1311,6 +1312,16 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
     options?: { hiddenUserMessage?: boolean; overrideSubject?: string; sessionIdOverride?: string | null }
   ) => {
     if (!userMsg.trim() || isLoading) return;
+
+    if (user.isGuest) {
+      const guestCountKey = `guest_chat_count_${user.id || 'guest'}`;
+      const currentGuestCount = parseInt(localStorage.getItem(guestCountKey) || '0', 10);
+      if (currentGuestCount >= 6) {
+        setShowGuestLimitModal(true);
+        return;
+      }
+      localStorage.setItem(guestCountKey, String(currentGuestCount + 1));
+    }
     
     const activeSubject = options?.overrideSubject || selectedSubject;
     if (!activeSubject) {
@@ -2330,6 +2341,44 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
           </div>
         )}
       </div>
+
+      {/* Guest Chat Limit Prompt Modal */}
+      {showGuestLimitModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 text-center relative overflow-hidden"
+          >
+            <div className="w-16 h-16 bg-brand-100 text-brand-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner">
+              🎉
+            </div>
+            <h3 className="text-xl font-extrabold text-slate-800 mb-2">Đã dùng hết 6 lượt hỏi thử</h3>
+            <p className="text-sm font-medium text-slate-600 mb-6 leading-relaxed">
+              Bạn đã hỏi đáp 6 câu cùng Gia Sư AI. Hãy <strong>Đăng ký / Đăng nhập miễn phí</strong> để tiếp tục trò chuyện không giới hạn, lưu tiến trình và tích điểm thưởng SP nhé!
+            </p>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGuestLimitModal(false);
+                  window.dispatchEvent(new Event('open-login-prompt'));
+                }}
+                className="w-full py-3.5 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white rounded-xl font-extrabold text-sm shadow-lg shadow-brand-500/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Đăng ký / Đăng nhập ngay (Miễn phí)</span> &rarr;
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowGuestLimitModal(false)}
+                className="w-full py-2.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+              >
+                Khám phá các tính năng khác
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

@@ -36,18 +36,26 @@ export default function App() {
 
   useEffect(() => {
     if (user?.isGuest && user.guestStartTime) {
-      const MAX_GUEST_TIME = 3 * 60 * 1000; // 3 minutes
+      const MAX_GUEST_TIME = 30 * 60 * 1000; // 30 minutes for smooth testing/demo
       const checkSession = () => {
         if (Date.now() - user.guestStartTime! >= MAX_GUEST_TIME) {
           setShowGuestExpiredModal(true);
         }
       };
-      // Check immediately
       checkSession();
       const interval = setInterval(checkSession, 1000);
       return () => clearInterval(interval);
     }
   }, [user]);
+
+  useEffect(() => {
+    const handleOpenLogin = () => {
+      handleLogout();
+      setShowLogin(true);
+    };
+    window.addEventListener('open-login-prompt', handleOpenLogin);
+    return () => window.removeEventListener('open-login-prompt', handleOpenLogin);
+  }, []);
 
   const handleLogin = (userData: { id?: string; name: string; email: string; grade: Grade; role: 'student' | 'admin' }) => {
     const newUser: User = { ...userData };
