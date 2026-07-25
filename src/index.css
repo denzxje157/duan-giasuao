@@ -87,10 +87,14 @@
   --theme-950: #2e1065;
 }
 
+body {
+  background-color: var(--color-surface-50);
+  color: var(--color-surface-900);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
 @layer base {
-  body {
-    @apply bg-[var(--color-surface-50)] text-[var(--color-surface-900)] font-sans antialiased;
-  }
   .markdown-body p {
     @apply mb-3 last:mb-0;
   }
