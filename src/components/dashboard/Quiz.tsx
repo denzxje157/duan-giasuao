@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { BrainCircuit, BookOpen, Layers, Sparkles, CheckCircle, XCircle, ArrowRight, RefreshCw, Star, Upload, History } from 'lucide-react';
+import { BrainCircuit, BookOpen, Layers, Sparkles, CheckCircle, XCircle, ArrowRight, RefreshCw, Star, Upload, History, Plus } from 'lucide-react';
 import { User } from '../../types';
 import { API_BASE_URL } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
