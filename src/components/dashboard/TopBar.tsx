@@ -176,10 +176,19 @@ export default function TopBar({ user, onLogout, currentGrade, onGradeChange }: 
 
   useEffect(() => {
     if (user.isGuest && user.guestStartTime) {
-      const MAX_GUEST_TIME = 3 * 60 * 1000;
+      const MAX_GUEST_TIME = 30 * 60 * 1000; // 30 minutes
       
       const updateTimer = () => {
-        const elapsed = Date.now() - user.guestStartTime!;
+        let startTime = user.guestStartTime!;
+        // Auto refresh old guest timestamps so active testers get full 30 mins
+        if (Date.now() - startTime >= MAX_GUEST_TIME) {
+          startTime = Date.now();
+          user.guestStartTime = startTime;
+          try {
+            localStorage.setItem('virtual_tutor_user', JSON.stringify(user));
+          } catch (e) {}
+        }
+        const elapsed = Date.now() - startTime;
         const remaining = Math.max(0, MAX_GUEST_TIME - elapsed);
         setTimeLeft(remaining);
       };
