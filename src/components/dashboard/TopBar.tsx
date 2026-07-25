@@ -301,7 +301,7 @@ export default function TopBar({ user, onLogout, currentGrade, onGradeChange }: 
           </div>
 
           <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center overflow-hidden border border-slate-200">
-            <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} alt="Avatar" className="w-full h-full object-cover" />
+            <img src={currentAvatar} alt="Avatar" className="w-full h-full object-cover" />
           </div>
 
           <button
