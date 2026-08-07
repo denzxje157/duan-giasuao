@@ -1,0 +1,19 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # Chạy tự động 3 ngày 1 lần vào lúc 00:00 UTC (Tránh bị Supabase ngủ sau 7 ngày)
+    - cron: '0 0 */3 * *'
+  workflow_dispatch: # Cho phép bấm nút chạy thủ công trên GitHub khi cần
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        run: |
+          echo "🚀 Đang gửi request tới Supabase để duy trì hoạt động..."
+          curl -s -f -X GET "${{ secrets.VITE_SUPABASE_URL }}/rest/v1/documents?select=id&limit=1" \
+            -H "apikey: ${{ secrets.VITE_SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_ANON_KEY }}"
+          echo "✅ Gửi request thành công! Supabase đã được giữ hoạt động liên tục."
