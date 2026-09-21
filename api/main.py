@@ -1210,8 +1210,22 @@ def track_user_activity(req: TrackActivityRequest, credentials: HTTPAuthorizatio
     try:
         user_id = _verify_token_and_get_user(credentials)
         user_supabase = _get_supabase_client(credentials)
+        # Đảm bảo profile tồn tại trong bảng profiles để không bị lỗi foreign key
+        try:
+            p_res = supabase.table("profiles").select("id").eq("id", user_id).execute()
+            if not p_res.data:
+                supabase.table("profiles").insert({
+                    "id": user_id,
+                    "email": f"user_{user_id[:8]}@example.com",
+                    "full_name": "Học sinh",
+                    "grade": "10",
+                    "role": "student"
+                }).execute()
+        except Exception as p_err:
+            pass
+
         today_str = get_vietnam_date().strftime("%Y-%m-%d")
-        
+
         # Cập nhật user_activities
         act_res = user_supabase.table("user_activities").select("id, study_minutes").eq("user_id", user_id).eq("study_date", today_str).eq("subject_name", req.subject_name).execute()
         if act_res.data and len(act_res.data) > 0:

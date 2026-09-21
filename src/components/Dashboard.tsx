@@ -44,7 +44,7 @@ export default function Dashboard({ user, onLogout, onGradeChange, onUserUpdate 
             .from('profiles')
             .select('full_name')
             .eq('id', user.id)
-            .single();
+            .maybeSingle();
           if (data && data.full_name) {
             const parts = data.full_name.split('|');
             const hasLocked = parts.some(p => p.trim() === 'status:locked');
