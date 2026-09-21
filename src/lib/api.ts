@@ -394,13 +394,15 @@ export async function fetchChatHistory(sessionId?: string): Promise<ChatHistoryR
   }
 
   const headers: Record<string,string> = { 'Content-Type': 'application/json' };
-  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  if (!accessToken) {
+    return [];
+  }
+  headers['Authorization'] = `Bearer ${accessToken}`;
 
   // Ensure in dev we call localhost:8000 to avoid CORS issues when running frontend dev server
   const base = import.meta.env.DEV ? 'http://localhost:8000' : API_BASE_URL;
   const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : '';
   const url = `${base}/chat-history/me${query}`;
-  console.log('[api] fetchChatHistory url=', url);
   const resp = await fetch(url.replace('/chat-history', '/api/chat-history'), {
     method: 'GET',
     headers,
@@ -437,7 +439,10 @@ export async function fetchChatSessions(): Promise<ChatSessionGroup[]> {
   }
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  if (!accessToken) {
+    return [];
+  }
+  headers['Authorization'] = `Bearer ${accessToken}`;
 
   const base = import.meta.env.DEV ? 'http://localhost:8000' : API_BASE_URL;
   const resp = await fetch(`${base}/api/chat-sessions/me`, { method: 'GET', headers });
