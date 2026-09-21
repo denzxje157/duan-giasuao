@@ -170,11 +170,12 @@ export default function Dashboard({ user, onLogout, onGradeChange, onUserUpdate 
         setActiveTab={setActiveTab}
         user={user}
       />
-      
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar user={user} onLogout={onLogout} currentGrade={user.grade} onGradeChange={onGradeChange} />
+        <div className={activeTab === 'ai' ? 'hidden md:block' : 'block'}>
+          <TopBar user={user} onLogout={onLogout} currentGrade={user.grade} onGradeChange={onGradeChange} />
+        </div>
         
-        <main className={`flex-1 overflow-y-auto ${activeTab === 'workspace' ? '' : 'p-4 md:p-8 pb-24 lg:pb-8'} custom-scrollbar`}>
+        <main className={`flex-1 overflow-y-auto ${activeTab === 'workspace' || activeTab === 'ai' ? 'p-0 pb-16 md:pb-0' : 'p-4 md:p-8 pb-24 lg:pb-8'} custom-scrollbar`}>
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab + user.grade}
@@ -182,7 +183,7 @@ export default function Dashboard({ user, onLogout, onGradeChange, onUserUpdate 
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className={`h-full w-full ${activeTab === 'workspace' ? '' : 'max-w-7xl mx-auto'}`}
+              className={`h-full w-full ${activeTab === 'workspace' || activeTab === 'ai' ? '' : 'max-w-7xl mx-auto'}`}
             >
               {renderContent()}
             </motion.div>

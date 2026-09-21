@@ -502,7 +502,10 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
   }, [user.grade, user.id, user.email]);
   const [generalInput, setGeneralInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem('giasuao_theme') === 'dark';
+  });
   const [voiceSettingsOpen, setVoiceSettingsOpen] = useState(false);
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
@@ -1671,7 +1674,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
 
   const currentThemeVars = isDarkMode
     ? { '--bg-primary': '#131314', '--text-primary': '#f3f4f6', '--panel-primary': '#1e1e1e', '--muted-primary': '#9ca3af' }
-    : { '--bg-primary': '#f7f7f7', '--text-primary': '#111111', '--panel-primary': '#ffffff', '--muted-primary': '#6b7280' };
+    : { '--bg-primary': '#f8fafc', '--text-primary': '#0f172a', '--panel-primary': '#ffffff', '--muted-primary': '#64748b' };
 
   const themeClassName = isDarkMode ? 'dark' : 'light';
 
@@ -1845,10 +1848,14 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                 animate={{ opacity: 1, y: 0 }}
                 className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'user' ? 'bg-white text-black' : 'bg-white/5 border border-white/10 text-white'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                  msg.role === 'user' 
+                    ? isDarkMode ? 'bg-white text-black' : 'bg-brand-600 text-white shadow-sm' 
+                    : isDarkMode ? 'bg-white/5 border border-white/10 text-white' : 'bg-white border border-slate-200 text-brand-600 shadow-sm'
+                }`}>
                   {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                 </div>
-                <div className={`max-w-[min(950px,100%)] min-w-0 ${msg.role === 'user' ? 'text-white font-medium' : 'text-[var(--text-primary)]'}`}>
+                <div className={`max-w-[min(950px,100%)] min-w-0 ${msg.role === 'user' ? 'font-medium' : 'text-[var(--text-primary)]'}`}>
                   {msg.role === 'user' ? (
                     <div className="flex flex-col gap-2 items-end">
                       {msg.imageUrl && (
@@ -1856,7 +1863,11 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                           <img src={msg.imageUrl} alt="Đính kèm" className="w-full h-auto bg-white" />
                         </div>
                       )}
-                      <div className="whitespace-pre-wrap rounded-2xl bg-white/10 px-4 py-3 text-sm leading-relaxed">
+                      <div className={`whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
+                        isDarkMode 
+                          ? 'bg-white/10 text-white' 
+                          : 'bg-gradient-to-r from-brand-600 to-indigo-600 text-white'
+                      }`}>
                         {msg.content}
                       </div>
                     </div>
@@ -1888,7 +1899,11 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                             <div className="mt-1 flex items-center justify-start">
                               <button
                                 onClick={() => playVoiceSequence(answerPart)}
-                                className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-brand-400 transition-colors hover:bg-white/10 hover:text-brand-300"
+                                className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                  isDarkMode 
+                                    ? 'border-white/10 bg-white/5 text-brand-400 hover:bg-white/10 hover:text-brand-300' 
+                                    : 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100'
+                                }`}
                                 title="Đọc câu trả lời"
                               >
                                 <Volume2 className="h-4 w-4" />
@@ -1899,7 +1914,11 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                           
                           {/* Render Quiz if exists */}
                           {quiz && (
-                            <div className="mt-2 bg-white/10 rounded-xl p-4 border border-white/20">
+                            <div className={`mt-2 rounded-xl p-4 border shadow-sm ${
+                              isDarkMode 
+                                ? 'bg-white/10 border-white/20 text-white' 
+                                : 'bg-white border-slate-200 text-slate-800'
+                            }`}>
                               <p className="font-bold mb-3 text-sm">🤔 Trắc nghiệm nhanh: {quiz.question}</p>
                               <div className="grid gap-2">
                                 {quiz.options.map((opt, idx) => {
@@ -2008,7 +2027,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
 
   return (
     <div
-      className={`${themeClassName} relative flex h-[calc(100vh-140px)] w-full max-w-full overflow-hidden rounded-none border border-transparent shadow-none`}
+      className={`${themeClassName} relative flex h-[calc(100vh-64px)] md:h-[calc(100vh-140px)] w-full max-w-full overflow-hidden rounded-none border border-transparent shadow-none`}
       style={currentThemeVars as React.CSSProperties}
     >
       <ChatSidebar
@@ -2024,30 +2043,29 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
       />
 
       <div className="flex min-w-0 flex-1 flex-col bg-[var(--bg-primary)] text-[var(--text-primary)]">
-        <div className="relative flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 bg-[var(--panel-primary)]">
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => setSidebarOpen((prev) => !prev)} className="rounded-xl border border-white/10 p-2 text-[var(--text-primary)] hover:bg-white/5 transition-colors">
-              <Menu className="h-5 w-5" />
+        <div className="relative flex items-center justify-between gap-2 sm:gap-3 border-b border-slate-200/80 dark:border-white/10 px-3 sm:px-4 py-2.5 sm:py-3 bg-[var(--panel-primary)] shadow-sm">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button type="button" onClick={() => setSidebarOpen((prev) => !prev)} className="rounded-xl border border-slate-200/80 dark:border-white/10 p-2 text-[var(--text-primary)] hover:bg-slate-100 dark:hover:bg-white/5 transition-colors">
+              <Menu className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
             </button>
             {currentView === 'chat' ? (
               <button
                 type="button"
                 onClick={() => setCurrentView('selection')}
-                className="rounded-xl border border-brand-500/30 bg-brand-500/15 p-2 text-brand-400 hover:bg-brand-500/25 transition-all flex items-center justify-center shrink-0"
+                className="rounded-xl border border-brand-500/30 bg-brand-500/15 p-2 text-brand-500 dark:text-brand-400 hover:bg-brand-500/25 transition-all flex items-center justify-center shrink-0"
                 title="Thoát Chat / Quay lại chọn môn học"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
               </button>
             ) : (
-              <div className="rounded-xl bg-white/5 p-2 text-[var(--text-primary)] shrink-0">
-                <MessageSquare className="h-5 w-5" />
+              <div className="rounded-xl bg-slate-100 dark:bg-white/5 p-2 text-[var(--text-primary)] shrink-0">
+                <MessageSquare className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
               </div>
             )}
             <div>
-              <div className="text-sm font-bold md:text-base">Gia sư AI</div>
-              <div className="hidden xs:block text-[10px] text-[var(--muted-primary)]">Canvas tối giản, cá nhân hóa theo lớp học</div>
+              <div className="text-sm font-bold md:text-base leading-tight">Gia sư AI</div>
               {/* Pulsing Active indicator */}
-              <div className="flex items-center gap-1 mt-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold w-fit px-2 py-0.5">
+              <div className="flex items-center gap-1 mt-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold w-fit px-2 py-0.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span>Đang hoạt động</span>
               </div>
@@ -2230,16 +2248,16 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
         {renderContent()}
 
         {currentView === 'chat' && (
-          <div className="sticky bottom-0 z-10 border-t border-white/10 bg-[color-mix(in_srgb,var(--bg-primary)_94%,transparent)] px-4 py-4 backdrop-blur-md">
-            <form onSubmit={handleSend} className="mx-auto flex w-full max-w-[1000px] items-center gap-2 rounded-[24px] border border-white/10 bg-white/5 p-2 shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
+          <div className="sticky bottom-0 z-10 border-t border-slate-200/80 dark:border-white/10 bg-[color-mix(in_srgb,var(--bg-primary)_94%,transparent)] px-2 sm:px-4 py-2.5 sm:py-3.5 backdrop-blur-md">
+            <form onSubmit={handleSend} className="mx-auto flex w-full max-w-[1000px] items-center gap-1.5 sm:gap-2 rounded-[24px] border border-slate-200/80 dark:border-white/10 bg-white dark:bg-white/5 p-1.5 sm:p-2 shadow-lg dark:shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onPaste={handlePaste}
                 disabled={isLoading}
-                placeholder={attachedImage ? "Hình vẽ đã đính kèm. Thêm câu hỏi..." : selectedSubject ? `Đặt câu hỏi môn ${selectedSubject}...` : 'Hãy chọn môn học để bắt đầu phiên mới...'}
-                className="min-w-0 flex-1 rounded-[20px] border-0 bg-transparent px-4 py-3.5 text-sm font-medium text-[var(--text-primary)] outline-none placeholder:text-[var(--muted-primary)] resize-none"
+                placeholder={attachedImage ? "Hình vẽ đã đính kèm. Thêm câu hỏi..." : "Hỏi Gia sư bất kỳ điều gì..."}
+                className="min-w-0 flex-1 rounded-[20px] border-0 bg-transparent px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium text-[var(--text-primary)] outline-none placeholder:text-[var(--muted-primary)] resize-none"
               />
               <button
                 type="button"
@@ -2302,23 +2320,23 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                   }
                   setIsListening(false);
                 }}
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] transition-all select-none ${isListening ? 'bg-red-500 text-white scale-110 shadow-[0_0_15px_rgba(239,68,68,0.5)]' : 'bg-white/5 border border-white/10 text-[var(--text-primary)] hover:bg-white/10'}`}
+                className={`flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full transition-all select-none ${isListening ? 'bg-red-500 text-white scale-110 shadow-lg' : 'bg-slate-100 dark:bg-white/10 text-[var(--text-primary)] hover:bg-slate-200 dark:hover:bg-white/15'}`}
                 title="Bấm và giữ để nói"
               >
-                <Mic className="h-5 w-5" />
+                <Mic className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
               <button
                 type="submit"
                 disabled={(!input.trim() && !attachedImage) || isLoading || !selectedSubject}
-                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] bg-brand-600 text-white transition-colors hover:bg-brand-700 disabled:opacity-50 disabled:hover:bg-brand-600"
+                className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white transition-all hover:bg-brand-700 disabled:opacity-40 disabled:hover:bg-brand-600 shadow-md"
               >
-                <Send className="h-5 w-5" />
+                <Send className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
-              <button type="button" onClick={() => setIsDrawingMode(!isDrawingMode)} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] border border-white/10 bg-white/5 text-[var(--text-primary)] transition-colors hover:bg-white/10" title="Bảng nháp">
-                <Pen className="h-5 w-5" />
+              <button type="button" onClick={() => setIsDrawingMode(!isDrawingMode)} className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-[var(--text-primary)] transition-colors hover:bg-slate-100 dark:hover:bg-white/10" title="Bảng nháp">
+                <Pen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
-              <button type="button" onClick={handleFileButtonClick} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[20px] border border-white/10 bg-white/5 text-[var(--text-primary)] transition-colors hover:bg-white/10" title="Đính kèm">
-                <Plus className="h-5 w-5" />
+              <button type="button" onClick={handleFileButtonClick} className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 text-[var(--text-primary)] transition-colors hover:bg-slate-100 dark:hover:bg-white/10" title="Đính kèm">
+                <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
               <input ref={fileInputRef} onChange={handleFileSelected} type="file" accept=".pdf,.jpg,.jpeg,.png,.txt" className="hidden" />
             </form>
