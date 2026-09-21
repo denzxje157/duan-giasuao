@@ -231,9 +231,9 @@ function inferSubjectFromText(content: string): string {
   return 'Môn học';
 }
 
-const MessageContent = ({ content, isStreaming }: { content: string; isStreaming?: boolean }) => {
+const MessageContent = ({ content, isStreaming, isDarkMode }: { content: string; isStreaming?: boolean; isDarkMode?: boolean }) => {
   return (
-    <div className="prose prose-invert max-w-none break-words">
+    <div className={`prose max-w-none break-words leading-relaxed ${isDarkMode ? 'prose-invert text-slate-100' : 'text-slate-900 prose-slate'}`}>
       <ReactMarkdown
         remarkPlugins={[remarkMath]}
         rehypePlugins={[[rehypeKatex, { strict: 'ignore', throwOnError: false }]]}
@@ -502,10 +502,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
   }, [user.grade, user.id, user.email]);
   const [generalInput, setGeneralInput] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('giasuao_theme') === 'dark';
-  });
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [voiceSettingsOpen, setVoiceSettingsOpen] = useState(false);
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
@@ -1839,7 +1836,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
       }
 
       return (
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5 custom-scrollbar md:px-6" style={{ maxWidth: '100%' }}>
+        <div ref={scrollRef} className={`min-h-0 flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 custom-scrollbar ${isDarkMode ? 'bg-[#0f172a]' : 'bg-slate-50'}`} style={{ maxWidth: '100%' }}>
           <div className="mx-auto flex w-full max-w-[1000px] flex-col gap-6">
             {messages.map((msg) => (
               <motion.div
@@ -1848,14 +1845,14 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                 animate={{ opacity: 1, y: 0 }}
                 className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
                   msg.role === 'user' 
-                    ? isDarkMode ? 'bg-white text-black' : 'bg-brand-600 text-white shadow-sm' 
-                    : isDarkMode ? 'bg-white/5 border border-white/10 text-white' : 'bg-white border border-slate-200 text-brand-600 shadow-sm'
+                    ? 'bg-brand-600 text-white' 
+                    : 'bg-emerald-500 text-white'
                 }`}>
                   {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                 </div>
-                <div className={`max-w-[min(950px,100%)] min-w-0 ${msg.role === 'user' ? 'font-medium' : 'text-[var(--text-primary)]'}`}>
+                <div className={`max-w-[min(950px,100%)] min-w-0 ${msg.role === 'user' ? 'font-medium' : isDarkMode ? 'text-slate-100' : 'text-slate-900'}`}>
                   {msg.role === 'user' ? (
                     <div className="flex flex-col gap-2 items-end">
                       {msg.imageUrl && (
@@ -1863,11 +1860,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                           <img src={msg.imageUrl} alt="Đính kèm" className="w-full h-auto bg-white" />
                         </div>
                       )}
-                      <div className={`whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
-                        isDarkMode 
-                          ? 'bg-white/10 text-white' 
-                          : 'bg-gradient-to-r from-brand-600 to-indigo-600 text-white'
-                      }`}>
+                      <div className="whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white leading-relaxed shadow-md">
                         {msg.content}
                       </div>
                     </div>
@@ -1890,7 +1883,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                                 </div>
                               </div>
                             ) : (
-                              <MessageContent content={answerPart || ''} isStreaming={msg.status === 'streaming'} />
+                              <MessageContent content={answerPart || ''} isStreaming={msg.status === 'streaming'} isDarkMode={isDarkMode} />
                             )}
                           </div>
 
@@ -1978,7 +1971,11 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                                     key={i}
                                     type="button"
                                     onClick={() => handleSuggestionClick(sug.label)}
-                                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${isDarkMode ? 'border-white/10 bg-white/5 text-white hover:bg-white/10' : 'border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-100'}`}
+                                    className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-bold transition-all shadow-sm ${
+                                      isDarkMode 
+                                        ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700' 
+                                        : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-50 hover:border-brand-300'
+                                    }`}
                                   >
                                     <span>{icon}</span>
                                     <span>{sug.label}</span>
