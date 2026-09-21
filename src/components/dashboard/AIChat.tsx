@@ -1826,10 +1826,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                   )}
                 </button>
               </form>
-              <div className="mt-4 flex items-center justify-center gap-1.5 opacity-60">
-                <Sparkles className="h-3 w-3 text-[var(--muted-primary)]" />
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted-primary)]">Powered by Gemini</span>
-              </div>
+              
             </div>
           </div>
         );
@@ -2024,7 +2021,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
 
   return (
     <div
-      className={`${themeClassName} relative flex h-[calc(100vh-64px)] md:h-[calc(100vh-140px)] w-full max-w-full overflow-hidden rounded-none border border-transparent shadow-none`}
+      className={`${themeClassName} relative flex h-full w-full max-w-full overflow-hidden rounded-none border border-transparent shadow-none`}
       style={currentThemeVars as React.CSSProperties}
     >
       <ChatSidebar
@@ -2347,10 +2344,6 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                 </div>
               </div>
             )}
-            <div className="mt-3 flex items-center justify-center gap-1.5 opacity-60">
-              <Sparkles className="h-3 w-3 text-[var(--muted-primary)]" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--muted-primary)]">Powered by Gemini</span>
-            </div>
             {/* Hidden Audio Player for TTS Auto-play */}
             <audio id="ai-tts-player" className="hidden" preload="auto" />
           </div>
