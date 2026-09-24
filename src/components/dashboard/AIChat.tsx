@@ -895,7 +895,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
             const targetSession = allSessions.find(s => s.session_id === sessionId);
             if (targetSession && targetSession.subject && targetSession.subject !== 'Môn học') {
               setSelectedSubject(targetSession.subject);
-            } else {
+            } else if (!selectedSubject || selectedSubject === 'Môn học') {
               const firstUserMsg = parsed.find((m: any) => m.role === 'user');
               if (firstUserMsg) {
                 setSelectedSubject(inferSubjectFromText(firstUserMsg.content));
@@ -923,7 +923,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
         const targetSession = allSessions.find(s => s.session_id === sessionId);
         if (targetSession && targetSession.subject && targetSession.subject !== 'Môn học') {
           setSelectedSubject(targetSession.subject);
-        } else {
+        } else if (!selectedSubject || selectedSubject === 'Môn học') {
           const firstUserMsg = cachedMessages.find(m => m.role === 'user');
           if (firstUserMsg) {
             setSelectedSubject(inferSubjectFromText(firstUserMsg.content));
@@ -982,7 +982,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
           const targetSession = allSessions.find(s => s.session_id === sessionId);
           if (targetSession && targetSession.subject && targetSession.subject !== 'Môn học') {
             setSelectedSubject(targetSession.subject);
-          } else {
+          } else if (!selectedSubject || selectedSubject === 'Môn học') {
             const firstUserMsg = mappedMessages.find(m => m.role === 'user');
             if (firstUserMsg) {
               setSelectedSubject(inferSubjectFromText(firstUserMsg.content));
@@ -992,10 +992,9 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
           }
           setCurrentView('chat');
         } else {
-          // Only redirect to selection if there are no messages currently displayed.
-          // This prevents redirecting while a stream is in progress (messages may not be in DB yet).
+          // Only redirect to selection if no messages and no explicit subject selected
           setMessages(prev => {
-            if (prev.length === 0) {
+            if (prev.length === 0 && !selectedSubject) {
               setCurrentView('selection');
             }
             return prev.length === 0 ? [] : prev;
@@ -1233,7 +1232,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
   };
 
   const handleOpenSessionHistory = async (targetSessionId: string) => {
-    if (targetSessionId === 'no-session') return;
+    if (!targetSessionId || targetSessionId === 'no-session') return;
     
     // Find session in sessionGroups to see its grade
     const allSessions = sessionGroups.flatMap(g => g.subjects.flatMap(s => s.sessions));
@@ -1248,11 +1247,43 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
       }
     }
 
-    if (targetSession && targetSession.subject) {
+    if (targetSession && targetSession.subject && targetSession.subject !== 'Môn học') {
       setSelectedSubject(targetSession.subject);
+      if (onSubjectChange) onSubjectChange(targetSession.subject);
     }
 
     setSessionId(targetSessionId);
+    setCurrentView('chat');
+    setSidebarOpen(false);
+    resetSuggestionMemory();
+  };
+
+  const handleOpenHistorySubject = async (gradeLabel: string, sub: { subject: string; sessions: ChatSessionItem[] }) => {
+    const gradeNum = parseInt(gradeLabel.replace('Lớp', '').trim());
+    if (!isNaN(gradeNum)) {
+      restoreSessionGradeRef.current = gradeNum;
+      if (onGradeChange && Number(user.grade) !== gradeNum) {
+        onGradeChange(gradeNum);
+      }
+    }
+
+    const cleanSubject = sub.subject;
+    setSelectedSubject(cleanSubject);
+    if (onSubjectChange) {
+      onSubjectChange(cleanSubject);
+    }
+
+    const validSession = sub.sessions?.find(s => s.session_id && s.session_id !== 'no-session');
+    if (validSession) {
+      setSessionId(validSession.session_id);
+    } else {
+      const newSessionId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+      setSessionId(newSessionId);
+      skipLoadHistoryRef.current = newSessionId;
+      setMessages([]);
+    }
+
+    setCurrentView('chat');
     setSidebarOpen(false);
     resetSuggestionMemory();
   };
@@ -1786,33 +1817,21 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                       </p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {sessionGroups.find(g => g.grade === selectedHistoryGrade)?.subjects.map((sub) => {
-                          const mostRecentSession = sub.sessions[0];
                           return (
                             <button
                               key={sub.subject}
                               type="button"
-                              onClick={() => {
-                                const gradeNum = parseInt(selectedHistoryGrade.replace('Lớp', '').trim());
-                                if (!isNaN(gradeNum)) {
-                                  restoreSessionGradeRef.current = gradeNum;
-                                  if (onGradeChange) {
-                                    onGradeChange(gradeNum);
-                                  }
-                                }
-                                if (mostRecentSession) {
-                                  handleOpenSessionHistory(mostRecentSession.session_id);
-                                }
-                              }}
-                              className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition-all group ${
+                              onClick={() => handleOpenHistorySubject(selectedHistoryGrade, sub)}
+                              className={`flex items-center justify-between gap-2 rounded-xl border px-3.5 py-2.5 text-left text-xs font-bold transition-all shadow-2xs group active:scale-[0.98] ${
                                 isDarkMode 
-                                  ? 'border-white/10 bg-white/5 hover:bg-white/10 text-white' 
-                                  : 'border-slate-200 bg-slate-50 hover:bg-brand-50 hover:border-brand-300 text-slate-800'
+                                  ? 'border-white/10 bg-white/5 hover:bg-white/10 text-white hover:border-brand-400' 
+                                  : 'border-slate-200 bg-white hover:bg-brand-50 hover:border-brand-300 text-slate-800'
                               }`}
                             >
                               <span className="truncate">{sub.subject}</span>
-                              <span className={`text-[10px] opacity-0 group-hover:opacity-100 transition-opacity ${
-                                isDarkMode ? 'text-brand-400' : 'text-brand-600'
-                              }`}>Tiếp tục →</span>
+                              <span className={`text-[10px] font-semibold opacity-70 group-hover:opacity-100 transition-opacity ${
+                                isDarkMode ? 'text-brand-300' : 'text-brand-600'
+                              }`}>Học ngay →</span>
                             </button>
                           );
                         })}
