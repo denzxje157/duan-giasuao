@@ -183,7 +183,7 @@ export default function Dashboard({ user, onLogout, onGradeChange, onUserUpdate 
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className={`h-full w-full ${activeTab === 'workspace' || activeTab === 'ai' ? '' : 'max-w-7xl mx-auto'}`}
+              className={activeTab === 'workspace' || activeTab === 'ai' ? 'h-full w-full' : 'min-h-full w-full max-w-7xl mx-auto'}
             >
               {renderContent()}
             </motion.div>

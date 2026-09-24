@@ -296,58 +296,47 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="bg-white rounded-[32px] overflow-hidden border border-slate-200 shadow-xl"
+                className="bg-white rounded-2xl md:rounded-[32px] overflow-hidden border border-slate-200 shadow-xl"
               >
-                <div className="grid md:grid-cols-12 max-h-[800px]">
-                  <div className="md:col-span-5 bg-slate-50 p-8 md:p-12 relative flex items-center justify-center">
+                <div className="grid md:grid-cols-12 md:max-h-[800px]">
+                  {/* Left Column (Desktop) / Top Section (Mobile) */}
+                  <div className="md:col-span-5 bg-gradient-to-b from-slate-50 to-slate-100/60 p-5 sm:p-8 md:p-12 relative flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-slate-100">
                     <button 
                       onClick={() => setSelectedBook(null)}
-                      className="absolute top-6 left-6 w-10 h-10 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-500 hover:text-brand-600 hover:bg-brand-50 transition-all z-20"
+                      className="absolute top-4 left-4 md:top-6 md:left-6 w-9 h-9 md:w-10 md:h-10 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-all z-20 active:scale-95"
+                      title="Quay lại danh sách"
                     >
                       <ChevronRight className="w-5 h-5 rotate-180" />
                     </button>
-                    <div className="w-full max-w-[300px] aspect-[3/4] bg-white rounded-2xl shadow-2xl flex items-center justify-center overflow-hidden relative group">
-                        <div className="absolute top-4 right-4 w-10 h-10 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white z-10 group-hover:scale-110 transition-transform">
-                          <GraduationCap className="w-5 h-5 text-white" />
-                        </div>
+                    
+                    <div className="w-36 sm:w-44 md:w-full md:max-w-[280px] aspect-[3/4] bg-white rounded-xl md:rounded-2xl shadow-xl flex items-center justify-center overflow-hidden relative group my-2 md:my-0">
+                      <div className="absolute top-3 right-3 w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white z-10">
+                        <GraduationCap className="w-4 h-4 md:w-5 md:h-5 text-white" />
+                      </div>
                       {selectedBook.thumbnail ? (
                         <img src={selectedBook.thumbnail.replace('w300', 'w600')} alt={selectedBook.title} loading="lazy" className="w-full h-full object-cover" />
                       ) : (
-                        <BookOpen className="w-16 h-16 text-slate-300" />
+                        <BookOpen className="w-12 h-12 md:w-16 md:h-16 text-slate-300" />
                       )}
-                      <div className="absolute top-4 left-4">
-                        <span className="px-3 py-1.5 bg-brand-600 text-white text-xs font-bold rounded-lg shadow-md">{selectedBook.series}</span>
+                      <div className="absolute top-3 left-3">
+                        <span className="px-2.5 py-1 bg-brand-600 text-white text-[10px] md:text-xs font-bold rounded-lg shadow-md">{selectedBook.series}</span>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="md:col-span-7 p-8 md:p-12 space-y-8 overflow-y-auto">
+                  {/* Right Column (Desktop) / Details & Content (Mobile) */}
+                  <div className="md:col-span-7 p-5 sm:p-8 md:p-12 space-y-5 md:space-y-6 md:overflow-y-auto custom-scrollbar">
                     <div>
-                      <h2 className="text-3xl font-bold text-slate-800 mb-4">{selectedBook.title}</h2>
+                      <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-800 mb-2.5">{selectedBook.title}</h2>
                       <div className="flex flex-wrap gap-2">
-                        <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-md">Lớp {selectedBook.grade}</span>
-                        <span className="px-3 py-1 bg-brand-50 text-brand-600 text-xs font-bold rounded-md">{selectedBook.subject}</span>
-                        <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-md">{selectedBook.pages} Trang</span>
+                        <span className="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg">Lớp {selectedBook.grade}</span>
+                        <span className="px-2.5 py-1 bg-brand-50 text-brand-600 text-xs font-bold rounded-lg">{selectedBook.subject}</span>
+                        <span className="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg">{selectedBook.pages} Trang</span>
                       </div>
                     </div>
 
-                    <p className="text-slate-600 leading-relaxed font-medium">
-                      {selectedBook.description || "Cuốn sách cung cấp đầy đủ kiến thức theo khung chương trình của Bộ Giáo dục và Đào tạo."}
-                    </p>
-
-                    <div className="space-y-4">
-                      <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Mục lục bài học</h4>
-                      <div className="grid gap-3">
-                        {selectedBook.chapters?.map((chapter, i) => (
-                          <div key={i} className="flex flex-col p-4 bg-slate-50 border border-slate-100 rounded-xl hover:border-brand-200 transition-all cursor-pointer group">
-                            <span className="text-sm font-semibold text-slate-800 group-hover:text-brand-600 transition-colors mb-1">{chapter.title}</span>
-                            {chapter.description && <span className="text-xs text-slate-500 font-medium">{chapter.description}</span>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                    {/* Prominent Action Buttons right on top for instant mobile access */}
+                    <div className="flex flex-col sm:flex-row gap-2.5">
                       <button 
                         onClick={() => onOpenWorkspace ? onOpenWorkspace({
                           url: selectedBook.pdf_url || "https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf",
@@ -355,18 +344,57 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
                           grade: selectedBook.grade,
                           subject: selectedBook.subject
                         }) : setActiveTab?.('workspace')}
-                        className="flex-1 flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-8 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all shadow-md"
+                        className="flex-1 flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white px-6 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all shadow-md text-sm md:text-base"
                       >
                         <BookOpen className="w-5 h-5" />
                         Đọc sách trực tuyến
                       </button>
                       <button 
                         onClick={() => selectedBook.pdf_url ? window.open(selectedBook.pdf_url, '_blank') : alert('Chưa có bản PDF')}
-                        className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-8 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all"
+                        className="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-3.5 rounded-xl font-bold active:scale-[0.98] transition-all border border-slate-200 text-sm md:text-base"
                       >
                         <Download className="w-5 h-5" />
                         Tải PDF
                       </button>
+                    </div>
+
+                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Giới thiệu sách</h4>
+                      <p className="text-slate-600 leading-relaxed text-sm font-medium">
+                        {selectedBook.description || "Cuốn sách cung cấp đầy đủ kiến thức theo khung chương trình của Bộ Giáo dục và Đào tạo."}
+                      </p>
+                    </div>
+
+                    <div className="space-y-3 pb-6">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs md:text-sm font-bold text-slate-800 uppercase tracking-wider">Mục lục bài học</h4>
+                        <span className="text-xs font-semibold text-slate-400">{selectedBook.chapters?.length || 0} bài học</span>
+                      </div>
+                      <div className="grid gap-2">
+                        {selectedBook.chapters?.map((chapter, i) => (
+                          <div 
+                            key={i} 
+                            onClick={() => onOpenWorkspace ? onOpenWorkspace({
+                              url: selectedBook.pdf_url || "https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/web/compressed.tracemonkey-pldi-09.pdf",
+                              title: `${selectedBook.title} - ${chapter.title}`,
+                              grade: selectedBook.grade,
+                              subject: selectedBook.subject
+                            }) : setActiveTab?.('workspace')}
+                            className="flex items-center justify-between p-3.5 bg-slate-50 hover:bg-brand-50/50 border border-slate-100 hover:border-brand-200 rounded-xl transition-all cursor-pointer group active:scale-[0.99]"
+                          >
+                            <div className="flex items-center gap-3 min-w-0 pr-2">
+                              <span className="w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-600 group-hover:text-brand-600 group-hover:border-brand-300 shrink-0">
+                                {i + 1}
+                              </span>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-sm font-semibold text-slate-800 group-hover:text-brand-600 transition-colors truncate">{chapter.title}</span>
+                                {chapter.description && <span className="text-xs text-slate-400 font-medium truncate">{chapter.description}</span>}
+                              </div>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-brand-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -376,17 +404,17 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
                 key="books-grid"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6"
+                className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-6"
               >
                 {filteredBooks.map((book) => (
                   <motion.div
                     key={book.id}
-                    whileHover={{ y: -8 }}
+                    whileHover={{ y: -6 }}
                     onClick={() => setSelectedBook(book)}
-                    className="bg-white rounded-[24px] p-5 shadow-sm hover:shadow-xl border border-slate-100 hover:border-brand-200 transition-all duration-300 cursor-pointer group flex flex-col"
+                    className="bg-white rounded-2xl sm:rounded-[24px] p-3 sm:p-5 shadow-sm hover:shadow-xl border border-slate-100 hover:border-brand-200 transition-all duration-300 cursor-pointer group flex flex-col active:scale-[0.98]"
                   >
-                    <div className="aspect-[3/4] bg-slate-50 rounded-xl mb-5 relative overflow-hidden flex items-center justify-center shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)]">
-                       <div className="absolute top-4 right-4 w-9 h-9 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(37,99,235,0.3)] border-2 border-white z-10 opacity-0 group-hover:opacity-100 group-hover:scale-110 group-hover:-translate-y-1 transition-all duration-300">
+                    <div className="aspect-[3/4] bg-slate-50 rounded-xl mb-3 sm:mb-5 relative overflow-hidden flex items-center justify-center shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)]">
+                       <div className="absolute top-3 right-3 w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-brand-500 to-brand-600 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(37,99,235,0.3)] border-2 border-white z-10 opacity-0 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300">
                          <GraduationCap className="w-4 h-4 text-white" />
                        </div>
                        <img 
@@ -396,23 +424,23 @@ export default function LibraryComponent({ currentGrade, setActiveTab, onOpenWor
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       {book.isNew && (
-                        <div className="absolute top-2 left-2 bg-brand-500 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">
+                        <div className="absolute top-2 left-2 bg-brand-500 text-white text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded shadow-sm">
                           Mới
                         </div>
                       )}
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
                     </div>
                     
-                    <h4 className="text-[17px] font-extrabold text-slate-800 mb-1.5 line-clamp-2 group-hover:text-brand-600 transition-colors">{book.title}</h4>
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 mb-4 mt-auto">
-                      <span className="bg-slate-100 px-2 py-1 rounded-md text-slate-500">{book.series}</span>
-                      <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                      <span>Lớp {book.grade}</span>
+                    <h4 className="text-sm sm:text-[17px] font-bold sm:font-extrabold text-slate-800 mb-1 sm:mb-1.5 line-clamp-2 group-hover:text-brand-600 transition-colors leading-snug">{book.title}</h4>
+                    <div className="flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-xs font-bold text-slate-400 mb-3 sm:mb-4 mt-auto">
+                      <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-500 truncate max-w-[80px] sm:max-w-none">{book.series}</span>
+                      <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0"></span>
+                      <span className="shrink-0">Lớp {book.grade}</span>
                     </div>
 
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-auto">
-                      <span className="text-xs font-bold text-brand-600 transition-colors">Xem chi tiết</span>
-                      <ChevronRight className="w-4 h-4 text-brand-500 group-hover:translate-x-1 transition-transform" />
+                    <div className="flex items-center justify-between pt-2.5 sm:pt-3 border-t border-slate-100 mt-auto">
+                      <span className="text-[11px] sm:text-xs font-bold text-brand-600 transition-colors">Xem chi tiết</span>
+                      <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-brand-500 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </motion.div>
                 ))}
