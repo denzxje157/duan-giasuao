@@ -1709,15 +1709,49 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
     try {
       if (currentView === 'selection') {
         return (
-          <div className="flex h-full flex-col">
-            <div className="flex-1 overflow-y-auto border-b border-white/10 px-5 py-4 custom-scrollbar">
+          <div className="h-full overflow-y-auto custom-scrollbar">
+            <div className="mx-auto max-w-2xl px-4 py-6 sm:py-8 space-y-6">
+              {/* Header chào mừng & định hướng */}
+              <div className="text-center sm:text-left space-y-1.5">
+                <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold border ${
+                  isDarkMode 
+                    ? 'bg-brand-500/10 text-brand-300 border-brand-500/20' 
+                    : 'bg-brand-50 text-brand-700 border-brand-200'
+                }`}>
+                  <span>✨ Gia sư AI đồng hành</span>
+                  <span className="w-1 h-1 rounded-full bg-brand-500"></span>
+                  <span>Lớp {user.grade || 1}</span>
+                </div>
+                <h1 className={`text-xl sm:text-2xl font-black tracking-tight ${
+                  isDarkMode ? 'text-white' : 'text-slate-900'
+                }`}>
+                  Hôm nay em muốn học môn gì?
+                </h1>
+                <p className={`text-xs sm:text-sm font-medium ${
+                  isDarkMode ? 'text-slate-400' : 'text-slate-500'
+                }`}>
+                  Chọn một môn học bên dưới hoặc đặt câu hỏi bất kỳ để bắt đầu phiên học nhé!
+                </p>
+              </div>
+
               {/* Lịch sử lớp học đã tham gia */}
               {sessionGroups && sessionGroups.length > 0 && (
-                <div className="mb-6 bg-white/5 rounded-2xl p-5 border border-white/10">
-                  <p className="mb-3 text-sm font-bold text-brand-400 flex items-center gap-2">
-                    🎓 Lớp học đã tham gia của em:
-                  </p>
-                  <div className="flex flex-wrap gap-2 mb-4">
+                <div className={`rounded-2xl border p-4 transition-all ${
+                  isDarkMode 
+                    ? 'border-white/10 bg-white/5' 
+                    : 'border-slate-200/90 bg-slate-50/80'
+                }`}>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <p className={`text-xs font-bold flex items-center gap-1.5 uppercase tracking-wide ${
+                      isDarkMode ? 'text-slate-300' : 'text-slate-700'
+                    }`}>
+                      <span>🎓</span> Lịch sử lớp đã học
+                    </p>
+                    <span className={`text-[11px] font-medium ${
+                      isDarkMode ? 'text-slate-500' : 'text-slate-400'
+                    }`}>Bấm xem lại</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
                     {sessionGroups.map((g) => {
                       const isSelected = selectedHistoryGrade === g.grade;
                       return (
@@ -1725,10 +1759,12 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                           key={g.grade}
                           type="button"
                           onClick={() => setSelectedHistoryGrade(isSelected ? null : g.grade)}
-                          className={`px-4 py-2 rounded-full text-xs font-bold transition-all border ${
+                          className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border ${
                             isSelected
-                              ? 'bg-brand-600 text-white border-brand-600'
-                              : 'bg-white/5 border-white/10 text-zinc-300 hover:bg-white/10'
+                              ? 'bg-brand-600 text-white border-brand-600 shadow-xs'
+                              : isDarkMode
+                                ? 'bg-white/10 border-white/10 text-slate-200 hover:bg-white/15'
+                                : 'bg-white border-slate-200 text-slate-700 hover:border-brand-400 hover:text-brand-600 shadow-2xs'
                           }`}
                         >
                           {g.grade}
@@ -1738,9 +1774,17 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                   </div>
 
                   {selectedHistoryGrade && (
-                    <div className="bg-white/5 rounded-xl p-4 border border-white/5 animate-fadeIn">
-                      <p className="text-xs text-zinc-400 mb-3 font-semibold">Môn học đã chọn học trong {selectedHistoryGrade}:</p>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <div className={`mt-3 rounded-xl p-3 border animate-fadeIn ${
+                      isDarkMode 
+                        ? 'bg-white/5 border-white/10' 
+                        : 'bg-white border-slate-200/80 shadow-2xs'
+                    }`}>
+                      <p className={`text-[11px] font-semibold mb-2 ${
+                        isDarkMode ? 'text-zinc-400' : 'text-slate-500'
+                      }`}>
+                        Môn học đã chọn học trong {selectedHistoryGrade}:
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         {sessionGroups.find(g => g.grade === selectedHistoryGrade)?.subjects.map((sub) => {
                           const mostRecentSession = sub.sessions[0];
                           return (
@@ -1759,9 +1803,16 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                                   handleOpenSessionHistory(mostRecentSession.session_id);
                                 }
                               }}
-                              className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-white px-3 py-2.5 text-left text-xs font-bold transition-all"
+                              className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition-all group ${
+                                isDarkMode 
+                                  ? 'border-white/10 bg-white/5 hover:bg-white/10 text-white' 
+                                  : 'border-slate-200 bg-slate-50 hover:bg-brand-50 hover:border-brand-300 text-slate-800'
+                              }`}
                             >
                               <span className="truncate">{sub.subject}</span>
+                              <span className={`text-[10px] opacity-0 group-hover:opacity-100 transition-opacity ${
+                                isDarkMode ? 'text-brand-400' : 'text-brand-600'
+                              }`}>Tiếp tục →</span>
                             </button>
                           );
                         })}
@@ -1771,12 +1822,24 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                 </div>
               )}
 
-              <p className="mb-3 text-sm font-bold">Chọn môn học để bắt đầu phiên mới:</p>
+              {/* Danh sách môn học */}
               <div className="space-y-4">
                 {subjectSections.map((section) => (
-                  <div key={section.title}>
-                    <p className="mb-2 text-xs font-bold uppercase tracking-wide text-[var(--muted-primary)]">{section.title}</p>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div key={section.title} className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <p className={`text-xs font-bold uppercase tracking-wider ${
+                        isDarkMode ? 'text-slate-400' : 'text-slate-600'
+                      }`}>
+                        {section.title}
+                      </p>
+                      <span className={`text-[11px] ${
+                        isDarkMode ? 'text-slate-500' : 'text-slate-400'
+                      }`}>
+                        {section.items.length} môn
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
                       {section.items.map((subject) => {
                         const subjectId = `${subject.label} ${subject.icon}`;
                         const isLoading = subjectLoadingKey === subjectId;
@@ -1786,14 +1849,33 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                             type="button"
                             onClick={() => handlePickSubject(subjectId)}
                             disabled={Boolean(subjectLoadingKey)}
-                            className={`flex items-center gap-2 rounded-xl border px-3 py-3 text-left text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-70 ${isDarkMode ? 'border-white/10 bg-[#131314] hover:bg-white/10 text-white' : 'border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-900'}`}
+                            className={`group relative flex items-center gap-3 rounded-2xl border p-3 text-left transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 ${
+                              isDarkMode 
+                                ? 'border-white/10 bg-[#1e1e20] text-white hover:border-brand-400 hover:bg-[#252528]' 
+                                : 'border-slate-200/90 bg-white text-slate-800 shadow-2xs hover:border-brand-400 hover:shadow-md hover:-translate-y-0.5'
+                            }`}
                           >
-                            {isLoading ? (
-                              <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                            ) : (
-                              <span className="text-base leading-none">{subject.icon}</span>
-                            )}
-                            <span className="truncate text-[14px]">{isLoading ? 'Đang khởi tạo...' : subject.label}</span>
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shrink-0 border transition-transform group-hover:scale-110 ${subject.color || 'bg-slate-100 border-slate-200 text-slate-700'}`}>
+                              {isLoading ? (
+                                <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                              ) : (
+                                subject.icon
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className={`truncate text-sm font-bold transition-colors ${
+                                isDarkMode 
+                                  ? 'text-slate-100 group-hover:text-brand-300' 
+                                  : 'text-slate-800 group-hover:text-brand-600'
+                              }`}>
+                                {isLoading ? 'Đang mở...' : subject.label}
+                              </p>
+                              <p className={`text-[11px] font-medium ${
+                                isDarkMode ? 'text-slate-400' : 'text-slate-400'
+                              }`}>
+                                Bắt đầu học →
+                              </p>
+                            </div>
                           </button>
                         );
                       })}
@@ -1801,32 +1883,84 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                   </div>
                 ))}
               </div>
-            </div>
-            
-            {/* Thanh nhập trò chuyện tự do */}
-            <div className="p-4 bg-[var(--bg-primary)]">
-              <form onSubmit={handleGeneralChat} className="mx-auto flex max-w-[1000px] gap-2 rounded-2xl border border-white/10 bg-white/5 p-2 shadow-sm focus-within:border-brand-500/50">
-                <input
-                  type="text"
-                  value={generalInput}
-                  onChange={(e) => setGeneralInput(e.target.value)}
-                  placeholder="Hoặc nhập câu hỏi bất kỳ tại đây..."
-                  disabled={Boolean(subjectLoadingKey)}
-                  className="flex-1 bg-transparent px-3 py-2 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--muted-primary)] disabled:opacity-50"
-                />
-                <button
-                  type="submit"
-                  disabled={!generalInput.trim() || Boolean(subjectLoadingKey)}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white transition-colors hover:bg-brand-700 disabled:opacity-50"
-                >
-                  {subjectLoadingKey === 'general-chat' ? (
-                    <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                  ) : (
-                    <Send className="h-4 w-4 -ml-0.5" />
-                  )}
-                </button>
-              </form>
-              
+
+              {/* Box đặt câu hỏi nhanh tự do (Liền mạch ngay dưới danh sách môn) */}
+              <div className="pt-1">
+                <div className={`rounded-2xl border p-3.5 sm:p-4 shadow-xs space-y-3 ${
+                  isDarkMode 
+                    ? 'border-white/10 bg-[#1e1e20]' 
+                    : 'border-slate-200/90 bg-white'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs ${
+                      isDarkMode ? 'bg-brand-500/20 text-brand-300' : 'bg-brand-50 text-brand-700'
+                    }`}>
+                      💬
+                    </div>
+                    <p className={`text-xs font-bold ${
+                      isDarkMode ? 'text-slate-200' : 'text-slate-800'
+                    }`}>
+                      Hoặc hỏi Gia sư bất kỳ câu hỏi nào:
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleGeneralChat} className={`flex items-center gap-2 rounded-xl border p-1.5 transition-all ${
+                    isDarkMode 
+                      ? 'border-white/10 bg-white/5 focus-within:border-brand-500' 
+                      : 'border-slate-200 bg-slate-50 focus-within:border-brand-500 focus-within:bg-white'
+                  }`}>
+                    <input
+                      type="text"
+                      value={generalInput}
+                      onChange={(e) => setGeneralInput(e.target.value)}
+                      placeholder="Nhập bài tập, câu hỏi hoặc chủ đề em muốn học..."
+                      disabled={Boolean(subjectLoadingKey)}
+                      className={`flex-1 bg-transparent px-3 py-1.5 text-sm outline-none disabled:opacity-50 ${
+                        isDarkMode 
+                          ? 'text-white placeholder:text-zinc-500' 
+                          : 'text-slate-800 placeholder:text-slate-400'
+                      }`}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!generalInput.trim() || Boolean(subjectLoadingKey)}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white transition-all hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed shadow-xs active:scale-95"
+                      title="Gửi câu hỏi"
+                    >
+                      {subjectLoadingKey === 'general-chat' ? (
+                        <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                      ) : (
+                        <Send className="h-4 w-4 -ml-0.5" />
+                      )}
+                    </button>
+                  </form>
+
+                  {/* Gợi ý câu hỏi mẫu */}
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
+                    {[
+                      'Giải thích bài tập cho em',
+                      'Tạo 3 câu đố vui',
+                      'Tóm tắt công thức trọng tâm',
+                    ].map((promptText) => (
+                      <button
+                        key={promptText}
+                        type="button"
+                        onClick={() => {
+                          setGeneralInput(promptText);
+                        }}
+                        className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-colors ${
+                          isDarkMode 
+                            ? 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10' 
+                            : 'bg-slate-100 border-slate-200/80 text-slate-700 hover:bg-brand-50 hover:text-brand-700 hover:border-brand-300'
+                        }`}
+                      >
+                        💡 {promptText}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         );
@@ -2067,48 +2201,62 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Active Subject Selection Badge */}
-            {selectedSubject && (
-              <button
-                onClick={() => setCurrentView('selection')}
-                className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-brand-500/10 text-brand-300 px-3 py-2 text-xs font-bold transition-all hover:bg-brand-500/20"
-                title="Đổi môn học"
-              >
-                <span>Môn: {selectedSubject}</span>
-                <Pen className="h-3 w-3" />
-              </button>
-            )}
+            {/* Active Subject Selection Badge & Voice toggle button only in chat view */}
+            {currentView === 'chat' && (
+              <>
+                {selectedSubject && (
+                  <button
+                    onClick={() => setCurrentView('selection')}
+                    className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-bold transition-all ${
+                      isDarkMode
+                        ? 'border-white/10 bg-brand-500/10 text-brand-300 hover:bg-brand-500/20'
+                        : 'border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100 shadow-2xs'
+                    }`}
+                    title="Đổi môn học"
+                  >
+                    <span className="max-w-[120px] truncate">Môn: {selectedSubject}</span>
+                    <Pen className="h-3 w-3 shrink-0" />
+                  </button>
+                )}
 
-            {/* Voice toggle button */}
-            <button
-              onClick={() => {
-                const newState = !autoVoiceEnabled;
-                setAutoVoiceEnabled(newState);
-                activeAudioSeqRef.current++;
-                stopAllAudio();
-                const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
-                if (newState && audioElement) {
-                   audioElement.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
-                   audioElement.play().catch(()=> {});
-                }
-              }}
-              className={`rounded-xl border p-2 transition-all duration-200 ${
-                autoVoiceEnabled 
-                  ? 'bg-brand-600 border-brand-600 text-white shadow-md' 
-                  : 'bg-white/5 border-white/10 text-[var(--muted-primary)] hover:bg-white/10'
-              }`}
-              title={autoVoiceEnabled ? 'Bấm để tắt giọng đọc' : 'Bấm để bật giọng đọc'}
-            >
-              {autoVoiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-            </button>
+                {/* Voice toggle button */}
+                <button
+                  onClick={() => {
+                    const newState = !autoVoiceEnabled;
+                    setAutoVoiceEnabled(newState);
+                    activeAudioSeqRef.current++;
+                    stopAllAudio();
+                    const audioElement = document.getElementById('ai-tts-player') as HTMLAudioElement;
+                    if (newState && audioElement) {
+                       audioElement.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+                       audioElement.play().catch(()=> {});
+                    }
+                  }}
+                  className={`rounded-xl border p-2 transition-all duration-200 ${
+                    autoVoiceEnabled 
+                      ? 'bg-brand-600 border-brand-600 text-white shadow-xs' 
+                      : isDarkMode
+                        ? 'bg-white/5 border-white/10 text-[var(--muted-primary)] hover:bg-white/10'
+                        : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
+                  }`}
+                  title={autoVoiceEnabled ? 'Bấm để tắt giọng đọc' : 'Bấm để bật giọng đọc'}
+                >
+                  {autoVoiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                </button>
+              </>
+            )}
 
             {/* Settings toggler button */}
             <button
               onClick={() => setVoiceSettingsOpen(prev => !prev)}
               className={`rounded-xl border p-2 transition-all duration-200 ${
                 voiceSettingsOpen 
-                  ? 'bg-white/15 border-white/20 text-white' 
-                  : 'bg-white/5 border-white/10 text-[var(--muted-primary)] hover:bg-white/10'
+                  ? isDarkMode 
+                    ? 'bg-white/15 border-white/20 text-white' 
+                    : 'bg-slate-200 border-slate-300 text-slate-800'
+                  : isDarkMode 
+                    ? 'bg-white/5 border-white/10 text-[var(--muted-primary)] hover:bg-white/10' 
+                    : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
               }`}
               title="Cấu hình giọng đọc & giao diện"
             >
