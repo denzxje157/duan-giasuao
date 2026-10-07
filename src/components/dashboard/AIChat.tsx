@@ -344,13 +344,22 @@ function extractAnswerFromMarkers(content: string): string {
   return answer.trim();
 }
 
-function extractQuizFromMarkers(content: string): { question: string, options: string[], answer: number } | null {
+function extractQuizFromMarkers(content: string): { question: string, options: string[], answer: number, explanation?: string } | null {
   const match = content.match(/\[QUIZ\]([\s\S]*?)(?:\[END_QUIZ\]|$)/i);
   if (!match || !match[1]) return null;
+  const raw = match[1].trim();
   try {
-    return JSON.parse(match[1]);
+    return JSON.parse(raw);
   } catch {
-    return null;
+    try {
+      // Fix unescaped newlines/tabs inside JSON string literals
+      const sanitized = raw.replace(/"((?:[^"\\]|\\.)*)"/gs, (_, inner) => {
+        return '"' + inner.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t') + '"';
+      });
+      return JSON.parse(sanitized);
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -441,6 +450,8 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
 
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const activeAbortControllerRef = useRef<AbortController | null>(null);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [historyRows, setHistoryRows] = useState<ChatHistoryRow[]>([]);
   const [sessionGroups, setSessionGroups] = useState<ChatSessionGroup[]>([]);
@@ -1342,7 +1353,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
     userMsg: string,
     options?: { hiddenUserMessage?: boolean; overrideSubject?: string; sessionIdOverride?: string | null }
   ) => {
-    if (!userMsg.trim() || isLoading) return;
+    if (!userMsg.trim() || isLoading || isStreaming) return;
 
     if (user.isGuest) {
       const guestCountKey = `guest_chat_count_${user.id || 'guest'}`;
@@ -1359,6 +1370,16 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
       handleNavigation('selection');
       return;
     }
+
+    // Abort any existing in-flight stream before starting a new request
+    if (activeAbortControllerRef.current) {
+      try {
+        activeAbortControllerRef.current.abort();
+      } catch (e) {}
+      activeAbortControllerRef.current = null;
+    }
+    const abortController = new AbortController();
+    activeAbortControllerRef.current = abortController;
 
     setInput('');
     const currentImage = attachedImage;
@@ -1401,6 +1422,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
       });
     }
     setIsLoading(true);
+    setIsStreaming(true);
 
     try {
       const apiKey = localStorage.getItem('admin_gemini_api_key') || process.env.GEMINI_API_KEY;
@@ -1427,6 +1449,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
       const response = await fetch(chatUrl, {
         method: 'POST',
         headers,
+        signal: abortController.signal,
         body: JSON.stringify({
           question: userMsg,
           session_id: activeSessionId || undefined,
@@ -1481,15 +1504,15 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                   fullAssistantText += textChunk;
                   setMessages(prev => {
                     const newMessages = [...prev];
-                    const lastIndex = newMessages.length - 1;
-                    if (lastIndex >= 0 && newMessages[lastIndex]) {
-                      const existingSuggestions = newMessages[lastIndex].suggestions;
-                      newMessages[lastIndex] = {
-                        ...newMessages[lastIndex],
-                        content: (newMessages[lastIndex].content || '') + textChunk
+                    const targetIndex = newMessages.findIndex(m => m.id === assistantMessageId);
+                    if (targetIndex !== -1) {
+                      const existingSuggestions = newMessages[targetIndex].suggestions;
+                      newMessages[targetIndex] = {
+                        ...newMessages[targetIndex],
+                        content: (newMessages[targetIndex].content || '') + textChunk
                       };
                       if (existingSuggestions) {
-                        newMessages[lastIndex].suggestions = existingSuggestions;
+                        newMessages[targetIndex].suggestions = existingSuggestions;
                       }
                     }
                     return newMessages;
@@ -1544,10 +1567,19 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
       usedVoiceRef.current = false;
 
       setSidebarRefreshTrigger(prev => prev + 1);
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        console.log("Chat stream aborted cleanly.");
+        return;
+      }
       console.error(error);
       setMessages(prev => [...prev, { id: `e-${Date.now()}`, role: 'assistant', content: "Có chút lỗi kỹ thuật, bạn thử lại sau nhen!" }]);
+    } finally {
       setIsLoading(false);
+      setIsStreaming(false);
+      if (activeAbortControllerRef.current === abortController) {
+        activeAbortControllerRef.current = null;
+      }
     }
   };
 
@@ -1677,6 +1709,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
   };
 
   const handleSuggestionClick = async (label: string) => {
+    if (isLoading || isStreaming) return;
     // Always send suggestion as a message in the CURRENT session (no new session, no navigation)
     // This mirrors Gemini/ChatGPT behavior: clicking a suggestion chip continues the same chat
     await submitMessage(label, {
@@ -2010,8 +2043,13 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                           <img src={msg.imageUrl} alt="Đính kèm" className="w-full h-auto bg-white" />
                         </div>
                       )}
-                      <div className="whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white leading-relaxed shadow-md">
-                        {msg.content}
+                      <div className="rounded-2xl rounded-tr-sm bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white leading-relaxed shadow-md prose prose-invert max-w-none break-words">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkMath]}
+                          rehypePlugins={[[rehypeKatex, { strict: 'ignore', throwOnError: false }]]}
+                        >
+                          {msg.content}
+                        </ReactMarkdown>
                       </div>
                     </div>
                   ) : (
@@ -2100,7 +2138,15 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                                   </div>
                                   {(quiz as any).explanation && (
                                     <div className="text-[13px] bg-white/5 border border-white/10 rounded-xl p-3 text-zinc-300 font-normal leading-relaxed">
-                                      💡 <b>Giải thích từ Cô:</b> {(quiz as any).explanation}
+                                      <div className="font-bold mb-1 text-xs text-amber-300">💡 Giải thích từ Cô:</div>
+                                      <div className="prose prose-invert max-w-none text-[13px] leading-relaxed">
+                                        <ReactMarkdown
+                                          remarkPlugins={[remarkMath]}
+                                          rehypePlugins={[[rehypeKatex, { strict: 'ignore', throwOnError: false }]]}
+                                        >
+                                          {(quiz as any).explanation}
+                                        </ReactMarkdown>
+                                      </div>
                                     </div>
                                   )}
                                 </div>
@@ -2116,12 +2162,16 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                                 if (sug.type === 'theory') icon = '📚';
                                 if (sug.type === 'resource') icon = '🔗';
                                 if (sug.type === 'image') icon = '🖼️';
+                                const isDisabled = isLoading || isStreaming;
                                 return (
                                   <button
                                     key={i}
                                     type="button"
+                                    disabled={isDisabled}
                                     onClick={() => handleSuggestionClick(sug.label)}
                                     className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-bold transition-all shadow-sm ${
+                                      isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+                                    } ${
                                       isDarkMode 
                                         ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700' 
                                         : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-50 hover:border-brand-300'
@@ -2416,7 +2466,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onPaste={handlePaste}
-                disabled={isLoading}
+                disabled={isLoading || isStreaming}
                 placeholder={attachedImage ? "Hình vẽ đã đính kèm. Thêm câu hỏi..." : "Hỏi Gia sư bất kỳ điều gì..."}
                 className="min-w-0 flex-1 rounded-[20px] border-0 bg-transparent px-3 sm:px-4 py-2 sm:py-3 text-sm font-medium text-[var(--text-primary)] outline-none placeholder:text-[var(--muted-primary)] resize-none"
               />
@@ -2488,7 +2538,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
               </button>
               <button
                 type="submit"
-                disabled={(!input.trim() && !attachedImage) || isLoading || !selectedSubject}
+                disabled={(!input.trim() && !attachedImage) || isLoading || isStreaming || !selectedSubject}
                 className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white transition-all hover:bg-brand-700 disabled:opacity-40 disabled:hover:bg-brand-600 shadow-md"
               >
                 <Send className="h-4 w-4 sm:h-5 sm:w-5" />

@@ -96,6 +96,7 @@ function getEmbeddablePdfUrl(url: string): string {
 }
 
 interface Message {
+  id?: string;
   role: 'user' | 'assistant';
   content: string;
 }
@@ -366,7 +367,8 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
         throw new Error("Lỗi kết nối từ server");
       }
 
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+      const assistantMessageId = `w-a-${Date.now()}`;
+      setMessages(prev => [...prev, { id: assistantMessageId, role: 'assistant', content: '' }]);
       setIsLoading(false); // Stop bouncy dots, start text streaming
 
       const reader = response.body?.getReader();
@@ -397,11 +399,11 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
                 if (textChunk) {
                   setMessages(prev => {
                     const newMessages = [...prev];
-                    const lastIndex = newMessages.length - 1;
-                    if (lastIndex >= 0 && newMessages[lastIndex]) {
-                      newMessages[lastIndex] = {
-                        ...newMessages[lastIndex],
-                        content: (newMessages[lastIndex].content || '') + textChunk
+                    const targetIndex = newMessages.findIndex(m => m.id === assistantMessageId);
+                    if (targetIndex !== -1) {
+                      newMessages[targetIndex] = {
+                        ...newMessages[targetIndex],
+                        content: (newMessages[targetIndex].content || '') + textChunk
                       };
                     }
                     return newMessages;
@@ -630,7 +632,14 @@ export default function Workspace({ user, setActiveTab, config }: WorkspaceProps
                   : 'bg-white text-slate-800 rounded-2xl rounded-tl-sm border border-slate-200 shadow-sm markdown-body overflow-hidden'
               }`}>
                 {msg.role === 'user' ? (
-                  msg.content
+                  <div className="prose prose-invert max-w-none break-words">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkMath]}
+                      rehypePlugins={[[rehypeKatex, { strict: 'ignore', throwOnError: false }]]}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
                 ) : (
                   (() => {
                     const answerPart = extractAnswerFromMarkers(msg.content);

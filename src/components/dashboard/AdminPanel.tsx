@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Key, UploadCloud, Save, CheckCircle2, ShieldAlert, FileText, X, Activity, AlertTriangle, Settings2, Users, Database, LayoutDashboard, Search, Lock, Unlock, KeyRound, Shield, Edit2, Trash2, Bot, Loader2, RefreshCw, ExternalLink } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { supabase } from '../../lib/supabase';
-import { uploadDocument, getAdminDocuments, reprocessDocument, deleteDocument, syncSystemTextbooks } from '../../lib/api';
+import { uploadDocument, getAdminDocuments, reprocessDocument, deleteDocument, syncSystemTextbooks, API_BASE_URL } from '../../lib/api';
 
 interface BookUpload {
   id: string;
@@ -101,14 +101,15 @@ export default function AdminPanel() {
 
         const { data: chatLogs } = await supabase
           .from('chat_history')
-          .select('created_at')
-          .gte('created_at', sevenDaysAgo.toISOString());
+          .select('timestamp')
+          .gte('timestamp', sevenDaysAgo.toISOString());
 
         const countsByDate: { [key: string]: number } = {};
         if (chatLogs) {
-          chatLogs.forEach(item => {
-            if (item.created_at) {
-              const d = new Date(item.created_at);
+          chatLogs.forEach((item: any) => {
+            const timeVal = item.timestamp || item.created_at;
+            if (timeVal) {
+              const d = new Date(timeVal);
               const dateKey = `${d.getDate()}/${d.getMonth() + 1}`;
               countsByDate[dateKey] = (countsByDate[dateKey] || 0) + 1;
             }
@@ -147,9 +148,23 @@ export default function AdminPanel() {
   const fetchDocuments = async () => {
     try {
       setIsLoadingDocs(true);
-      const res = await getAdminDocuments();
-      if (res && res.status === 'success' && res.data) {
-        setDocumentsList(res.data);
+      try {
+        const res = await getAdminDocuments();
+        if (res && res.status === 'success' && res.data) {
+          setDocumentsList(res.data);
+          return;
+        }
+      } catch (backendErr) {
+        console.warn("Backend getAdminDocuments failed, falling back to direct Supabase:", backendErr);
+      }
+
+      // Direct fallback to Supabase documents table
+      const { data, error } = await supabase.from('documents').select('*').order('created_at', { ascending: false });
+      if (!error && data) {
+        setDocumentsList(data);
+      } else {
+        const { data: fallback } = await supabase.from('documents').select('*');
+        if (fallback) setDocumentsList(fallback);
       }
     } catch (err) {
       console.error("Error fetching documents:", err);
@@ -189,7 +204,7 @@ export default function AdminPanel() {
   // Fetch configs from Backend API
   const fetchAIConfigs = async () => {
     try {
-      const response = await fetch('/api/admin/configs');
+      const response = await fetch(`${API_BASE_URL}/api/admin/configs`);
       const res = await response.json();
       if (res && res.status === 'success' && res.data) {
         res.data.forEach((row: any) => {
@@ -254,7 +269,7 @@ export default function AdminPanel() {
       ];
 
       for (const config of configs) {
-        await fetch('/api/admin/config', {
+        await fetch(`${API_BASE_URL}/api/admin/config`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(config)
@@ -391,7 +406,7 @@ export default function AdminPanel() {
   const handleResetPassword = async (email: string) => {
     if (!window.confirm(`Hệ thống sẽ gửi email hướng dẫn tạo lại mật khẩu mới cho tài khoản ${email}. Xác nhận gửi?`)) return;
     try {
-      const response = await fetch('/api/forgot-password', {
+      const response = await fetch(`${API_BASE_URL}/api/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })

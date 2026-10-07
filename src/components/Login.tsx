@@ -35,13 +35,17 @@ export default function Login({ onLogin, onGradeSelect }: LoginProps) {
     setIsLoading(true);
 
     if (email.trim() && password.trim()) {
-      const isExpectedAdmin = email === 'admin@gmail.com' || email === 'admin@giasuao.com';
-      const role = isExpectedAdmin ? 'admin' : 'student';
+      let resolvedEmail = email.trim();
+      if (resolvedEmail.toLowerCase() === 'admin') {
+        resolvedEmail = 'admin@gmail.com';
+      }
+      const isExpectedAdmin = resolvedEmail.toLowerCase() === 'admin@gmail.com' || resolvedEmail.toLowerCase() === 'admin@giasuao.com';
+      const defaultRole = isExpectedAdmin ? 'admin' : 'student';
       
       try {
         if (isLogin) {
           // Attempt Login via Supabase
-          const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+          const { data, error } = await supabase.auth.signInWithPassword({ email: resolvedEmail, password });
 
           if (error) {
             setError(error.message || 'Đăng nhập thất bại');
@@ -55,22 +59,24 @@ export default function Login({ onLogin, onGradeSelect }: LoginProps) {
             return; // stop here, do not navigate
           }
 
-          // Successful login -> query profile for actual name & grade
+          // Successful login -> query profile for actual name, grade & role
           let profileGrade = grade;
-          let profileName = role === 'admin' ? 'Administrator' : 'Học sinh';
+          let profileName = isExpectedAdmin ? 'Administrator' : 'Học sinh';
 
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
-            .select('full_name, grade')
+            .select('full_name, grade, role')
             .eq('id', data.user.id)
             .single();
+
+          const finalRole: 'student' | 'admin' = (profileData?.role === 'admin' || isExpectedAdmin) ? 'admin' : 'student';
 
           if (!profileError && profileData) {
             if (profileData.grade) profileGrade = Number(profileData.grade) as Grade;
             if (profileData.full_name) profileName = profileData.full_name;
           }
 
-          onLogin({ id: data.user.id, name: profileName, email, grade: profileGrade, role });
+          onLogin({ id: data.user.id, name: profileName, email: resolvedEmail, grade: profileGrade, role: finalRole });
         } else {
           if (!name.trim() && !isExpectedAdmin) {
             throw new Error("Vui lòng nhập họ và tên");
@@ -78,13 +84,13 @@ export default function Login({ onLogin, onGradeSelect }: LoginProps) {
           
           // Attempt Signup via Supabase
           const { data, error } = await supabase.auth.signUp({
-            email,
+            email: resolvedEmail,
             password,
             options: {
               data: {
                 full_name: name,
                 grade: grade,
-                role: role
+                role: defaultRole
               }
             }
           });
@@ -101,13 +107,13 @@ export default function Login({ onLogin, onGradeSelect }: LoginProps) {
               id: data.user.id,
               full_name: isExpectedAdmin ? 'Administrator' : name,
               grade: grade,
-              role: role,
-              email: email,
+              role: defaultRole,
+              email: resolvedEmail,
             }, { onConflict: 'id' });
           }
 
           // Successful signup -> proceed
-          onLogin({ id: data.user?.id, name: isExpectedAdmin ? 'Administrator' : name, email, grade, role });
+          onLogin({ id: data.user?.id, name: isExpectedAdmin ? 'Administrator' : name, email: resolvedEmail, grade, role: defaultRole });
         }
       } catch (err: any) {
         // On unexpected exception, show error and abort navigation
@@ -240,15 +246,15 @@ export default function Login({ onLogin, onGradeSelect }: LoginProps) {
             </AnimatePresence>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-600 block pl-1">Email</label>
+              <label className="text-xs font-semibold text-slate-600 block pl-1">Tài khoản / Email</label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input 
-                  type="email"
+                  type="text"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="student@school.com"
+                  placeholder="admin hoặc email@school.com"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-11 pr-4 outline-none focus:bg-white focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all font-medium text-slate-800 disabled:opacity-50"
                   disabled={isLoading}
                 />
