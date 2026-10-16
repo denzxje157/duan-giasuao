@@ -6,6 +6,7 @@ import { API_BASE_URL } from '../../lib/api';
 import { supabase } from '../../lib/supabase';
 import { getCachedStale, setCached } from '../../lib/cache';
 import { useEffect } from 'react';
+import MathRenderer from '../common/MathRenderer';
 
 interface QuizProps {
   user: User;
@@ -130,23 +131,23 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
   // Mock Data
   const mockQuiz = [
     {
-      question: 'Đạo hàm của hàm số y = x^3 - 3x + 2 là gì?',
-      options: ['y\' = 3x^2 - 3', 'y\' = x^2 - 3x', 'y\' = 3x^2 + 3', 'y\' = x^3 - 3'],
+      question: 'Cho hàm số $y = x^3 - 3x^2 + 2$. Điểm cực đại của đồ thị hàm số là điểm nào sau đây?',
+      options: ['$(0; 2)$', '$(2; -2)$', '$(0; -2)$', '$(2; 2)$'],
       correctAnswer: 0,
-      explanation: 'Áp dụng công thức đạo hàm cơ bản: (x^n)\' = n.x^(n-1). Đạo hàm của x^3 là 3x^2, đạo hàm của -3x là -3. Hằng số 2 có đạo hàm bằng 0.'
+      explanation: 'Ta có đạo hàm $y\' = 3x^2 - 6x = 3x(x - 2)$. Phương trình $y\' = 0 \\Leftrightarrow x = 0$ hoặc $x = 2$. Do $y\'\' = 6x - 6$, tại $x = 0$ có $y\'\'(0) = -6 < 0$ nên đồ thị đạt cực đại tại điểm $(0; 2)$.'
     },
     {
-      question: 'Tìm tập xác định của hàm số y = log(x-2)',
-      options: ['D = R', 'D = (2; +∞)', 'D = [2; +∞)', 'D = R \\ {2}'],
+      question: 'Tìm tập xác định của hàm số $y = \\log(x - 2)$:',
+      options: ['$D = \\mathbb{R}$', '$D = (2; +\\infty)$', '$D = [2; +\\infty)$', '$D = \\mathbb{R} \\setminus \\{2\\}$'],
       correctAnswer: 1,
-      explanation: 'Hàm số logarit có nghĩa khi biểu thức dưới dấu logarit lớn hơn 0. Do đó x - 2 > 0 hay x > 2.'
+      explanation: 'Hàm số logarit có nghĩa khi biểu thức dưới dấu logarit lớn hơn $0$. Do đó $x - 2 > 0 \\Leftrightarrow x > 2$, tức tập xác định là $D = (2; +\\infty)$.'
     }
   ];
 
   const mockFlashcards = [
-    { front: 'Đạo hàm của sin(x)', back: 'cos(x)' },
-    { front: 'Thể tích hình cầu', back: 'V = (4/3)πR^3' },
-    { front: 'Định lý Vi-et (Tổng 2 nghiệm)', back: 'x1 + x2 = -b/a' }
+    { front: 'Đạo hàm của $\\sin(x)$', back: '(\\sin x)\' = \\cos(x)' },
+    { front: 'Thể tích hình cầu bán kính $R$', back: '$V = \\frac{4}{3}\\pi R^3$' },
+    { front: 'Định lý Vi-ét cho phương trình $ax^2 + bx + c = 0$', back: '$x_1 + x_2 = -\\frac{b}{a}, \\quad x_1 x_2 = \\frac{c}{a}$' }
   ];
 
   const loadFromHistory = (item: any) => {
@@ -664,7 +665,7 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
                     <>
                       <div>
                         <h2 className="text-xl font-bold text-slate-800 mb-8 leading-relaxed">
-                          {quizData[currentQuestionIndex]?.question}
+                          <MathRenderer content={quizData[currentQuestionIndex]?.question} />
                         </h2>
                         
                         <div className="space-y-3">
@@ -697,7 +698,7 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
                                   <span className="w-6 h-6 rounded bg-white shadow-sm flex items-center justify-center text-xs text-slate-500 shrink-0">
                                     {String.fromCharCode(65 + i)}
                                   </span>
-                                  {opt}
+                                  <MathRenderer content={opt} stripOptionPrefix={true} />
                                 </span>
                                 {icon}
                               </button>
@@ -719,9 +720,9 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
                                 <BrainCircuit className="w-5 h-5" />
                                 Gia sư AI giải thích:
                               </h4>
-                              <p className="text-indigo-900/80 text-sm leading-relaxed font-medium">
-                                {quizData[currentQuestionIndex]?.explanation}
-                              </p>
+                              <div className="text-indigo-900/80 text-sm leading-relaxed font-medium">
+                                <MathRenderer content={quizData[currentQuestionIndex]?.explanation} />
+                              </div>
                             </div>
                             <button 
                               onClick={handleNextQuestion}
@@ -877,7 +878,7 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
                   <span className="absolute top-6 left-6 text-slate-300 font-bold uppercase tracking-widest text-xs">Câu hỏi</span>
                   <BookOpen className="w-12 h-12 text-slate-200 mb-6" />
                   <h2 className="text-3xl sm:text-4xl font-bold text-slate-800 text-center leading-tight">
-                    {flashcardsData.length > 0 ? flashcardsData[currentCardIndex]?.front : 'Nhập chủ đề ở ô Tìm kiếm và tạo thẻ nhé!'}
+                    <MathRenderer content={flashcardsData.length > 0 ? flashcardsData[currentCardIndex]?.front : 'Nhập chủ đề ở ô Tìm kiếm và tạo thẻ nhé!'} />
                   </h2>
                   <p className="absolute bottom-6 text-slate-400 text-sm font-medium animate-pulse">Bấm để lật thẻ</p>
                 </div>
@@ -890,7 +891,7 @@ export default function Quiz({ user, onSubjectChange }: QuizProps) {
                   <span className="absolute top-6 left-6 text-purple-300 font-bold uppercase tracking-widest text-xs">Đáp án</span>
                   <CheckCircle className="w-12 h-12 text-purple-200 mb-6" />
                   <h2 className="text-3xl sm:text-4xl font-bold text-white text-center leading-tight">
-                    {flashcardsData.length > 0 ? flashcardsData[currentCardIndex]?.back : 'Chưa có thẻ nào'}
+                    <MathRenderer content={flashcardsData.length > 0 ? flashcardsData[currentCardIndex]?.back : 'Chưa có thẻ nào'} />
                   </h2>
                 </div>
               </motion.div>

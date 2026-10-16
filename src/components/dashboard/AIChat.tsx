@@ -10,6 +10,7 @@ import { invalidateCache } from '../../lib/cache';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import MathRenderer from '../common/MathRenderer';
 
 interface AIChatProps {
   user: UserType;
@@ -2100,7 +2101,10 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                                 ? 'bg-white/10 border-white/20 text-white' 
                                 : 'bg-white border-slate-200 text-slate-800'
                             }`}>
-                              <p className="font-bold mb-3 text-sm">🤔 Trắc nghiệm nhanh: {quiz.question}</p>
+                              <p className="font-bold mb-3 text-sm flex items-center gap-2">
+                                <span>🤔 Trắc nghiệm nhanh:</span>
+                                <MathRenderer content={quiz.question} />
+                              </p>
                               <div className="grid gap-2">
                                 {quiz.options.map((opt, idx) => {
                                   const isSelected = quizAnswers[msg.id] === idx;
@@ -2126,7 +2130,7 @@ export default function AIChat({ user, onGradeChange, onSubjectChange }: AIChatP
                                       }}
                                       className={`text-left px-4 py-2.5 rounded-lg border text-sm transition-all ${btnClass}`}
                                     >
-                                      {opt}
+                                      <MathRenderer content={opt} />
                                     </button>
                                   );
                                 })}

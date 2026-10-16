@@ -778,7 +778,7 @@ def generate_quiz(topic, difficulty, num_questions, grade=None, subject=None, fi
     2. Nếu nội dung yêu cầu là một bài học cụ thể (ví dụ "Bài 12", "Bài 5"), hãy tạo các câu hỏi bám sát trọng tâm kiến thức và nội dung của bài học đó trong SGK môn {subject_display} {grade_display}.
 
     QUAN TRỌNG: Đầu ra PHẢI là một mảng JSON hợp lệ và DUY NHẤT. KHÔNG thêm bất kỳ văn bản hay markdown nào khác.
-    Với công thức toán học, viết dưới dạng văn bản thông thường (VD: "sin(x)", "cos(x)", "pi").
+    Với các biểu thức, phương trình, công thức toán/lý/hóa, hãy định dạng chuẩn LaTeX kẹp giữa cặp dấu $ (ví dụ: $y = x^2$, $\frac{a}{b}$, $\sqrt{x}$, $\sin(x)$).
     Cấu trúc mỗi câu hỏi trong mảng JSON:
     [
       {{
@@ -843,7 +843,7 @@ def generate_flashcards(topic, grade=None, subject=None, file_content=None, user
     2. Nếu nội dung yêu cầu là một bài học cụ thể (ví dụ "Bài 12", "Bài 5"), hãy tạo các flashcard bám sát trọng tâm kiến thức của bài học đó trong SGK môn {subject_display} {grade_display}.
 
     QUAN TRỌNG: Đầu ra PHẢI là một mảng JSON hợp lệ và DUY NHẤT. KHÔNG thêm bất kỳ văn bản hay markdown nào khác.
-    Với công thức toán học, viết dưới dạng văn bản thông thường (VD: "sin(x)", "cos(x)", "pi").
+    Với các biểu thức, phương trình, công thức toán/lý/hóa, hãy định dạng chuẩn LaTeX kẹp giữa cặp dấu $ (ví dụ: $y = x^2$, $\frac{a}{b}$, $\sqrt{x}$, $\sin(x)$).
     Cấu trúc:
     [
       {{
